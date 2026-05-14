@@ -155,3 +155,98 @@ class UpstoxClient:
         except Exception as e:
             logger.error(f"Exception during live order placement: {e}")
             return None
+
+    def get_option_chain(self, symbol: str, expiry_date: str = None) -> pl.DataFrame:
+        """
+        Fetches the option chain for a given symbol and optional expiry date.
+        Returns a flattened Polars DataFrame with columns:
+        instrument_key, type, strike, expiry, bid, ask, last_price
+        """
+        schema = {
+            "instrument_key": pl.Utf8,
+            "type": pl.Utf8,
+            "strike": pl.Float64,
+            "expiry": pl.Utf8,
+            "bid": pl.Float64,
+            "ask": pl.Float64,
+            "last_price": pl.Float64
+        }
+
+        instrument_key = self._get_instrument_token(symbol)
+        if not instrument_key:
+            logger.error(f"Could not find instrument key for {symbol}")
+            return pl.DataFrame(schema=schema)
+
+        url = "https://api.upstox.com/v2/option/chain"
+        headers = {
+            'Authorization': f'Bearer {self.access_token}',
+            'Accept': 'application/json'
+        }
+        params = {
+            "instrument_key": instrument_key
+        }
+        if expiry_date:
+            params["expiry_date"] = expiry_date
+
+        response = fetch_data_safe(requests.get, url, headers=headers, params=params, timeout=10)
+
+        if not response:
+            return pl.DataFrame(schema=schema)
+
+        if response.status_code != 200:
+            logger.error(f"Upstox API Error fetching option chain: {response.text}")
+            return pl.DataFrame(schema=schema)
+
+        data = response.json().get("data", [])
+
+        flattened_data = []
+        for item in data:
+            strike_price = item.get("strike_price")
+            expiry = item.get("expiry")
+
+            # Extract Call Options
+            if "call_options" in item:
+                ce = item["call_options"]
+                ce_market_data = ce.get("market_data", {})
+                flattened_data.append({
+                    "instrument_key": ce.get("instrument_key"),
+                    "type": "CE",
+                    "strike": strike_price,
+                    "expiry": expiry,
+                    "bid": ce_market_data.get("bid_price"),
+                    "ask": ce_market_data.get("ask_price"),
+                    "last_price": ce_market_data.get("ltp")
+                })
+
+            # Extract Put Options
+            if "put_options" in item:
+                pe = item["put_options"]
+                pe_market_data = pe.get("market_data", {})
+                flattened_data.append({
+                    "instrument_key": pe.get("instrument_key"),
+                    "type": "PE",
+                    "strike": strike_price,
+                    "expiry": expiry,
+                    "bid": pe_market_data.get("bid_price"),
+                    "ask": pe_market_data.get("ask_price"),
+                    "last_price": pe_market_data.get("ltp")
+                })
+
+        # Ensure return is a DataFrame with expected columns even if empty
+        if not flattened_data:
+            return pl.DataFrame(schema=schema)
+
+        df = pl.DataFrame(flattened_data)
+
+        # Ensure correct types
+        df = df.cast({
+            "instrument_key": pl.Utf8,
+            "type": pl.Utf8,
+            "strike": pl.Float64,
+            "expiry": pl.Utf8,
+            "bid": pl.Float64,
+            "ask": pl.Float64,
+            "last_price": pl.Float64
+        })
+
+        return df
