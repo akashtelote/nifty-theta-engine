@@ -5,7 +5,7 @@ import requests
 import time
 import gzip
 import io
-import pandas as pd
+import polars as pl
 from filelock import FileLock, Timeout
 
 from core.auth import authenticate_and_save_token
@@ -95,16 +95,18 @@ class UpstoxClient:
 
         try:
             # Read CSV and standardize
-            df = pd.read_csv(csv_path)
-            df.columns = df.columns.str.strip().str.lower()
+            df = pl.read_csv(csv_path)
+
+            # Clean column names
+            df = df.rename({col: col.strip().lower() for col in df.columns})
 
             # Look up the symbol
-            match = df[df['tradingsymbol'] == symbol]
-            if match.empty:
+            filtered_df = df.filter(pl.col("tradingsymbol") == symbol)
+            if filtered_df.height == 0:
                 logger.error(f"Symbol '{symbol}' not found in instruments master.")
                 return None
 
-            instrument_key = str(match.iloc[0]['instrument_key'])
+            instrument_key = str(filtered_df.select("instrument_key").item())
             return instrument_key
 
         except Exception as e:
