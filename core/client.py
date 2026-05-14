@@ -51,9 +51,9 @@ class UpstoxClient:
         Looks up the real instrument token from the Upstox NSE equities master file.
         Caches the file locally for 24 hours.
         """
-        csv_path = "data/nse_instruments.csv"
-        lock_path = "data/nse_instruments.csv.lock"
-        url = "https://assets.upstox.com/market-quote/instruments/exchange/NSE.csv.gz"
+        csv_path = "data/nse_fo_instruments.csv"
+        lock_path = "data/nse_fo_instruments.csv.lock"
+        url = "https://assets.upstox.com/market-quote/instruments/exchange/NSE_FO.csv.gz"
 
         # Check if file exists and is less than 24 hours old
         is_stale = True
@@ -73,7 +73,7 @@ class UpstoxClient:
                             is_stale = False
 
                     if is_stale:
-                        logger.info("Downloading Upstox NSE instruments master file...")
+                        logger.info("Downloading Upstox NSE F&O instruments master file...")
                         response = requests.get(url, timeout=15)
                         response.raise_for_status()
 
@@ -81,16 +81,16 @@ class UpstoxClient:
                         with gzip.GzipFile(fileobj=io.BytesIO(response.content)) as gz:
                             with open(csv_path, 'wb') as f:
                                 f.write(gz.read())
-                        logger.info("Successfully downloaded and saved nse_instruments.csv")
+                        logger.info("Successfully downloaded and saved nse_fo_instruments.csv")
             except Timeout:
-                logger.warning("Timeout acquiring lock for nse_instruments.csv. Will try to use existing file if available.")
+                logger.warning("Timeout acquiring lock for nse_fo_instruments.csv. Will try to use existing file if available.")
             except Exception as e:
-                logger.error(f"Failed to download or save NSE instruments file: {e}")
+                logger.error(f"Failed to download or save NSE F&O instruments file: {e}")
                 if not os.path.exists(csv_path):
                     return None
 
         if not os.path.exists(csv_path):
-            logger.error("NSE instruments file not found and could not be downloaded.")
+            logger.error("NSE F&O instruments file not found and could not be downloaded.")
             return None
 
         try:
