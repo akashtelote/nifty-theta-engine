@@ -113,12 +113,60 @@ class UpstoxClient:
             logger.error(f"Error parsing or reading NSE instruments file: {e}")
             return None
 
+    def get_market_quote_ltp(self, symbol: str) -> float | None:
+        """
+        Fetches the last traded price for the given symbol.
+        """
+        instrument_key = self._get_instrument_token(symbol)
+        if not instrument_key:
+            logger.error(f"Could not find instrument key for {symbol}")
+            return None
+
+        url = f"https://api.upstox.com/v2/market-quote/ltp"
+        headers = {
+            'Authorization': f'Bearer {self.access_token}',
+            'Accept': 'application/json'
+        }
+        params = {
+            "instrument_key": instrument_key
+        }
+
+        response = fetch_data_safe(requests.get, url, headers=headers, params=params, timeout=10)
+
+        if not response:
+            return None
+
+        if response.status_code != 200:
+            logger.error(f"Upstox API Error fetching LTP: {response.text}")
+            return None
+
+        data = response.json().get("data", {})
+        # Upstox returns data as: {"data": {"NSE_EQ|INE123456789": {"last_price": 123.45}}}
+        # We need to extract the last_price using the instrument_key
+        key_data = data.get(instrument_key, {})
+        last_price = key_data.get("last_price")
+
+        if last_price is not None:
+            return float(last_price)
+        return None
+
     def place_order(self, symbol: str, side: str, quantity: int, price: float, is_live: bool = False):
         """
         Places an order or routes a paper trade.
         """
+        instrument_key = self._get_instrument_token(symbol)
+        if not instrument_key:
+            logger.error(f"Could not find instrument key for {symbol}")
+            return None
+
+        return self.place_order_by_key(instrument_key, side, quantity, price, is_live)
+
+    def place_order_by_key(self, instrument_key: str, side: str, quantity: int, price: float, is_live: bool = False):
+        """
+        Places an order or routes a paper trade using an instrument key.
+        """
         if not is_live:
-            logger.info(f"Successfully routed PAPER trade: {side} {quantity} {symbol} @ ₹{price}")
+            logger.info(f"Successfully routed PAPER trade: {side} {quantity} for {instrument_key} @ ₹{price}")
             return "PAPER_ORDER_123"
 
         url = "https://api.upstox.com/v2/order/place"
@@ -135,7 +183,7 @@ class UpstoxClient:
             "validity": "DAY",
             "price": price,
             "trigger_price": 0.0,
-            "instrument_token": self._get_instrument_token(symbol),
+            "instrument_token": instrument_key,
             "order_type": "LIMIT",
             "transaction_type": side.upper()
         }
