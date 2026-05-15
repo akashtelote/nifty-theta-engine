@@ -186,3 +186,49 @@ class WheelStateMachine:
                 self._save_state()
             else:
                 logger.error("Failed to place order.")
+
+        elif current_stage == "STAGE_1_CSP":
+            logger.info(f"Executing daily cycle for {symbol} in STAGE_1_CSP state.")
+            active_position = self.state[symbol].get("active_position")
+            if not active_position:
+                logger.error(f"Active position missing for {symbol} in STAGE_1_CSP state. Resetting to IDLE.")
+                self.state[symbol]["current_stage"] = "IDLE"
+                self._save_state()
+                return
+
+            expiry_str = active_position.get("expiry")
+            try:
+                expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                logger.error(f"Invalid expiry date format for {symbol}: {expiry_str}")
+                return
+
+            if expiry_date != date.today():
+                logger.info("Holding position, expiry is not today.")
+                return
+
+            spot_price = self.client.get_market_quote_ltp(symbol)
+            if spot_price is None:
+                logger.warning(f"Failed to fetch LTP for {symbol} on expiry day. Aborting daily cycle.")
+                return
+
+            strike = active_position["strike"]
+            entry_price = active_position["entry_price"]
+
+            if spot_price > strike:
+                # Worthless Expiration (OTM)
+                profit = entry_price * quantity_shares
+                self.state[symbol]["realized_pnl"] += profit
+                self.state[symbol]["current_stage"] = "IDLE"
+                self.state[symbol]["active_position"] = None
+                logger.info(f"Put expired worthless for {symbol}. Profit: {profit}. New realized PnL: {self.state[symbol]['realized_pnl']}")
+            else:
+                # Assignment (ITM)
+                new_cost_basis = max(0.0, strike - entry_price)
+                self.state[symbol]["inventory"]["assigned_shares"] = quantity_shares
+                self.state[symbol]["inventory"]["average_cost_basis"] = new_cost_basis
+                self.state[symbol]["current_stage"] = "STAGE_2_CC"
+                self.state[symbol]["active_position"] = None
+                logger.info(f"Put assigned for {symbol}. Assigned shares: {quantity_shares}. New cost basis: {new_cost_basis}")
+
+            self._save_state()
