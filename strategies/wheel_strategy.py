@@ -80,6 +80,103 @@ class WheelStateMachine:
             }
             self._save_state()
 
+        elif current_stage == "STAGE_2_CC":
+            logger.info(f"Executing daily cycle for {symbol} in STAGE_2_CC state.")
+            active_position = self.state[symbol].get("active_position")
+
+            if active_position is not None:
+                logger.info(f"Holding active covered call for {symbol}, checking for expiry...")
+                return
+
+            # We need to sell a call
+            cost_basis = self.state[symbol]["inventory"]["average_cost_basis"]
+
+            spot_price = self.client.get_market_quote_ltp(symbol)
+            if spot_price is None:
+                logger.warning(f"Failed to fetch LTP for {symbol} in STAGE_2_CC. Aborting daily cycle.")
+                return
+
+            chain_df = self.client.get_option_chain(symbol)
+
+            target_call = self._select_target_call(chain_df, spot_price, cost_basis)
+            if target_call is None:
+                logger.warning(f"No valid calls found above cost basis for {symbol}, holding shares.")
+                return
+
+            instrument_key = target_call.get("instrument_key")
+            strike = target_call.get("strike")
+            expiry = target_call.get("expiry")
+            entry_price = target_call.get("bid") # using contract bid price for entry
+
+            if entry_price is None or entry_price == 0 or entry_price == 0.0:
+                logger.warning(f"Selected contract has no liquidity (Bid = 0). Aborting cycle.")
+                return
+
+            logger.info(f"Target Call selected: {strike} CE expiring on {expiry} for {symbol}. Bid price: {entry_price}")
+
+            order_id = self.client.place_order_by_key(instrument_key=instrument_key, side="SELL", quantity=quantity_shares, price=entry_price, is_live=is_live)
+
+            if order_id:
+                logger.info(f"Order placed successfully. Order ID: {order_id}")
+                self.state[symbol]["active_position"] = {
+                    "strike": strike,
+                    "expiry": expiry,
+                    "instrument_key": instrument_key,
+                    "entry_price": entry_price,
+                    "order_id": order_id
+                }
+                self._save_state()
+            else:
+                logger.error("Failed to place call order.")
+
+    def _select_target_call(self, chain_df: pl.DataFrame, spot_price: float, cost_basis: float, otm_pct: float = 0.05, min_days: int = 14, max_days: int = 35) -> dict | None:
+        if chain_df.is_empty():
+            return None
+
+        today = date.today()
+
+        df = chain_df.filter(pl.col("type") == "CE")
+
+        if df.is_empty():
+            return None
+
+        df = df.with_columns([
+            pl.col("expiry").str.strptime(pl.Date, "%Y-%m-%d", strict=False).alias("parsed_expiry")
+        ])
+
+        df = df.filter(pl.col("parsed_expiry").is_not_null())
+
+        if df.is_empty():
+            return None
+
+        df = df.with_columns([
+            (pl.col("parsed_expiry") - today).dt.total_days().alias("dte")
+        ])
+
+        df = df.filter((pl.col("dte") >= min_days) & (pl.col("dte") <= max_days))
+
+        if df.is_empty():
+            return None
+
+        # CRITICAL: strictly filter strike >= cost_basis
+        df = df.filter(pl.col("strike") >= cost_basis)
+
+        if df.is_empty():
+            return None
+
+        target_strike = max(spot_price * (1 + otm_pct), cost_basis)
+
+        df = df.with_columns([
+            (pl.col("strike") - target_strike).abs().alias("strike_diff")
+        ])
+
+        df = df.sort("strike_diff")
+
+        if df.is_empty():
+            return None
+
+        return df.row(0, named=True)
+
     def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, otm_pct: float = 0.10, min_days: int = 14, max_days: int = 35) -> dict | None:
         if chain_df.is_empty():
             return None
