@@ -1,25 +1,54 @@
 import logging
-from apscheduler.schedulers.blocking import BlockingScheduler
+import time
+import pytz
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+from strategies.wheel_strategy import WheelStateMachine
 
 logger = logging.getLogger(__name__)
 
-def run_daily_cycle(is_live=False):
-    logger.info("Step 1: Fetching latest daily market data...")
-    logger.info("Step 2: Evaluating 10/50 SMA Trend Strategy...")
-    logger.info(f"Step 3: Processing Signals... (Live Mode: {is_live})")
+TARGET_SYMBOLS = {
+    "RELIANCE": 250,
+    "HDFCBANK": 550,
+    "INFY": 400
+}
 
-def start_scheduler(is_live=False):
-    scheduler = BlockingScheduler(timezone='Asia/Kolkata')
+def _run_daily_wheel(is_live: bool = False):
+    logger.info(f"Starting daily wheel execution. (Live Mode: {is_live})")
+    wheel = WheelStateMachine()
 
-    scheduler.add_job(
-        run_daily_cycle,
-        'cron',
+    for symbol, quantity in TARGET_SYMBOLS.items():
+        try:
+            logger.info(f"Processing symbol: {symbol} with quantity: {quantity}")
+            wheel.execute_daily_cycle(symbol=symbol, quantity_shares=quantity, is_live=is_live)
+        except Exception as e:
+            logger.error(f"Error processing {symbol}: {e}", exc_info=True)
+
+    logger.info("Daily wheel execution completed.")
+
+def start_scheduler(is_live: bool = False):
+    tz = pytz.timezone('Asia/Kolkata')
+    scheduler = BackgroundScheduler(timezone=tz)
+
+    trigger = CronTrigger(
         day_of_week='mon-fri',
         hour=15,
         minute=15,
+        timezone=tz
+    )
+
+    scheduler.add_job(
+        _run_daily_wheel,
+        trigger=trigger,
         args=[is_live]
     )
 
     logger.info(f"Scheduler initialized. Bot is standing by for the 15:15 IST execution. (Live Mode: {is_live})")
-
     scheduler.start()
+
+    try:
+        while True:
+            time.sleep(60)
+    except KeyboardInterrupt:
+        logger.info("Keyboard interrupt received. Shutting down scheduler.")
+        scheduler.shutdown()
