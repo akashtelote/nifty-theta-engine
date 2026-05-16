@@ -80,55 +80,6 @@ class WheelStateMachine:
             }
             self._save_state()
 
-        elif current_stage == "STAGE_2_CC":
-            logger.info(f"Executing daily cycle for {symbol} in STAGE_2_CC state.")
-            active_position = self.state[symbol].get("active_position")
-
-            if active_position is not None:
-                logger.info(f"Holding active covered call for {symbol}, checking for expiry...")
-                return
-
-            # We need to sell a call
-            cost_basis = self.state[symbol]["inventory"]["average_cost_basis"]
-
-            spot_price = self.client.get_market_quote_ltp(symbol)
-            if spot_price is None:
-                logger.warning(f"Failed to fetch LTP for {symbol} in STAGE_2_CC. Aborting daily cycle.")
-                return
-
-            chain_df = self.client.get_option_chain(symbol)
-
-            target_call = self._select_target_call(chain_df, spot_price, cost_basis)
-            if target_call is None:
-                logger.warning(f"No valid calls found above cost basis for {symbol}, holding shares.")
-                return
-
-            instrument_key = target_call.get("instrument_key")
-            strike = target_call.get("strike")
-            expiry = target_call.get("expiry")
-            entry_price = target_call.get("bid") # using contract bid price for entry
-
-            if entry_price is None or entry_price == 0 or entry_price == 0.0:
-                logger.warning(f"Selected contract has no liquidity (Bid = 0). Aborting cycle.")
-                return
-
-            logger.info(f"Target Call selected: {strike} CE expiring on {expiry} for {symbol}. Bid price: {entry_price}")
-
-            order_id = self.client.place_order_by_key(instrument_key=instrument_key, side="SELL", quantity=quantity_shares, price=entry_price, is_live=is_live)
-
-            if order_id:
-                logger.info(f"Order placed successfully. Order ID: {order_id}")
-                self.state[symbol]["active_position"] = {
-                    "strike": strike,
-                    "expiry": expiry,
-                    "instrument_key": instrument_key,
-                    "entry_price": entry_price,
-                    "order_id": order_id
-                }
-                self._save_state()
-            else:
-                logger.error("Failed to place call order.")
-
     def _select_target_call(self, chain_df: pl.DataFrame, spot_price: float, cost_basis: float, otm_pct: float = 0.05, min_days: int = 14, max_days: int = 35) -> dict | None:
         if chain_df.is_empty():
             return None
@@ -329,3 +280,90 @@ class WheelStateMachine:
                 logger.info(f"Put assigned for {symbol}. Assigned shares: {quantity_shares}. New cost basis: {new_cost_basis}")
 
             self._save_state()
+
+        elif current_stage == "STAGE_2_CC":
+            logger.info(f"Executing daily cycle for {symbol} in STAGE_2_CC state.")
+            active_position = self.state[symbol].get("active_position")
+
+            if active_position is not None:
+                expiry_str = active_position.get("expiry")
+                try:
+                    expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
+                except (ValueError, TypeError):
+                    logger.error(f"Invalid expiry date format for {symbol}: {expiry_str}")
+                    return
+
+                if expiry_date != date.today():
+                    logger.info("Holding covered call, expiry is not today.")
+                    return
+
+                spot_price = self.client.get_market_quote_ltp(symbol)
+                if spot_price is None:
+                    logger.warning(f"Failed to fetch LTP for {symbol} on expiry day. Aborting daily cycle.")
+                    return
+
+                strike = active_position["strike"]
+                entry_price = active_position["entry_price"]
+
+                if spot_price <= strike:
+                    # Worthless Expiration (OTM)
+                    profit = entry_price * quantity_shares
+                    self.state[symbol]["realized_pnl"] += profit
+                    self.state[symbol]["active_position"] = None
+                    logger.info(f"Call expired worthless for {symbol}. Profit: {profit}. Shares retained. New realized PnL: {self.state[symbol]['realized_pnl']}")
+                else:
+                    # Assignment (ITM) - Shares called away
+                    capital_gains = (strike - self.state[symbol]["inventory"]["average_cost_basis"]) * quantity_shares
+                    premium_profit = entry_price * quantity_shares
+                    total_profit = capital_gains + premium_profit
+
+                    self.state[symbol]["realized_pnl"] += total_profit
+                    self.state[symbol]["inventory"]["assigned_shares"] = 0
+                    self.state[symbol]["inventory"]["average_cost_basis"] = 0.0
+                    self.state[symbol]["active_position"] = None
+                    self.state[symbol]["current_stage"] = "IDLE"
+                    logger.info(f"Shares called away for {symbol}. Total profit: {total_profit}. Cycle complete.")
+
+                self._save_state()
+                return
+
+            # We need to sell a call
+            cost_basis = self.state[symbol]["inventory"]["average_cost_basis"]
+
+            spot_price = self.client.get_market_quote_ltp(symbol)
+            if spot_price is None:
+                logger.warning(f"Failed to fetch LTP for {symbol} in STAGE_2_CC. Aborting daily cycle.")
+                return
+
+            chain_df = self.client.get_option_chain(symbol)
+
+            target_call = self._select_target_call(chain_df, spot_price, cost_basis)
+            if target_call is None:
+                logger.warning(f"No valid calls found above cost basis for {symbol}, holding shares.")
+                return
+
+            instrument_key = target_call.get("instrument_key")
+            strike = target_call.get("strike")
+            expiry = target_call.get("expiry")
+            entry_price = target_call.get("bid") # using contract bid price for entry
+
+            if entry_price is None or entry_price == 0 or entry_price == 0.0:
+                logger.warning(f"Selected contract has no liquidity (Bid = 0). Aborting cycle.")
+                return
+
+            logger.info(f"Target Call selected: {strike} CE expiring on {expiry} for {symbol}. Bid price: {entry_price}")
+
+            order_id = self.client.place_order_by_key(instrument_key=instrument_key, side="SELL", quantity=quantity_shares, price=entry_price, is_live=is_live)
+
+            if order_id:
+                logger.info(f"Order placed successfully. Order ID: {order_id}")
+                self.state[symbol]["active_position"] = {
+                    "strike": strike,
+                    "expiry": expiry,
+                    "instrument_key": instrument_key,
+                    "entry_price": entry_price,
+                    "order_id": order_id
+                }
+                self._save_state()
+            else:
+                logger.error("Failed to place call order.")
