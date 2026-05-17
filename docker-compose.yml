@@ -1,0 +1,13 @@
+version: "3.8"
+
+services:
+  upstox-wheel-bot:
+    build: .
+    container_name: upstox-wheel-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Kolkata
+    volumes:
+      - ./data:/app/data
