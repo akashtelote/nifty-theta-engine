@@ -4,6 +4,7 @@ import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from strategies.wheel_strategy import WheelStateMachine
+from core.notifier import Notifier
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ TARGET_SYMBOLS = {
 def _run_daily_wheel(is_live: bool = False):
     logger.info(f"Starting daily wheel execution. (Live Mode: {is_live})")
     wheel = WheelStateMachine()
+    notifier = Notifier()
 
     for symbol, quantity in TARGET_SYMBOLS.items():
         try:
@@ -23,6 +25,7 @@ def _run_daily_wheel(is_live: bool = False):
             wheel.execute_daily_cycle(symbol=symbol, quantity_shares=quantity, is_live=is_live)
         except Exception as e:
             logger.error(f"Error processing {symbol}: {e}", exc_info=True)
+            notifier.send_message(f"CRITICAL ERROR in Wheel Bot for {symbol}: {e}")
 
     logger.info("Daily wheel execution completed.")
 
