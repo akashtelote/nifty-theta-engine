@@ -9,7 +9,8 @@ class Notifier:
         self.webhook_url = WEBHOOK_URL
 
     def send_message(self, message: str):
-        if not self.webhook_url:
+        if self.webhook_url in (None, "", "your_webhook_url_here"):
+            logger.info("Webhook skipped: URL not configured.")
             return
 
         payload = {"content": message}
