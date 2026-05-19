@@ -144,15 +144,23 @@ class UpstoxClient:
             logger.error(f"Upstox API Error fetching LTP: {response.text}")
             return None
 
-        data = response.json().get("data", {})
-        # Upstox returns data as: {"data": {"NSE_EQ|INE123456789": {"last_price": 123.45}}}
-        # We need to extract the last_price using the instrument_key
-        key_data = data.get(instrument_key, {})
-        last_price = key_data.get("last_price")
+        try:
+            data = response.json().get("data", {})
+            if not data:
+                logger.error("API returned empty data dictionary for the requested symbol.")
+                return None
 
-        if last_price is not None:
-            return float(last_price)
-        return None
+            # Upstox returns data as: {"data": {"NSE_EQ:RELIANCE": {"last_price": 123.45}}}
+            # We dynamically extract the first value because we only request one symbol at a time
+            key_data = list(data.values())[0]
+            last_price = key_data.get("last_price")
+
+            if last_price is not None:
+                return float(last_price)
+            return None
+        except Exception as e:
+            logger.error(f"[ERROR] Failed to parse LTP: {e}", exc_info=True)
+            return None
 
     def place_order(self, symbol: str, side: str, quantity: int, price: float, is_live: bool = False):
         """
