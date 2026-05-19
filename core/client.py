@@ -53,7 +53,7 @@ class UpstoxClient:
         """
         csv_path = "data/nse_fo_instruments.csv"
         lock_path = "data/nse_fo_instruments.csv.lock"
-        url = "https://assets.upstox.com/market-quote/instruments/exchange/NSE_FO.csv.gz"
+        url = "https://assets.upstox.com/market-quote/instruments/exchange/NSE.csv.gz"
 
         # Check if file exists and is less than 24 hours old
         is_stale = True
