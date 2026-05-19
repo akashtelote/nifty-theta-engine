@@ -16,18 +16,18 @@ git pull
 
 # Teardown
 echo "Tearing down existing containers..."
-docker compose down
+podman compose down
 
 # Build
 echo "Building new image..."
-docker compose build
+podman compose build
 
 # Cleanup
 echo "Cleaning up dangling images..."
-docker image prune -f
+podman image prune -f
 
 # Launch
 echo "Launching bot in the background..."
-docker compose up -d
+podman compose up -d
 
 echo "Deployment complete."
