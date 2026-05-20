@@ -283,8 +283,8 @@ class UpstoxClient:
             "last_price": pl.Float64
         }
 
-        # Temporary local testing fallback for closed market hours
-        mock_expiry = (datetime.now() + timedelta(days=7)).strftime("%Y-%m-%d")
+        # Strict top-entry override: temporary local testing fallback for closed market hours
+        mock_expiry = (datetime.now() + timedelta(days=20)).strftime("%Y-%m-%d")
         mock_rows = []
         if symbol == "RELIANCE":
             # Spot is 2500. Generate strikes from 2200 to 2600
