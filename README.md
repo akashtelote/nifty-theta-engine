@@ -6,7 +6,7 @@ The bot can be deployed headlessly using Podman and Podman Compose. The default 
 
 ### Environment Setup
 
-*Note: You must have `podman-compose` installed on your host system. If you encounter a "compose provider failed" error when deploying, you can easily install the utility using `pip install podman-compose` (or `uv pip install podman-compose`).*
+*Note: If your local Podman installation throws a 'compose provider failed' error, you may need to install the companion package via `pip install podman-compose` or ensure a native compose binary is configured in your system PATH.*
 
 Before deploying the bot, you must create a `.env` file at the root level of the repository. This file must contain the following variables:
 - `UPSTOX_USER_ID`
@@ -70,3 +70,11 @@ After modifying the file, restart the container using the deployment script:
 ```bash
 ./deploy.sh
 ```
+
+### Troubleshooting
+
+**Visual Verification Note**
+In modern Podman versions, the bot will appear as a standalone Container named `upstox-wheel-bot`, not inside a combined Pod.
+
+**Network Conflict Note**
+If you switch from legacy compose to modern Podman updates, you might encounter a network label error (`incorrect label com.docker.compose.network`). To resolve this, run `podman network rm upstox-wheel-options_default` before executing `podman compose up -d`.
