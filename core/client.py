@@ -31,6 +31,7 @@ class UpstoxClient:
         If the token file is missing or invalid, it triggers authentication.
         """
         self.access_token = None
+        self.is_mock_market = str(os.getenv("MOCK_MARKET", "False")).lower() in ("true", "1", "yes")
         token_file = "data/token.json"
 
         try:
@@ -167,15 +168,16 @@ class UpstoxClient:
         Fetches the last traded price for the given symbol.
         """
         # Temporary local testing fallback for closed market hours
-        if symbol == "RELIANCE":
-            logger.info("Market closed/Testing mode. Injecting mock LTP for RELIANCE: 2500.0")
-            return 2500.0
-        elif symbol == "HDFCBANK":
-            logger.info("Market closed/Testing mode. Injecting mock LTP for HDFCBANK: 1500.0")
-            return 1500.0
-        elif symbol == "INFY":
-            logger.info("Market closed/Testing mode. Injecting mock LTP for INFY: 1600.0")
-            return 1600.0
+        if self.is_mock_market:
+            if symbol == "RELIANCE":
+                logger.info("Market closed/Testing mode. Injecting mock LTP for RELIANCE: 2500.0")
+                return 2500.0
+            elif symbol == "HDFCBANK":
+                logger.info("Market closed/Testing mode. Injecting mock LTP for HDFCBANK: 1500.0")
+                return 1500.0
+            elif symbol == "INFY":
+                logger.info("Market closed/Testing mode. Injecting mock LTP for INFY: 1600.0")
+                return 1600.0
 
         instrument_key = self._get_instrument_token(symbol)
         if not instrument_key:
@@ -284,24 +286,25 @@ class UpstoxClient:
         }
 
         # Strict top-entry override: temporary local testing fallback for closed market hours
-        mock_expiry = (datetime.now() + timedelta(days=20)).strftime("%Y-%m-%d")
-        mock_rows = []
-        if symbol == "RELIANCE":
-            # Spot is 2500. Generate strikes from 2200 to 2600
-            for strike in [2200, 2250, 2300, 2350, 2400, 2450, 2500, 2550]:
-                mock_rows.append({"instrument_key": f"NSE_FO|RELIANCE{strike}PE", "type": "PE", "strike": float(strike), "expiry": mock_expiry, "bid": 15.0 - 0.05, "ask": 15.0 + 0.05, "last_price": 15.0})
-        elif symbol == "HDFCBANK":
-            # Spot is 1500. Generate strikes from 1300 to 1600
-            for strike in [1300, 1340, 1360, 1380, 1400, 1440, 1500, 1540]:
-                mock_rows.append({"instrument_key": f"NSE_FO|HDFCBANK{strike}PE", "type": "PE", "strike": float(strike), "expiry": mock_expiry, "bid": 10.0 - 0.05, "ask": 10.0 + 0.05, "last_price": 10.0})
-        elif symbol == "INFY":
-            # Spot is 1600. Generate strikes from 1400 to 1700
-            for strike in [1400, 1440, 1460, 1480, 1500, 1540, 1600, 1640]:
-                mock_rows.append({"instrument_key": f"NSE_FO|INFY{strike}PE", "type": "PE", "strike": float(strike), "expiry": mock_expiry, "bid": 12.0 - 0.05, "ask": 12.0 + 0.05, "last_price": 12.0})
+        if self.is_mock_market:
+            mock_expiry = (datetime.now() + timedelta(days=20)).strftime("%Y-%m-%d")
+            mock_rows = []
+            if symbol == "RELIANCE":
+                # Spot is 2500. Generate strikes from 2200 to 2600
+                for strike in [2200, 2250, 2300, 2350, 2400, 2450, 2500, 2550]:
+                    mock_rows.append({"instrument_key": f"NSE_FO|RELIANCE{strike}PE", "type": "PE", "strike": float(strike), "expiry": mock_expiry, "bid": 15.0 - 0.05, "ask": 15.0 + 0.05, "last_price": 15.0})
+            elif symbol == "HDFCBANK":
+                # Spot is 1500. Generate strikes from 1300 to 1600
+                for strike in [1300, 1340, 1360, 1380, 1400, 1440, 1500, 1540]:
+                    mock_rows.append({"instrument_key": f"NSE_FO|HDFCBANK{strike}PE", "type": "PE", "strike": float(strike), "expiry": mock_expiry, "bid": 10.0 - 0.05, "ask": 10.0 + 0.05, "last_price": 10.0})
+            elif symbol == "INFY":
+                # Spot is 1600. Generate strikes from 1400 to 1700
+                for strike in [1400, 1440, 1460, 1480, 1500, 1540, 1600, 1640]:
+                    mock_rows.append({"instrument_key": f"NSE_FO|INFY{strike}PE", "type": "PE", "strike": float(strike), "expiry": mock_expiry, "bid": 12.0 - 0.05, "ask": 12.0 + 0.05, "last_price": 12.0})
 
-        if mock_rows:
-            logger.info(f"Market closed/Testing mode. Generating mock Option Chain matrix for {symbol}")
-            return pl.DataFrame(mock_rows, schema=schema)
+            if mock_rows:
+                logger.info(f"Market closed/Testing mode. Generating mock Option Chain matrix for {symbol}")
+                return pl.DataFrame(mock_rows, schema=schema)
 
         instrument_key = self._get_instrument_token(symbol)
         if not instrument_key:
