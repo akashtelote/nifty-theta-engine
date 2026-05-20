@@ -46,6 +46,50 @@ class UpstoxClient:
             logger.warning(f"Failed to read token file: {e}. Triggering authentication.")
             self.access_token = authenticate_and_save_token(force_refresh=False)
 
+    def _make_authenticated_request(self, method: str, url: str, **kwargs):
+        """
+        Centrally handles authenticated requests, adding headers, managing timeouts,
+        and providing inline self-healing (retry) if the token is expired (401).
+        """
+        headers = kwargs.pop("headers", {})
+        headers['Authorization'] = f'Bearer {self.access_token}'
+        if 'Accept' not in headers:
+            headers['Accept'] = 'application/json'
+
+        timeout = kwargs.pop("timeout", 15)
+
+        response = fetch_data_safe(requests.request, method, url, headers=headers, timeout=timeout, **kwargs)
+
+        if response and response.status_code == 401:
+            logger.warning("Access token rejected (401). Evicting token file and forcing re-authentication...")
+
+            # Safely delete the cached token file
+            token_file = "data/token.json"
+            try:
+                if os.path.exists(token_file):
+                    os.remove(token_file)
+            except (FileNotFoundError, OSError) as e:
+                logger.warning(f"Could not remove token file {token_file}: {e}")
+
+            # Invoke auth layer to pull a fresh token
+            try:
+                self.access_token = authenticate_and_save_token(force_refresh=True)
+            except Exception as e:
+                logger.error(f"Failed to fetch new token during self-healing: {e}")
+                return response
+
+            # Update headers with new token
+            headers['Authorization'] = f'Bearer {self.access_token}'
+
+            # Retry exactly one time
+            logger.info("Retrying request with fresh access token...")
+            retry_response = fetch_data_safe(requests.request, method, url, headers=headers, timeout=timeout, **kwargs)
+            if retry_response and retry_response.status_code != 200:
+                logger.error(f"Retry request failed with status {retry_response.status_code}")
+            return retry_response
+
+        return response
+
     def _get_instrument_token(self, symbol: str) -> str | None:
         """
         Looks up the real instrument token from the Upstox NSE equities master file.
@@ -138,15 +182,11 @@ class UpstoxClient:
             return None
 
         url = f"https://api.upstox.com/v2/market-quote/ltp"
-        headers = {
-            'Authorization': f'Bearer {self.access_token}',
-            'Accept': 'application/json'
-        }
         params = {
             "instrument_key": instrument_key
         }
 
-        response = fetch_data_safe(requests.get, url, headers=headers, params=params, timeout=10)
+        response = self._make_authenticated_request("GET", url, params=params, timeout=10)
 
         if not response:
             return None
@@ -195,8 +235,6 @@ class UpstoxClient:
         url = "https://api.upstox.com/v2/order/place"
 
         headers = {
-            'Authorization': f'Bearer {self.access_token}',
-            'Accept': 'application/json',
             'Content-Type': 'application/json'
         }
 
@@ -212,19 +250,20 @@ class UpstoxClient:
         }
 
         logger.info(f"DEBUG - Token snippet: {str(self.access_token)[:15]}...")
-        logger.info(f"DEBUG - Auth Header: {headers.get('Authorization')}")
+
+        response = self._make_authenticated_request("POST", url, headers=headers, json=payload, timeout=10)
+        if not response:
+            return None
+
+        if response.status_code != 200:
+            logger.error(f"Upstox API HTTP Error {response.status_code}: {response.text}")
+            return None
 
         try:
-            response = requests.post(url, headers=headers, json=payload)
-            if response.status_code != 200:
-                logger.error(f"Upstox API HTTP Error {response.status_code}: {response.text}")
-                return None
-
             data = response.json()
             return data.get("data", {}).get("order_id")
-
         except Exception as e:
-            logger.error(f"Exception during live order placement: {e}")
+            logger.error(f"Exception parsing live order placement response: {e}")
             return None
 
     def get_option_chain(self, symbol: str, expiry_date: str = None) -> pl.DataFrame:
@@ -249,17 +288,13 @@ class UpstoxClient:
             return pl.DataFrame(schema=schema)
 
         url = "https://api.upstox.com/v2/option/chain"
-        headers = {
-            'Authorization': f'Bearer {self.access_token}',
-            'Accept': 'application/json'
-        }
         params = {
             "instrument_key": instrument_key
         }
         if expiry_date:
             params["expiry_date"] = expiry_date
 
-        response = fetch_data_safe(requests.get, url, headers=headers, params=params, timeout=10)
+        response = self._make_authenticated_request("GET", url, params=params, timeout=10)
 
         if not response:
             return pl.DataFrame(schema=schema)
