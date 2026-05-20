@@ -141,7 +141,7 @@ class UpstoxClient:
             return None
 
         if response.status_code != 200:
-            logger.error(f"Upstox API Error fetching LTP: {response.text}")
+            logger.error(f"Upstox API HTTP Error {response.status_code}: {response.text}")
             return None
 
         try:
@@ -206,7 +206,7 @@ class UpstoxClient:
         try:
             response = requests.post(url, headers=headers, json=payload)
             if response.status_code != 200:
-                logger.error(f"Upstox API Error: {response.text}")
+                logger.error(f"Upstox API HTTP Error {response.status_code}: {response.text}")
                 return None
 
             data = response.json()
@@ -254,7 +254,7 @@ class UpstoxClient:
             return pl.DataFrame(schema=schema)
 
         if response.status_code != 200:
-            logger.error(f"Upstox API Error fetching option chain: {response.text}")
+            logger.error(f"Upstox API HTTP Error {response.status_code}: {response.text}")
             return pl.DataFrame(schema=schema)
 
         data = response.json().get("data", [])
