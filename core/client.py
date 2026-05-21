@@ -20,8 +20,11 @@ def fetch_data_safe(func, *args, **kwargs):
     """
     try:
         return func(*args, **kwargs)
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network Exception during Upstox API call: {e}", exc_info=True)
+        return None
     except Exception as e:
-        logger.warning(f"Error or timeout during API call {func.__name__}: {e}")
+        logger.error(f"Unexpected programmatic error in request wrapper: {e}", exc_info=True)
         return None
 
 class UpstoxClient:
@@ -76,8 +79,11 @@ class UpstoxClient:
             # Invoke auth layer to pull a fresh token
             try:
                 self.access_token = authenticate_and_save_token(force_refresh=True)
+                if not self.access_token:
+                    logger.error("authenticate_and_save_token returned None/empty token. Self-healing failed.")
+                    return response
             except Exception as e:
-                logger.error(f"Failed to fetch new token during self-healing: {e}")
+                logger.error(f"Failed to fetch new token during self-healing: {e}", exc_info=True)
                 return response
 
             # Update headers with new token
@@ -199,6 +205,7 @@ class UpstoxClient:
             return None
 
         try:
+            logger.info(f"Raw API Response for {symbol}: {response.text}")
             data = response.json().get("data", {})
             if not data:
                 logger.warning(f"Upstox API returned an empty data dictionary for {instrument_key}. This is expected if running outside of Indian market hours (9:15 AM - 3:30 PM IST).")
@@ -211,6 +218,8 @@ class UpstoxClient:
 
             if last_price is not None:
                 return float(last_price)
+
+            logger.error(f"last_price evaluated to None for {symbol}. Available keys in key_data: {list(key_data.keys())}. Full key_data: {key_data}")
             return None
         except Exception as e:
             logger.error(f"[ERROR] Failed to parse LTP: {e}", exc_info=True)
