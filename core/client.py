@@ -205,7 +205,6 @@ class UpstoxClient:
             return None
 
         try:
-            logger.info(f"Raw API Response for {symbol}: {response.text}")
             data = response.json().get("data", {})
             if not data:
                 logger.warning(f"Upstox API returned an empty data dictionary for {instrument_key}. This is expected if running outside of Indian market hours (9:15 AM - 3:30 PM IST).")
@@ -341,7 +340,7 @@ class UpstoxClient:
                     try:
                         exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
                         dte = (exp_date - today).days
-                        if 14 <= dte <= 35:
+                        if 10 <= dte <= 42:
                             target_expiry = exp_str
                             break
                     except ValueError:
@@ -351,7 +350,7 @@ class UpstoxClient:
                     logger.info(f"Resolved optimal expiry date for {symbol}: {target_expiry}")
                     expiry_date = target_expiry
                 else:
-                    logger.warning(f"No suitable expiry found for {symbol} within 14-35 DTE window.")
+                    logger.warning(f"No suitable expiry found for {symbol} within 10-42 DTE window.")
                     return pl.DataFrame(schema=schema)
             except Exception as e:
                 logger.error(f"Error parsing option contracts for {symbol}: {e}", exc_info=True)

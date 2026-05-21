@@ -82,7 +82,7 @@ class WheelStateMachine:
             }
             self._save_state()
 
-    def _select_target_call(self, chain_df: pl.DataFrame, spot_price: float, cost_basis: float, otm_pct: float = 0.05, min_days: int = 14, max_days: int = 35) -> dict | None:
+    def _select_target_call(self, chain_df: pl.DataFrame, spot_price: float, cost_basis: float, otm_pct: float = 0.05, min_days: int = 10, max_days: int = 42) -> dict | None:
         if chain_df.is_empty():
             return None
 
@@ -130,7 +130,7 @@ class WheelStateMachine:
 
         return df.row(0, named=True)
 
-    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, otm_pct: float = 0.10, min_days: int = 14, max_days: int = 35) -> dict | None:
+    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, otm_pct: float = 0.10, min_days: int = 10, max_days: int = 42) -> dict | None:
         if chain_df.is_empty():
             return None
 
