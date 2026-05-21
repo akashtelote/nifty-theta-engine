@@ -65,7 +65,7 @@ class UpstoxClient:
 
         response = fetch_data_safe(requests.request, method, url, headers=headers, timeout=timeout, **kwargs)
 
-        if response and response.status_code == 401:
+        if response is not None and response.status_code == 401:
             logger.warning("Access token rejected (401). Evicting token file and forcing re-authentication...")
 
             # Safely delete the cached token file
@@ -320,12 +320,48 @@ class UpstoxClient:
             logger.error(f"Could not find instrument key for {symbol}")
             return pl.DataFrame(schema=schema)
 
+        if not expiry_date:
+            contracts_url = "https://api.upstox.com/v2/option/contract"
+            contract_params = {"instrument_key": instrument_key}
+            contract_response = self._make_authenticated_request("GET", contracts_url, params=contract_params, timeout=10)
+
+            if contract_response is None or contract_response.status_code != 200:
+                logger.error(f"Failed to fetch option contracts for {symbol}.")
+                return pl.DataFrame(schema=schema)
+
+            try:
+                contract_data = contract_response.json().get("data", [])
+                unique_expiries = {item.get("expiry") for item in contract_data if item.get("expiry")}
+                sorted_expiries = sorted(list(unique_expiries))
+
+                target_expiry = None
+                today = datetime.now().date()
+
+                for exp_str in sorted_expiries:
+                    try:
+                        exp_date = datetime.strptime(exp_str, "%Y-%m-%d").date()
+                        dte = (exp_date - today).days
+                        if 14 <= dte <= 35:
+                            target_expiry = exp_str
+                            break
+                    except ValueError:
+                        continue
+
+                if target_expiry:
+                    logger.info(f"Resolved optimal expiry date for {symbol}: {target_expiry}")
+                    expiry_date = target_expiry
+                else:
+                    logger.warning(f"No suitable expiry found for {symbol} within 14-35 DTE window.")
+                    return pl.DataFrame(schema=schema)
+            except Exception as e:
+                logger.error(f"Error parsing option contracts for {symbol}: {e}", exc_info=True)
+                return pl.DataFrame(schema=schema)
+
         url = "https://api.upstox.com/v2/option/chain"
         params = {
-            "instrument_key": instrument_key
+            "instrument_key": instrument_key,
+            "expiry_date": expiry_date
         }
-        if expiry_date:
-            params["expiry_date"] = expiry_date
 
         response = self._make_authenticated_request("GET", url, params=params, timeout=10)
 
