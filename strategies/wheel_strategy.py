@@ -192,7 +192,7 @@ class WheelStateMachine:
             if spot_price is None:
                 msg = f"Failed to fetch LTP for {symbol}. Aborting daily cycle."
                 logger.warning(msg)
-                self.notifier.send_message(msg)
+                self.notifier.send_notification(title="LTP Fetch Failed", message=msg, level="WARNING")
                 return
 
             chain_df = self.client.get_option_chain(symbol)
@@ -210,7 +210,7 @@ class WheelStateMachine:
             if entry_price is None or entry_price == 0:
                 msg = f"Target put has no valid bid price for {symbol}. Aborting."
                 logger.warning(msg)
-                self.notifier.send_message(msg)
+                self.notifier.send_notification(title="Missing Liquidity", message=msg, level="WARNING")
                 return
 
             logger.info(f"Target selected: {strike} PE expiring on {expiry} for {symbol}. Bid price: {entry_price}")
@@ -230,7 +230,7 @@ class WheelStateMachine:
             if order_id:
                 msg = f"Order placed successfully for {symbol}. STAGE_1_CSP entry: {strike} PE expiring on {expiry} at {entry_price}."
                 logger.info(msg)
-                self.notifier.send_message(msg)
+                self.notifier.send_notification(title="Order Placed", message=msg, level="INFO")
                 self.state[symbol]["current_stage"] = "STAGE_1_CSP"
                 self.state[symbol]["active_position"] = {
                     "strike": strike,
@@ -267,7 +267,7 @@ class WheelStateMachine:
             if spot_price is None:
                 msg = f"Failed to fetch LTP for {symbol} on expiry day. Aborting daily cycle."
                 logger.warning(msg)
-                self.notifier.send_message(msg)
+                self.notifier.send_notification(title="LTP Fetch Failed", message=msg, level="WARNING")
                 return
 
             strike = active_position["strike"]
@@ -281,7 +281,7 @@ class WheelStateMachine:
                 self.state[symbol]["active_position"] = None
                 msg = f"Put expired worthless for {symbol}. Profit: {profit}. New realized PnL: {self.state[symbol]['realized_pnl']}"
                 logger.info(msg)
-                self.notifier.send_message(msg)
+                self.notifier.send_notification(title="Put Expired Worthless", message=msg, level="INFO")
             else:
                 # Assignment (ITM)
                 new_cost_basis = max(0.0, strike - entry_price)
@@ -291,7 +291,7 @@ class WheelStateMachine:
                 self.state[symbol]["active_position"] = None
                 msg = f"Put assigned for {symbol}. Assigned shares: {quantity_shares}. New cost basis: {new_cost_basis}"
                 logger.info(msg)
-                self.notifier.send_message(msg)
+                self.notifier.send_notification(title="Put Assigned", message=msg, level="INFO")
 
             self._save_state()
 
@@ -315,7 +315,7 @@ class WheelStateMachine:
                 if spot_price is None:
                     msg = f"Failed to fetch LTP for {symbol} on expiry day. Aborting daily cycle."
                     logger.warning(msg)
-                    self.notifier.send_message(msg)
+                    self.notifier.send_notification(title="LTP Fetch Failed", message=msg, level="WARNING")
                     return
 
                 strike = active_position["strike"]
@@ -328,7 +328,7 @@ class WheelStateMachine:
                     self.state[symbol]["active_position"] = None
                     msg = f"Call expired worthless for {symbol}. Profit: {profit}. Shares retained. New realized PnL: {self.state[symbol]['realized_pnl']}"
                     logger.info(msg)
-                    self.notifier.send_message(msg)
+                    self.notifier.send_notification(title="Call Expired Worthless", message=msg, level="INFO")
                 else:
                     # Assignment (ITM) - Shares called away
                     capital_gains = (strike - self.state[symbol]["inventory"]["average_cost_basis"]) * quantity_shares
@@ -342,7 +342,7 @@ class WheelStateMachine:
                     self.state[symbol]["current_stage"] = "IDLE"
                     msg = f"Shares called away for {symbol}. Total profit: {total_profit}. Cycle complete."
                     logger.info(msg)
-                    self.notifier.send_message(msg)
+                    self.notifier.send_notification(title="Shares Called Away", message=msg, level="INFO")
 
                 self._save_state()
                 return
@@ -354,7 +354,7 @@ class WheelStateMachine:
             if spot_price is None:
                 msg = f"Failed to fetch LTP for {symbol} in STAGE_2_CC. Aborting daily cycle."
                 logger.warning(msg)
-                self.notifier.send_message(msg)
+                self.notifier.send_notification(title="LTP Fetch Failed", message=msg, level="WARNING")
                 return
 
             chain_df = self.client.get_option_chain(symbol)
@@ -372,7 +372,7 @@ class WheelStateMachine:
             if entry_price is None or entry_price == 0 or entry_price == 0.0:
                 msg = f"Selected contract has no liquidity (Bid = 0) for {symbol}. Aborting cycle."
                 logger.warning(msg)
-                self.notifier.send_message(msg)
+                self.notifier.send_notification(title="Missing Liquidity", message=msg, level="WARNING")
                 return
 
             logger.info(f"Target Call selected: {strike} CE expiring on {expiry} for {symbol}. Bid price: {entry_price}")
@@ -382,7 +382,7 @@ class WheelStateMachine:
             if order_id:
                 msg = f"Order placed successfully for {symbol}. STAGE_2_CC entry: {strike} CE expiring on {expiry} at {entry_price}."
                 logger.info(msg)
-                self.notifier.send_message(msg)
+                self.notifier.send_notification(title="Order Placed", message=msg, level="INFO")
                 self.state[symbol]["active_position"] = {
                     "strike": strike,
                     "expiry": expiry,

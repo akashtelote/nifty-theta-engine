@@ -25,7 +25,11 @@ def _run_daily_wheel(is_live: bool = False):
             wheel.execute_daily_cycle(symbol=symbol, quantity_shares=quantity, is_live=is_live)
         except Exception as e:
             logger.error(f"Error processing {symbol}: {e}", exc_info=True)
-            notifier.send_message(f"CRITICAL ERROR in Wheel Bot for {symbol}: {e}")
+            notifier.send_notification(
+                title="Critical Daily Wheel Error",
+                message=f"CRITICAL ERROR in Wheel Bot for {symbol}: {e}",
+                level="ERROR"
+            )
 
     logger.info("Daily wheel execution completed.")
 
