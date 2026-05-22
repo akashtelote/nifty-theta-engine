@@ -83,7 +83,7 @@ class WheelStateMachine:
             }
             self._save_state()
 
-    def _select_target_call(self, chain_df: pl.DataFrame, spot_price: float, cost_basis: float, otm_pct: float = 0.05, min_days: int = 10, max_days: int = 42) -> dict | None:
+    def _select_target_call(self, chain_df: pl.DataFrame, spot_price: float, cost_basis: float, min_days: int = 10, max_days: int = 42) -> dict | None:
         if chain_df.is_empty():
             return None
 
@@ -118,7 +118,24 @@ class WheelStateMachine:
         if df.is_empty():
             return None
 
+        current_vix = self.client.get_india_vix()
+        if current_vix is None:
+            current_vix = 15.0
+
+        if current_vix < 13.0:
+            otm_pct = 0.06
+        elif 13.0 <= current_vix <= 18.0:
+            otm_pct = 0.10
+        else:
+            otm_pct = 0.15
+
         target_strike = max(spot_price * (1 + otm_pct), cost_basis)
+
+        # Filter to ensure strikes are strictly greater than or equal to target_strike
+        df = df.filter(pl.col("strike") >= target_strike)
+
+        if df.is_empty():
+            return None
 
         df = df.with_columns([
             (pl.col("strike") - target_strike).abs().alias("strike_diff")
@@ -131,7 +148,7 @@ class WheelStateMachine:
 
         return df.row(0, named=True)
 
-    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, otm_pct: float = 0.10, min_days: int = 10, max_days: int = 42) -> dict | None:
+    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, min_days: int = 10, max_days: int = 42) -> dict | None:
         if chain_df.is_empty():
             return None
 
@@ -166,7 +183,24 @@ class WheelStateMachine:
         if df.is_empty():
             return None
 
+        current_vix = self.client.get_india_vix()
+        if current_vix is None:
+            current_vix = 15.0
+
+        if current_vix < 13.0:
+            otm_pct = 0.06
+        elif 13.0 <= current_vix <= 18.0:
+            otm_pct = 0.10
+        else:
+            otm_pct = 0.15
+
         target_strike = spot_price * (1 - otm_pct)
+
+        # Filter to ensure strikes are strictly less than or equal to target_strike
+        df = df.filter(pl.col("strike") <= target_strike)
+
+        if df.is_empty():
+            return None
 
         # Find closest strike
         df = df.with_columns([
