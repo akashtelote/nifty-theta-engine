@@ -499,3 +499,24 @@ class UpstoxClient:
         })
 
         return df
+
+    def cancel_order(self, order_id: str) -> bool:
+            """
+            Cancels an open order on the Upstox exchange.
+            """
+            if self.is_mock_market or order_id == "PAPER_ORDER_123":
+                logger.info(f"PAPER TRADE: Successfully cancelled pending order {order_id}")
+                return True
+
+            url = "https://api.upstox.com/v2/order/cancel"
+            params = {"order_id": order_id}
+
+            logger.info(f"Attempting to cancel pending LIMIT order: {order_id}")
+            response = self._make_authenticated_request("DELETE", url, params=params, timeout=10)
+            
+            if not response or response.status_code != 200:
+                logger.error(f"CRITICAL: Failed to cancel order {order_id}. Manual intervention required!")
+                return False
+
+            logger.info(f"Successfully cancelled order {order_id} on the exchange.")
+            return True
