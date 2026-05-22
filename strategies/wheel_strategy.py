@@ -289,19 +289,87 @@ class WheelStateMachine:
                 logger.error(f"Invalid expiry date format for {symbol}: {expiry_str}")
                 return
 
-            if expiry_date != date.today():
-                logger.info("Holding position, expiry is not today.")
-                return
+            dte = (expiry_date - date.today()).days
 
             spot_price = self.client.get_market_quote_ltp(symbol)
             if spot_price is None:
-                msg = f"Failed to fetch LTP for {symbol} on expiry day. Aborting daily cycle."
+                msg = f"Failed to fetch LTP for {symbol}. Aborting daily cycle."
                 logger.warning(msg)
                 self.notifier.send_notification(title="LTP Fetch Failed", message=msg, level="WARNING")
                 return
 
             strike = active_position["strike"]
             entry_price = active_position["entry_price"]
+            instrument_key = active_position["instrument_key"]
+
+            # Defensive Trigger
+            if dte <= 3 and spot_price <= strike:
+                msg = f"[DEFENSE] Position for {symbol} is ITM with only {dte} days to expiry. Initiating defensive buy-back..."
+                logger.warning(msg)
+                self.notifier.send_notification(title="Defensive Roll Triggered", message=msg, level="WARNING")
+
+                df = self.client.get_option_chain(symbol, expiry_date=expiry_str)
+                contract_df = df.filter(pl.col("instrument_key") == instrument_key)
+
+                if contract_df.is_empty():
+                    logger.error(f"Could not find contract {instrument_key} in option chain for defensive roll.")
+                    return
+
+                contract_row = contract_df.row(0, named=True)
+                buy_price = contract_row.get("ask")
+
+                if buy_price is None or buy_price == 0.0:
+                    buy_price = contract_row.get("last_price")
+
+                if buy_price is None or buy_price == 0.0:
+                    logger.error(f"No valid price (Ask or Last) found for {instrument_key} to buy back. Aborting.")
+                    return
+
+                logger.info(f"Attempting to buy back {instrument_key} at {buy_price}")
+                order_id = self.client.place_order_by_key(
+                    instrument_key=instrument_key,
+                    side="BUY",
+                    quantity=quantity_shares,
+                    price=buy_price,
+                    is_live=is_live
+                )
+
+                if order_id:
+                    order_filled = False
+                    for _ in range(3):
+                        time.sleep(5)
+                        status = self.client.get_order_status(order_id)
+                        if status == "complete":
+                            order_filled = True
+                            break
+                        elif status in ("rejected", "cancelled"):
+                            abort_msg = f"Defensive order {order_id} was {status} for {symbol}. Aborting defensive roll."
+                            logger.warning(abort_msg)
+                            self.notifier.send_notification(title=f"Order {status.capitalize()}", message=abort_msg, level="WARNING")
+                            return
+
+                    if not order_filled:
+                        self.client.cancel_order(order_id)
+                        timeout_msg = f"Defensive order {order_id} timed out as pending limit order for {symbol}. Order cancelled. Aborting defensive roll."
+                        logger.warning(timeout_msg)
+                        self.notifier.send_notification(title="Order Timeout", message=timeout_msg, level="WARNING")
+                        return
+
+                    success_msg = f"Defensive buy-back completed successfully for {symbol}. Resetting state to IDLE."
+                    logger.info(success_msg)
+                    self.notifier.send_notification(title="Defensive Buy-Back Complete", message=success_msg, level="INFO")
+
+                    self.state[symbol]["current_stage"] = "IDLE"
+                    self.state[symbol]["active_position"] = None
+                    self._save_state()
+                    return
+                else:
+                    logger.error(f"Failed to place defensive buy order for {symbol}.")
+                    return
+
+            if expiry_date != date.today():
+                logger.info("Holding position...")
+                return
 
             if spot_price > strike:
                 # Worthless Expiration (OTM)
