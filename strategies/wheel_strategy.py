@@ -1,7 +1,6 @@
 import time
-import json
+import sqlite3
 import os
-from filelock import FileLock, Timeout
 import logging
 from datetime import datetime, date
 import polars as pl
@@ -14,56 +13,131 @@ class WheelStateMachine:
     def __init__(self):
         """
         Initializes the Wheel Strategy State Machine.
-        Safely loads or creates the data/wheel_state.json file to prevent
+        Safely loads or creates the data/wheel_state.db database to prevent
         race conditions during concurrent/daily executions.
         """
-        self.state_file = "data/wheel_state.json"
-        self.lock_file = "data/wheel_state.json.lock"
+        self.db_file = "data/wheel_state.db"
 
         # Ensure data directory exists
-        os.makedirs(os.path.dirname(self.state_file), exist_ok=True)
+        os.makedirs(os.path.dirname(self.db_file), exist_ok=True)
 
+        self._initialize_db()
         self.state = self._load_state()
         self.client = UpstoxClient()
         self.notifier = Notifier()
 
+    def _initialize_db(self):
+        """
+        Initializes the SQLite database and creates the wheel_state table if it doesn't exist.
+        """
+        try:
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS wheel_state (
+                    symbol TEXT PRIMARY KEY,
+                    current_stage TEXT,
+                    instrument_key TEXT,
+                    strike_price REAL,
+                    expiry TEXT,
+                    trade_date TEXT,
+                    entry_price REAL,
+                    order_id TEXT,
+                    assigned_shares INTEGER,
+                    average_cost_basis REAL,
+                    realized_pnl REAL
+                )
+            ''')
+            conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Error initializing database: {e}")
+        finally:
+            if conn:
+                conn.close()
+
     def _load_state(self) -> dict:
         """
-        Safely loads state from the JSON file using FileLock.
-        If the file doesn't exist, initializes an empty state {}.
+        Loads state from the SQLite database and parses it into the nested dictionary format.
         """
+        state = {}
         try:
-            with FileLock(self.lock_file, timeout=10):
-                if not os.path.exists(self.state_file):
-                    logger.info(f"State file {self.state_file} not found. Initializing empty state.")
-                    state = {}
-                    with open(self.state_file, 'w') as f:
-                        json.dump(state, f, indent=4)
-                    return state
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM wheel_state")
+            rows = cursor.fetchall()
+            for row in rows:
+                (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
+                 entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl) = row
 
-                with open(self.state_file, 'r') as f:
-                    try:
-                        return json.load(f)
-                    except json.JSONDecodeError:
-                        logger.error(f"State file {self.state_file} is corrupted. Re-initializing empty state.")
-                        state = {}
-                        with open(self.state_file, 'w') as f:
-                            json.dump(state, f, indent=4)
-                        return state
-        except Timeout:
-            logger.error("Timeout acquiring lock for wheel state file.")
-            return {}
+                state[symbol] = {
+                    "current_stage": current_stage,
+                    "active_position": None if instrument_key is None else {
+                        "instrument_key": instrument_key,
+                        "strike": strike_price,
+                        "expiry": expiry,
+                        "entry_price": entry_price,
+                        "order_id": order_id
+                    },
+                    "inventory": {
+                        "assigned_shares": assigned_shares if assigned_shares is not None else 0,
+                        "average_cost_basis": average_cost_basis if average_cost_basis is not None else 0.0
+                    },
+                    "realized_pnl": realized_pnl if realized_pnl is not None else 0.0
+                }
+        except sqlite3.Error as e:
+            logger.error(f"Error loading state from database: {e}")
+        finally:
+            if 'conn' in locals() and conn:
+                conn.close()
+        return state
 
-    def _save_state(self):
+    def _save_state(self, symbol: str):
         """
-        Safely saves the current state to the JSON file using FileLock.
+        Saves the state for a specific symbol to the SQLite database.
         """
+        symbol_state = self.state.get(symbol)
+        if not symbol_state:
+            return
+
+        current_stage = symbol_state.get("current_stage", "IDLE")
+        active_position = symbol_state.get("active_position")
+        inventory = symbol_state.get("inventory", {})
+        realized_pnl = symbol_state.get("realized_pnl", 0.0)
+
+        assigned_shares = inventory.get("assigned_shares", 0)
+        average_cost_basis = inventory.get("average_cost_basis", 0.0)
+
+        if active_position:
+            instrument_key = active_position.get("instrument_key")
+            strike_price = active_position.get("strike")
+            expiry = active_position.get("expiry")
+            entry_price = active_position.get("entry_price")
+            order_id = active_position.get("order_id")
+            trade_date = date.today().isoformat()
+        else:
+            instrument_key = None
+            strike_price = None
+            expiry = None
+            entry_price = None
+            order_id = None
+            trade_date = None
+
         try:
-            with FileLock(self.lock_file, timeout=10):
-                with open(self.state_file, 'w') as f:
-                    json.dump(self.state, f, indent=4)
-        except Timeout:
-            logger.error("Timeout acquiring lock to save wheel state file.")
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO wheel_state
+                (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
+                 entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
+                  entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl))
+            conn.commit()
+        except sqlite3.Error as e:
+            logger.error(f"Error saving state to database for {symbol}: {e}")
+        finally:
+            if 'conn' in locals() and conn:
+                conn.close()
 
     def ensure_symbol_state(self, symbol: str):
         """
@@ -81,7 +155,7 @@ class WheelStateMachine:
                 },
                 "realized_pnl": 0.0
             }
-            self._save_state()
+            self._save_state(symbol)
 
     def _select_target_call(self, chain_df: pl.DataFrame, spot_price: float, cost_basis: float, min_days: int = 10, max_days: int = 42) -> dict | None:
         if chain_df.is_empty():
@@ -215,7 +289,7 @@ class WheelStateMachine:
         return df.row(0, named=True)
 
     def execute_daily_cycle(self, symbol: str, quantity_shares: int, is_live: bool = False):
-        # Reload state using FileLock before proceeding
+        # Reload state from DB before proceeding
         self.state = self._load_state()
         self.ensure_symbol_state(symbol)
 
@@ -303,7 +377,7 @@ class WheelStateMachine:
                     "entry_price": entry_price,
                     "order_id": order_id
                 }
-                self._save_state()
+                self._save_state(symbol)
             else:
                 logger.error("Failed to place order.")
 
@@ -313,7 +387,7 @@ class WheelStateMachine:
             if not active_position:
                 logger.error(f"Active position missing for {symbol} in STAGE_1_CSP state. Resetting to IDLE.")
                 self.state[symbol]["current_stage"] = "IDLE"
-                self._save_state()
+                self._save_state(symbol)
                 return
 
             expiry_str = active_position.get("expiry")
@@ -395,7 +469,7 @@ class WheelStateMachine:
 
                     self.state[symbol]["current_stage"] = "IDLE"
                     self.state[symbol]["active_position"] = None
-                    self._save_state()
+                    self._save_state(symbol)
                     return
                 else:
                     logger.error(f"Failed to place defensive buy order for {symbol}.")
@@ -425,7 +499,7 @@ class WheelStateMachine:
                 logger.info(msg)
                 self.notifier.send_notification(title="Put Assigned", message=msg, level="INFO")
 
-            self._save_state()
+            self._save_state(symbol)
 
         elif current_stage == "STAGE_2_CC":
             logger.info(f"Executing daily cycle for {symbol} in STAGE_2_CC state.")
@@ -476,7 +550,7 @@ class WheelStateMachine:
                     logger.info(msg)
                     self.notifier.send_notification(title="Shares Called Away", message=msg, level="INFO")
 
-                self._save_state()
+                self._save_state(symbol)
                 return
 
             # We need to sell a call
@@ -542,6 +616,6 @@ class WheelStateMachine:
                     "entry_price": entry_price,
                     "order_id": order_id
                 }
-                self._save_state()
+                self._save_state(symbol)
             else:
                 logger.error("Failed to place call order.")
