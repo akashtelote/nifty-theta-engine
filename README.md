@@ -1,80 +1,90 @@
-# upstox-wheel-options
+PART 1: CODEBASE WIKI
+Internal Architecture & Core Modules
+main.py
+The primary entry point of the trading bot, utilizing argparse to provide a unified Command Line Interface (CLI). It structures execution into distinct subcommands:
 
-## Deployment
+auth: Generates or refreshes the Upstox API token.
+screen: Runs the Smart Money Filter to find institutional whales.
+trade: Allows running a simulated paper trade or a live trade directly.
+start: Initializes the daily APScheduler daemon. It includes a --live flag that toggles the execution from the default paper-trading mode to executing real orders on the Upstox exchange.
+core/scheduler.py
+Manages the automated execution schedule using APScheduler. Configured specifically for the Indian market (Asia/Kolkata timezone), it utilizes a CronTrigger to execute the _run_daily_wheel function precisely at 15:15 IST from Monday to Friday. The scheduler runs in a background thread, kept alive by an infinite sleep loop in the main thread.
 
-The bot can be deployed headlessly using Podman and Podman Compose. The default setup runs the bot in **paper-trading mode**.
+core/client.py
+Handles all external interactions with the Upstox API.
 
-### Environment Setup
+401 Auto-Healing (_make_authenticated_request): Wraps API calls with self-healing network logic. If a request returns a 401 Unauthorized error, it intercepts the failure, evicts the expired token.json, seamlessly calls the auth module to fetch a fresh token, and retries the request exactly once.
+Dynamic Calendar Resolution (get_option_chain): Fetches option contracts and parses their expiry dates to automatically find the most optimal expiration within a mechanical 10 to 42 Days to Expiration (DTE) window. It standardizes the data into a high-performance Polars DataFrame, mapping the instrument_key, strike, expiry, bid, ask, and last_price.
+strategies/wheel_strategy.py
+The brain of the bot, implementing the Options Wheel Strategy using a deterministic State Machine.
 
-*Note: If your local Podman installation throws a 'compose provider failed' error, you may need to install the companion package via `pip install podman-compose` or ensure a native compose binary is configured in your system PATH.*
+State Flow: The bot progresses through IDLE (looking for a trade) $\rightarrow$ STAGE_1_CSP (selling a Cash-Secured Put) $\rightarrow$ STAGE_2_CC (selling a Covered Call if assigned).
+Polars Math: Calculates target options efficiently, seeking Puts 10% Out-of-the-Money (OTM) and Calls mathematically at or above the adjusted cost basis.
+State Persistence: Maintains its internal ledger across reboots using a local wheel_state.json file. It leverages filelock to guarantee thread-safe read/write operations during concurrent or automated executions.
+core/auth.py
+Responsible for the fully headless Upstox token generation. By leveraging the UpstoxTOTP package, it combines the standard credentials (USER_ID, PASSWORD, API_KEY, etc.) with a TOTP_SECRET to automatically fetch an access_token without requiring manual browser-based OAuth logins.
 
-Before deploying the bot, you must create a `.env` file at the root level of the repository. This file must contain the following variables:
-- `UPSTOX_USER_ID`
-- `UPSTOX_PASSWORD`
-- `UPSTOX_PIN_CODE`
-- `UPSTOX_TOTP_SECRET`
-- `UPSTOX_API_KEY`
-- `UPSTOX_API_SECRET`
-- `UPSTOX_REDIRECT_URI`
-- `WEBHOOK_URL`
+core/notifier.py
+The Discord Webhook notification engine. It constructs rich Embed payloads to stream critical updates and errors directly to a Discord channel. It maps log levels to decimal colors: INFO defaults to Blue, WARNING is Yellow, and ERROR triggers Red embeds.
 
-Because `core/auth.py` utilizes the `UpstoxTOTP` package, upon running the deployment script, the bot will use these credentials to headlessly authenticate and generate the initial `token.json` file inside the persistent volume. Zero manual browser intervention is required.
+Deployment Specs
+deploy.sh: A robust bash script to automate headless Podman deployments. It checks for a .env file, pulls the latest code, tears down existing containers (podman compose down), rebuilds the image, prunes dangling images, and launches the updated container in the background (up -d).
+Dockerfile: Uses a slim Python 3.11 base image to minimize footprint. It installs tzdata to enforce the Asia/Kolkata timezone internally and utilizes uv as the lightning-fast package manager. It maximizes build layer caching by syncing pyproject.toml and uv.lock before copying the rest of the application.
+PART 2: PRODUCTION README.md
+Upstox Wheel Options Trading Bot
+An automated, headless Options Trading Bot designed for the Indian Stock Market (NSE) leveraging the Upstox API. This bot programmatically executes the Options Wheel Strategy, cycling through Cash-Secured Puts (CSP) and Covered Calls (CC) using a deterministic state machine and robust quantitative option selection.
 
-### Deployment Script
+⚠️ DISCLAIMER: READ CAREFULLY
+THIS SOFTWARE IS FOR EDUCATIONAL PURPOSES ONLY.
 
-To automate the update and deployment lifecycle, we use the `deploy.sh` script.
+Trading financial derivatives, including options, involves significant financial risk and may not be suitable for all investors. You can lose substantial amounts of capital. The authors, contributors, and maintainers of this repository are NOT financial advisors and are NOT responsible for any financial losses or damages incurred from using this software. Always review the code carefully and thoroughly test in paper-trading/mock mode before ever running with live funds. Use at your own risk.
 
-1. First, make sure the script is executable:
-   ```bash
-   chmod +x deploy.sh
-   ```
-2. Run the deployment script to pull the latest code, rebuild the Podman image, and restart the container:
-   ```bash
-   ./deploy.sh
-   ```
-3. The bot will automatically run in the background. State and tokens will be persisted in the `./data` directory on your host machine.
+✨ Key Features
+Automated State Machine: Deterministically moves between IDLE, STAGE_1_CSP, and STAGE_2_CC states, saving progress locally to ensure recovery across reboots.
+Auto-Healing API Network: Inline 401 auto-healing logic seamlessly drops expired tokens, re-authenticates completely headlessly via TOTP, and retries failed API calls.
+Polars-Driven Options Math: Lightning-fast quantitative processing to dynamically resolve the optimal 10-42 DTE expiration calendars and calculate strictly 10% OTM target strikes.
+Rootless Podman Deployment: Fully containerized architecture using uv for hyper-fast dependency management and APScheduler for precise 15:15 IST execution.
+Rich Discord Notifications: Real-time webhook streaming of state changes, executions, and critical errors right to your server.
+📋 Prerequisites
+Runtime: Linux environment with Podman and podman-compose installed.
+Language: Python 3.11 / 3.12
+Broker: Upstox API Developer Credentials (API Key, API Secret, User ID, Password, PIN, and TOTP Secret).
+Notifications: A Discord Server with Webhook URL capabilities.
+🔐 Environment Variables
+Create a .env file in the root of the repository matching this template:
 
-### Paper Trading Incubation
+# Upstox API Credentials
+UPSTOX_USER_ID=your_upstox_id
+UPSTOX_PASSWORD=your_password
+UPSTOX_PIN_CODE=your_6_digit_pin
+UPSTOX_TOTP_SECRET=your_base32_totp_secret
+UPSTOX_API_KEY=your_api_key
+UPSTOX_API_SECRET=your_api_secret
+UPSTOX_REDIRECT_URI=https://127.0.0.1:5000/
 
-After deploying the bot in the default paper-trading mode, it is highly recommended to monitor its behavior before enabling live trading.
+# External Integrations
+WEBHOOK_URL=your_discord_webhook_url
 
-Monitor the configured `WEBHOOK_URL` at **15:15 IST** (the time when the bot evaluates and potentially rolls or closes positions). Use these daily notifications to verify the bot's state machine is operating correctly, correctly identifying expirations, making appropriate roll decisions, and managing state transitions without errors.
-
-### Live Trading
-
-**Important:** You should only enable live trading after successfully verifying your configuration and strategy via paper trading.
-
-Once you have verified the bot's operation during the paper trading incubation period, you can switch to live trading mode by adding the `--live` flag to the podman compose execution command.
-
-Override the default command in your `docker-compose.yml` file by adding the `command` directive under the `upstox-wheel-bot` service:
-
-```yaml
-version: "3.8"
-
-services:
-  upstox-wheel-bot:
-    build: .
-    container_name: upstox-wheel-bot
-    restart: unless-stopped
-    env_file:
-      - .env
-    environment:
-      - TZ=Asia/Kolkata
-    volumes:
-      - ./data:/app/data
-    # Add this line to enable live trading
-    command: ["uv", "run", "python", "main.py", "start", "--live"]
-```
-
-After modifying the file, restart the container using the deployment script:
-```bash
+# Feature Flags
+MOCK_MARKET=False
+🚀 Installation & Deployment
+Clone the repository:
+git clone <your-repo-url>
+cd upstox-wheel-bot
+Setup the Environment: Create and populate the .env file with your credentials as shown above.
+Deploy Headlessly (Production): Ensure deploy.sh has execution permissions, then run the build sequence:
+chmod +x deploy.sh
 ./deploy.sh
-```
+💻 Usage / Local Testing
+For local development or testing, it is highly recommended to utilize uv.
 
-### Troubleshooting
+1. Authentication Check: Manually force the bot to login headlessly and generate the token.json.
 
-**Visual Verification Note**
-In modern Podman versions, the bot will appear as a standalone Container named `upstox-wheel-bot`, not inside a combined Pod.
+uv run python main.py auth
+2. Start the Bot in Paper-Trading Mode: Boot up the scheduler locally without pushing live trades to Upstox.
 
-**Network Conflict Note**
-If you switch from legacy compose to modern Podman updates, you might encounter a network label error (`incorrect label com.docker.compose.network`). To resolve this, run `podman network rm upstox-wheel-options_default` before executing `podman compose up -d`.
+uv run python main.py start
+3. Start the Bot in LIVE Mode: Append the live flag to execute real, funded exchange orders.
+
+uv run python main.py start --live
+🧪 MOCK_MARKET Testing Mode: If you want to test the bot's logic and state machine safely when the Indian F&O market is closed or when you don't want to hit the live API, simply set MOCK_MARKET=True in your .env file. The bot will automatically inject mock market data and dummy Option Chains, allowing you to safely observe the state machine progression without external dependencies.
