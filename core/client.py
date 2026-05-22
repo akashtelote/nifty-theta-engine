@@ -65,6 +65,12 @@ class UpstoxClient:
 
         response = fetch_data_safe(requests.request, method, url, headers=headers, timeout=timeout, **kwargs)
 
+        if response is not None and response.status_code == 429:
+            retry_after = int(response.headers.get("Retry-After", 3))
+            logger.warning(f"Rate limit hit (429). Retrying after {retry_after} seconds...")
+            time.sleep(retry_after)
+            response = fetch_data_safe(requests.request, method, url, headers=headers, timeout=timeout, **kwargs)
+
         if response is not None and response.status_code == 401:
             logger.warning("Access token rejected (401). Evicting token file and forcing re-authentication...")
 
@@ -167,6 +173,72 @@ class UpstoxClient:
 
         except Exception as e:
             logger.error(f"Error parsing or reading NSE instruments file: {e}")
+            return None
+
+    def get_order_status(self, order_id: str) -> str | None:
+        """
+        Fetches the status of a specific order.
+        """
+        if self.is_mock_market or order_id == "PAPER_ORDER_123":
+            return "complete"
+
+        url = "https://api.upstox.com/v2/order/details"
+        params = {"order_id": order_id}
+
+        response = self._make_authenticated_request("GET", url, params=params, timeout=10)
+
+        if not response:
+            return None
+
+        if response.status_code != 200:
+            logger.error(f"Upstox API HTTP Error {response.status_code}: {response.text}")
+            return None
+
+        try:
+            data = response.json().get("data", [])
+            if not data:
+                return None
+            return data[0].get("status", "").lower()
+        except Exception as e:
+            logger.error(f"Failed to parse order status response: {e}", exc_info=True)
+            return None
+
+    def get_india_vix(self) -> float | None:
+        """
+        Fetches the current India VIX to serve as a market panic circuit breaker.
+        """
+        if self.is_mock_market:
+            return 14.5
+
+        url = "https://api.upstox.com/v2/market-quote/ltp"
+        params = {"instrument_key": "NSE_INDEX|India VIX"}
+
+        response = self._make_authenticated_request("GET", url, params=params, timeout=10)
+
+        if not response:
+            return None
+
+        if response.status_code != 200:
+            logger.error(f"Upstox API HTTP Error {response.status_code}: {response.text}")
+            return None
+
+        try:
+            data = response.json().get("data", {})
+            if not data:
+                return None
+
+            # Extract from the nested data payload
+            key_data = data.get("NSE_INDEX:India VIX")
+            if not key_data:
+                # Fallback to taking the first value in case key name differs
+                key_data = list(data.values())[0] if data.values() else {}
+
+            last_price = key_data.get("last_price")
+            if last_price is not None:
+                return float(last_price)
+            return None
+        except Exception as e:
+            logger.error(f"Failed to parse India VIX response: {e}", exc_info=True)
             return None
 
     def get_market_quote_ltp(self, symbol: str) -> float | None:
