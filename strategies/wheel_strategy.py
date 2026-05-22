@@ -1,3 +1,4 @@
+import time
 import json
 import os
 from filelock import FileLock, Timeout
@@ -188,6 +189,15 @@ class WheelStateMachine:
 
         if current_stage == "IDLE":
             logger.info(f"Executing daily cycle for {symbol} in IDLE state.")
+
+            # VIX Circuit Breaker
+            current_vix = self.client.get_india_vix()
+            vix_max_threshold = float(os.getenv("VIX_MAX_THRESHOLD", 25.0))
+            if current_vix is not None and current_vix > vix_max_threshold:
+                msg = f"VIX Circuit Breaker Triggered: Current VIX ({current_vix}) exceeds maximum threshold ({vix_max_threshold}). Aborting daily cycle for {symbol}."
+                logger.warning(msg)
+                self.notifier.send_notification(title="VIX Circuit Breaker", message=msg, level="WARNING")
+                return
             spot_price = self.client.get_market_quote_ltp(symbol)
             if spot_price is None:
                 msg = f"Failed to fetch LTP for {symbol}. Aborting daily cycle."
@@ -228,6 +238,26 @@ class WheelStateMachine:
             order_id = self.client.place_order_by_key(instrument_key=instrument_key, side="SELL", quantity=quantity_shares, price=entry_price, is_live=is_live)
 
             if order_id:
+                order_filled = False
+                for _ in range(3):
+                    time.sleep(5)
+                    status = self.client.get_order_status(order_id)
+                    if status == "complete":
+                        order_filled = True
+                        break
+                    elif status in ("rejected", "cancelled"):
+                        msg = f"Order {order_id} was {status} for {symbol}. Aborting STAGE_1_CSP transition."
+                        logger.warning(msg)
+                        self.notifier.send_notification(title=f"Order {status.capitalize()}", message=msg, level="WARNING")
+                        return
+
+                if not order_filled:
+                    self.client.cancel_order(order_id)
+                    msg = f"Order {order_id} timed out as pending limit order for {symbol}. Order cancelled. Aborting STAGE_1_CSP transition."
+                    logger.warning(msg)
+                    self.notifier.send_notification(title="Order Timeout", message=msg, level="WARNING")
+                    return
+
                 msg = f"Order placed successfully for {symbol}. STAGE_1_CSP entry: {strike} PE expiring on {expiry} at {entry_price}."
                 logger.info(msg)
                 self.notifier.send_notification(title="Order Placed", message=msg, level="INFO")
@@ -380,6 +410,26 @@ class WheelStateMachine:
             order_id = self.client.place_order_by_key(instrument_key=instrument_key, side="SELL", quantity=quantity_shares, price=entry_price, is_live=is_live)
 
             if order_id:
+                order_filled = False
+                for _ in range(3):
+                    time.sleep(5)
+                    status = self.client.get_order_status(order_id)
+                    if status == "complete":
+                        order_filled = True
+                        break
+                    elif status in ("rejected", "cancelled"):
+                        msg = f"Order {order_id} was {status} for {symbol}. Aborting STAGE_2_CC entry."
+                        logger.warning(msg)
+                        self.notifier.send_notification(title=f"Order {status.capitalize()}", message=msg, level="WARNING")
+                        return
+
+                if not order_filled:
+                    self.client.cancel_order(order_id)
+                    msg = f"Order {order_id} timed out as pending limit order for {symbol}. Order cancelled. Aborting STAGE_2_CC entry."
+                    logger.warning(msg)
+                    self.notifier.send_notification(title="Order Timeout", message=msg, level="WARNING")
+                    return
+
                 msg = f"Order placed successfully for {symbol}. STAGE_2_CC entry: {strike} CE expiring on {expiry} at {entry_price}."
                 logger.info(msg)
                 self.notifier.send_notification(title="Order Placed", message=msg, level="INFO")
