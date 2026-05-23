@@ -292,7 +292,6 @@ class WheelStateMachine:
         return df.row(0, named=True)
 
 
-
     def execute_daily_cycle(self, symbol: str, symbol_config: dict, is_live: bool = False):
         # Reload state from DB before proceeding
         self.state = self._load_state()
