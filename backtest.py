@@ -75,3 +75,101 @@ def fetch_historical_data(ticker: str, start_date: str, end_date: str) -> pl.Dat
     final_df = merged_df.select(["Date", "Spot_Price", "VIX"])
 
     return final_df
+
+def estimate_premium(spot: float, strike: float, vix: float, dte: int = 30) -> float:
+    """
+    Estimates the premium of an option using a simplified synthetic rule.
+
+    Formula: Premium = (Spot * (VIX / 100)) * 0.10 * (strike / spot)
+    """
+    return (spot * (vix / 100.0)) * 0.10 * (strike / spot)
+
+def run_backtest(df: pl.DataFrame, initial_capital: float = 500000.0) -> dict:
+    """
+    Simulates the Wheel Strategy backtest using a predefined DataFrame.
+    """
+    days_in_trade = 0
+    in_trade = False
+    short_strike = 0.0
+    long_strike = 0.0
+    net_credit = 0.0
+    realized_pnl = 0.0
+    total_trades = 0
+    winning_trades = 0
+    trade_history = []
+    entry_date = None
+
+    for row in df.iter_rows(named=True):
+        # In newer polars versions iter_rows(named=True) can return dictionaries or namedtuples
+        spot = row.get('Spot_Price') if isinstance(row, dict) else row.Spot_Price
+        vix = row.get('VIX') if isinstance(row, dict) else row.VIX
+        date = row.get('Date') if isinstance(row, dict) else row.Date
+
+        # Safety check: if spot or VIX is missing, skip row
+        if spot is None or vix is None or np.isnan(spot) or np.isnan(vix):
+            continue
+
+        if not in_trade:
+            # Entry Logic
+            if vix < 13:
+                otm = 0.06
+            elif 13 <= vix <= 18:
+                otm = 0.10
+            else:
+                otm = 0.15
+
+            short_strike = spot * (1 - otm)
+            long_strike = short_strike * 0.98
+            net_credit = estimate_premium(spot, short_strike, vix)
+
+            realized_pnl += net_credit
+            in_trade = True
+            days_in_trade = 0
+            total_trades += 1
+            entry_date = date
+            trade_history.append({
+                "entry_date": entry_date,
+                "short_strike": short_strike,
+                "long_strike": long_strike,
+                "net_credit": net_credit
+            })
+
+        else:
+            # Exit Logic
+            days_in_trade += 1
+            if days_in_trade == 30:
+                if spot > short_strike:
+                    # Trade won (expires worthless). Retain premium.
+                    winning_trades += 1
+                else:
+                    # Trade lost. Calculate loss and deduct from PnL.
+                    loss = (short_strike - long_strike) - net_credit
+                    realized_pnl -= loss
+
+                # Reset trade status
+                in_trade = False
+                days_in_trade = 0
+                short_strike = 0.0
+                long_strike = 0.0
+                net_credit = 0.0
+
+    win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
+
+    return {
+        "total_trades": total_trades,
+        "winning_trades": winning_trades,
+        "win_rate": win_rate,
+        "final_pnl": realized_pnl
+    }
+
+if __name__ == "__main__":
+    print("Fetching historical data for RELIANCE.NS from 2021-01-01 to 2026-01-01...")
+    df = fetch_historical_data("RELIANCE.NS", "2021-01-01", "2026-01-01")
+
+    print("Running backtest simulation...")
+    results = run_backtest(df)
+
+    print("\n--- Backtest Results ---")
+    print(f"Total Trades: {results['total_trades']}")
+    print(f"Win Rate:     {results['win_rate']:.2f}%")
+    print(f"Final PnL:    {results['final_pnl']:.2f}")
