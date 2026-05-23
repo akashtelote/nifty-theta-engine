@@ -6,9 +6,12 @@ import logging
 from datetime import datetime, date
 import polars as pl
 from core.client import UpstoxClient
+import math
 from core.notifier import Notifier
 
 logger = logging.getLogger(__name__)
+
+LOT_SIZES = {"RELIANCE": 250, "HDFCBANK": 550, "INFY": 400}
 
 class WheelStateMachine:
     def __init__(self):
@@ -214,7 +217,7 @@ class WheelStateMachine:
 
         return df.row(0, named=True)
 
-    def execute_daily_cycle(self, symbol: str, quantity_shares: int, is_live: bool = False):
+    def execute_daily_cycle(self, symbol: str, symbol_config: dict, is_live: bool = False):
         # Reload state using FileLock before proceeding
         self.state = self._load_state()
         self.ensure_symbol_state(symbol)
@@ -259,17 +262,30 @@ class WheelStateMachine:
 
             logger.info(f"Target selected: {strike} PE expiring on {expiry} for {symbol}. Bid price: {entry_price}")
 
-            # Since place_order takes a symbol and looks up its instrument token (the underlying's instrument token),
-            # but we want to trade the option contract, we need to bypass place_order or create a new method for placing order by instrument key.
-            # I will modify client.py to accept an instrument_key or add a new method in client.py.
+            # Dynamic Position Sizing
+            available_funds = self.client.get_available_margin()
+            if available_funds is None:
+                msg = f"Failed to fetch available margin for {symbol}. Aborting daily cycle to protect capital."
+                logger.warning(msg)
+                self.notifier.send_notification(title="Margin Fetch Failed", message=msg, level="WARNING")
+                return
 
-            # Let's check place_order in core/client.py. It has:
-            # "instrument_token": self._get_instrument_token(symbol),
-            # We want to send `instrument_key` of the option.
+            allocation_pct = symbol_config.get("allocation_pct", 0.10)
+            lot_size = LOT_SIZES.get(symbol, 1)
 
-            # Since I am updating wheel_strategy, I'll call place_order_by_key instead.
+            target_capital = available_funds * allocation_pct
+            required_capital_per_lot = strike * lot_size
+            num_lots = math.floor(target_capital / required_capital_per_lot)
 
-            order_id = self.client.place_order_by_key(instrument_key=instrument_key, side="SELL", quantity=quantity_shares, price=entry_price, is_live=is_live)
+            if num_lots == 0:
+                msg = f"Insufficient funds to trade {symbol}. Target capital: {target_capital}, Required for 1 lot: {required_capital_per_lot}. Aborting."
+                logger.warning(msg)
+                self.notifier.send_notification(title="Insufficient Funds", message=msg, level="WARNING")
+                return
+
+            final_quantity = num_lots * lot_size
+
+            order_id = self.client.place_order_by_key(instrument_key=instrument_key, side="SELL", quantity=final_quantity, price=entry_price, is_live=is_live)
 
             if order_id:
                 order_filled = False
@@ -301,7 +317,8 @@ class WheelStateMachine:
                     "expiry": expiry,
                     "instrument_key": instrument_key,
                     "entry_price": entry_price,
-                    "order_id": order_id
+                    "order_id": order_id,
+                    "quantity": final_quantity
                 }
                 self._save_state()
             else:
@@ -315,6 +332,8 @@ class WheelStateMachine:
                 self.state[symbol]["current_stage"] = "IDLE"
                 self._save_state()
                 return
+
+            quantity_shares = active_position.get("quantity", LOT_SIZES.get(symbol, 1))
 
             expiry_str = active_position.get("expiry")
             try:
@@ -431,7 +450,15 @@ class WheelStateMachine:
             logger.info(f"Executing daily cycle for {symbol} in STAGE_2_CC state.")
             active_position = self.state[symbol].get("active_position")
 
+            # Since assignment happened in STAGE_1_CSP, the inventory has the assigned shares.
+            # We use this as our CC selling quantity.
+            quantity_shares = self.state[symbol]["inventory"]["assigned_shares"]
+            if quantity_shares == 0:
+                quantity_shares = LOT_SIZES.get(symbol, 1)
+
             if active_position is not None:
+                quantity_shares = active_position.get("quantity", quantity_shares)
+
                 expiry_str = active_position.get("expiry")
                 try:
                     expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
@@ -540,7 +567,8 @@ class WheelStateMachine:
                     "expiry": expiry,
                     "instrument_key": instrument_key,
                     "entry_price": entry_price,
-                    "order_id": order_id
+                    "order_id": order_id,
+                    "quantity": quantity_shares
                 }
                 self._save_state()
             else:

@@ -175,6 +175,35 @@ class UpstoxClient:
             logger.error(f"Error parsing or reading NSE instruments file: {e}")
             return None
 
+    def get_available_margin(self) -> float | None:
+        """
+        Fetches the live available cash/equity margin from the Upstox account.
+        """
+        if self.is_mock_market:
+            return 500000.0
+
+        url = "https://api.upstox.com/v2/user/get-margin"
+
+        # Upstox get-margin requires the segment query param, but basic API endpoint docs
+        # suggest segment=EQ works for equity funds. We'll pass it if needed, but simple GET often suffices.
+        response = self._make_authenticated_request("GET", url, timeout=10)
+
+        if not response:
+            return None
+
+        if response.status_code != 200:
+            logger.error(f"Upstox API HTTP Error {response.status_code}: {response.text}")
+            return None
+
+        try:
+            data = response.json().get("data", {})
+            if not data:
+                return None
+            return float(data.get("equity", {}).get("available_margin", 0.0))
+        except Exception as e:
+            logger.error(f"Failed to parse available margin response: {e}", exc_info=True)
+            return None
+
     def get_order_status(self, order_id: str) -> str | None:
         """
         Fetches the status of a specific order.
