@@ -163,13 +163,34 @@ def run_backtest(df: pl.DataFrame, initial_capital: float = 500000.0) -> dict:
     }
 
 if __name__ == "__main__":
-    print("Fetching historical data for RELIANCE.NS from 2021-01-01 to 2026-01-01...")
-    df = fetch_historical_data("RELIANCE.NS", "2021-01-01", "2026-01-01")
+    portfolio = ["RELIANCE.NS", "HDFCBANK.NS", "INFY.NS", "TATAMOTORS.NS", "SBIN.NS"]
 
-    print("Running backtest simulation...")
-    results = run_backtest(df)
+    portfolio_total_trades = 0
+    portfolio_winning_trades = 0
+    portfolio_net_pnl = 0.0
 
-    print("\n--- Backtest Results ---")
-    print(f"Total Trades: {results['total_trades']}")
-    print(f"Win Rate:     {results['win_rate']:.2f}%")
-    print(f"Final PnL:    {results['final_pnl']:.2f}")
+    for ticker in portfolio:
+        print(f"Running simulation for {ticker}...")
+        df = fetch_historical_data(ticker, "2021-01-01", "2026-01-01")
+        results = run_backtest(df)
+
+        total_trades = results['total_trades']
+        winning_trades = results['winning_trades']
+        win_rate = results['win_rate']
+        final_pnl = results['final_pnl']
+
+        portfolio_total_trades += total_trades
+        portfolio_winning_trades += winning_trades
+        portfolio_net_pnl += final_pnl
+
+        print(f"  -> {ticker}: {total_trades} Trades | {win_rate:.2f}% Win | {final_pnl:.2f} PnL")
+
+    print("\n" + "=" * 50)
+    print("AGGREGATED PORTFOLIO RESULTS")
+    print("=" * 50)
+
+    global_win_rate = (portfolio_winning_trades / portfolio_total_trades * 100) if portfolio_total_trades > 0 else 0.0
+
+    print(f"Total Trades:      {portfolio_total_trades}")
+    print(f"Global Win Rate:   {global_win_rate:.2f}%")
+    print(f"Net Portfolio PnL: {portfolio_net_pnl:.2f}")
