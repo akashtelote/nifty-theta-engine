@@ -48,14 +48,32 @@ class WheelStateMachine:
                     order_id TEXT,
                     assigned_shares INTEGER,
                     average_cost_basis REAL,
-                    realized_pnl REAL
+                    realized_pnl REAL,
+                    hedge_instrument_key TEXT,
+                    hedge_strike_price REAL,
+                    hedge_entry_price REAL,
+                    hedge_order_id TEXT
                 )
             ''')
+
+            # Migration block for existing databases
+            for column_def in [
+                "hedge_instrument_key TEXT",
+                "hedge_strike_price REAL",
+                "hedge_entry_price REAL",
+                "hedge_order_id TEXT"
+            ]:
+                try:
+                    cursor.execute(f"ALTER TABLE wheel_state ADD COLUMN {column_def}")
+                except sqlite3.OperationalError:
+                    # Column already exists
+                    pass
+
             conn.commit()
         except sqlite3.Error as e:
             logger.error(f"Error initializing database: {e}")
         finally:
-            if conn:
+            if 'conn' in locals() and conn:
                 conn.close()
 
     def _load_state(self) -> dict:
@@ -66,11 +84,17 @@ class WheelStateMachine:
         try:
             conn = sqlite3.connect(self.db_file)
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM wheel_state")
+            cursor.execute('''
+                SELECT symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
+                       entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl,
+                       hedge_instrument_key, hedge_strike_price, hedge_entry_price, hedge_order_id
+                FROM wheel_state
+            ''')
             rows = cursor.fetchall()
             for row in rows:
                 (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
-                 entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl) = row
+                 entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl,
+                 hedge_instrument_key, hedge_strike_price, hedge_entry_price, hedge_order_id) = row
 
                 state[symbol] = {
                     "current_stage": current_stage,
@@ -80,6 +104,12 @@ class WheelStateMachine:
                         "expiry": expiry,
                         "entry_price": entry_price,
                         "order_id": order_id
+                    },
+                    "hedge_position": None if hedge_instrument_key is None else {
+                        "instrument_key": hedge_instrument_key,
+                        "strike": hedge_strike_price,
+                        "entry_price": hedge_entry_price,
+                        "order_id": hedge_order_id
                     },
                     "inventory": {
                         "assigned_shares": assigned_shares if assigned_shares is not None else 0,
@@ -104,6 +134,7 @@ class WheelStateMachine:
 
         current_stage = symbol_state.get("current_stage", "IDLE")
         active_position = symbol_state.get("active_position")
+        hedge_position = symbol_state.get("hedge_position")
         inventory = symbol_state.get("inventory", {})
         realized_pnl = symbol_state.get("realized_pnl", 0.0)
 
@@ -125,16 +156,29 @@ class WheelStateMachine:
             order_id = None
             trade_date = None
 
+        if hedge_position:
+            hedge_instrument_key = hedge_position.get("instrument_key")
+            hedge_strike_price = hedge_position.get("strike")
+            hedge_entry_price = hedge_position.get("entry_price")
+            hedge_order_id = hedge_position.get("order_id")
+        else:
+            hedge_instrument_key = None
+            hedge_strike_price = None
+            hedge_entry_price = None
+            hedge_order_id = None
+
         try:
             conn = sqlite3.connect(self.db_file)
             cursor = conn.cursor()
             cursor.execute('''
                 INSERT OR REPLACE INTO wheel_state
                 (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
-                 entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl,
+                 hedge_instrument_key, hedge_strike_price, hedge_entry_price, hedge_order_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
-                  entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl))
+                  entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl,
+                  hedge_instrument_key, hedge_strike_price, hedge_entry_price, hedge_order_id))
             conn.commit()
         except sqlite3.Error as e:
             logger.error(f"Error saving state to database for {symbol}: {e}")
@@ -225,9 +269,9 @@ class WheelStateMachine:
 
         return df.row(0, named=True)
 
-    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, min_days: int = 10, max_days: int = 42) -> dict | None:
+    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, min_days: int = 10, max_days: int = 42) -> tuple[dict | None, dict | None]:
         if chain_df.is_empty():
-            return None
+            return None, None
 
         today = date.today()
 
@@ -236,7 +280,7 @@ class WheelStateMachine:
         df = chain_df.filter(pl.col("type") == "PE")
 
         if df.is_empty():
-            return None
+            return None, None
 
         # Calculate days to expiry
         # Safely parsing the date strings, ignoring invalid ones
@@ -248,7 +292,7 @@ class WheelStateMachine:
         df = df.filter(pl.col("parsed_expiry").is_not_null())
 
         if df.is_empty():
-            return None
+            return None, None
 
         df = df.with_columns([
             (pl.col("parsed_expiry") - today).dt.total_days().alias("dte")
@@ -258,7 +302,7 @@ class WheelStateMachine:
         df = df.filter((pl.col("dte") >= min_days) & (pl.col("dte") <= max_days))
 
         if df.is_empty():
-            return None
+            return None, None
 
         current_vix = self.client.get_india_vix()
         if current_vix is None:
@@ -274,22 +318,46 @@ class WheelStateMachine:
         target_strike = spot_price * (1 - otm_pct)
 
         # Filter to ensure strikes are strictly less than or equal to target_strike
-        df = df.filter(pl.col("strike") <= target_strike)
+        short_df = df.filter(pl.col("strike") <= target_strike)
 
-        if df.is_empty():
-            return None
+        if short_df.is_empty():
+            return None, None
 
-        # Find closest strike
-        df = df.with_columns([
+        # Find closest strike for Short Put
+        short_df = short_df.with_columns([
             (pl.col("strike") - target_strike).abs().alias("strike_diff")
         ])
 
-        df = df.sort("strike_diff")
+        short_df = short_df.sort("strike_diff")
 
-        if df.is_empty():
-            return None
+        if short_df.is_empty():
+            return None, None
 
-        return df.row(0, named=True)
+        short_put_row = short_df.row(0, named=True)
+
+        # Calculate Hedge Width
+        short_strike = short_put_row["strike"]
+        hedge_target_strike = short_strike * 0.98
+        short_expiry = short_put_row["expiry"]
+
+        # Filter for Long Put (Hedge) with the same expiry
+        hedge_df = df.filter(pl.col("expiry") == short_expiry)
+
+        # Strike must be less than or equal to hedge_target_strike
+        hedge_df = hedge_df.filter(pl.col("strike") <= hedge_target_strike)
+
+        if hedge_df.is_empty():
+            return short_put_row, None
+
+        hedge_df = hedge_df.with_columns([
+            (pl.col("strike") - hedge_target_strike).abs().alias("hedge_strike_diff")
+        ])
+
+        hedge_df = hedge_df.sort("hedge_strike_diff")
+
+        long_put_row = hedge_df.row(0, named=True)
+
+        return short_put_row, long_put_row
 
     def execute_daily_cycle(self, symbol: str, quantity_shares: int, symbol_config: dict, is_live: bool = False):
         # Reload state from DB before proceeding
