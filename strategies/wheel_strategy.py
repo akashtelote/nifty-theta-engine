@@ -225,7 +225,7 @@ class WheelStateMachine:
 
         return df.row(0, named=True)
 
-    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, min_days: int = 10, max_days: int = 42) -> dict | None:
+    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, min_days: int = 10, max_days: int = 42) -> tuple[dict, dict] | None:
         if chain_df.is_empty():
             return None
 
@@ -279,17 +279,40 @@ class WheelStateMachine:
         if df.is_empty():
             return None
 
-        # Find closest strike
-        df = df.with_columns([
+        # Find closest strike for short put
+        short_df = df.with_columns([
             (pl.col("strike") - target_strike).abs().alias("strike_diff")
         ])
 
-        df = df.sort("strike_diff")
+        short_df = short_df.sort("strike_diff")
 
-        if df.is_empty():
+        if short_df.is_empty():
             return None
 
-        return df.row(0, named=True)
+        short_put = short_df.row(0, named=True)
+
+        # Calculate target strike for the long put (2% further OTM)
+        short_strike = short_put["strike"]
+        hedge_target_strike = short_strike * 0.98
+
+        # Filter again to ensure strikes are strictly less than or equal to hedge_target_strike
+        long_df = df.filter(pl.col("strike") <= hedge_target_strike)
+
+        if long_df.is_empty():
+            return None
+
+        long_df = long_df.with_columns([
+            (pl.col("strike") - hedge_target_strike).abs().alias("strike_diff")
+        ])
+
+        long_df = long_df.sort("strike_diff")
+
+        if long_df.is_empty():
+            return None
+
+        long_put = long_df.row(0, named=True)
+
+        return short_put, long_put
 
     def execute_daily_cycle(self, symbol: str, quantity_shares: int, symbol_config: dict, is_live: bool = False):
         # Reload state from DB before proceeding
@@ -318,23 +341,30 @@ class WheelStateMachine:
 
             chain_df = self.client.get_option_chain(symbol)
 
-            target_put = self._select_target_put(chain_df, spot_price)
-            if target_put is None:
-                logger.warning(f"Could not find a suitable target PUT for {symbol}. Aborting daily cycle.")
+            targets = self._select_target_put(chain_df, spot_price)
+            if targets is None:
+                logger.warning(f"Could not find a suitable target PUT spread for {symbol}. Aborting daily cycle.")
                 return
 
-            instrument_key = target_put.get("instrument_key")
-            strike = target_put.get("strike")
-            expiry = target_put.get("expiry")
-            entry_price = target_put.get("bid") # using contract bid price for entry
+            short_put, long_put = targets
 
-            if entry_price is None or entry_price == 0:
-                msg = f"Target put has no valid bid price for {symbol}. Aborting."
+            short_instrument_key = short_put.get("instrument_key")
+            short_strike = short_put.get("strike")
+            short_expiry = short_put.get("expiry")
+            short_entry_price = short_put.get("bid") # using contract bid price for entry
+
+            long_instrument_key = long_put.get("instrument_key")
+            long_strike = long_put.get("strike")
+            long_expiry = long_put.get("expiry")
+            long_entry_price = long_put.get("ask") # using contract ask price for hedge entry
+
+            if short_entry_price in (None, 0, 0.0) or long_entry_price in (None, 0, 0.0):
+                msg = f"Target puts have missing liquidity (Bid/Ask = 0) for {symbol}. Aborting."
                 logger.warning(msg)
                 self.notifier.send_notification(title="Missing Liquidity", message=msg, level="WARNING")
                 return
 
-            logger.info(f"Target selected: {strike} PE expiring on {expiry} for {symbol}. Bid price: {entry_price}")
+            logger.info(f"Targets selected for {symbol}: Short {short_strike} PE (Bid: {short_entry_price}), Long {long_strike} PE (Ask: {long_entry_price}), Expiring on {short_expiry}")
 
             # Dynamic Position Sizing
             available_funds = self.client.get_available_margin()
@@ -348,7 +378,11 @@ class WheelStateMachine:
             lot_size = LOT_SIZES.get(symbol, 1)
 
             target_capital = available_funds * allocation_pct
-            required_capital_per_lot = strike * lot_size
+            required_capital_per_lot = (short_strike - long_strike) * lot_size
+            if required_capital_per_lot <= 0:
+                logger.error(f"Invalid required capital per lot ({required_capital_per_lot}) for {symbol}. Short strike: {short_strike}, Long strike: {long_strike}. Aborting.")
+                return
+
             num_lots = math.floor(target_capital / required_capital_per_lot)
 
             if num_lots == 0:
@@ -359,44 +393,85 @@ class WheelStateMachine:
 
             final_quantity = num_lots * lot_size
 
-            order_id = self.client.place_order_by_key(instrument_key=instrument_key, side="SELL", quantity=final_quantity, price=entry_price, is_live=is_live)
+            # Leg 1: Execute the BUY (Hedge)
+            long_order_id = self.client.place_order_by_key(instrument_key=long_instrument_key, side="BUY", quantity=final_quantity, price=long_entry_price, is_live=is_live)
 
-            if order_id:
-                order_filled = False
-                for _ in range(3):
-                    time.sleep(5)
-                    status = self.client.get_order_status(order_id)
-                    if status == "complete":
-                        order_filled = True
-                        break
-                    elif status in ("rejected", "cancelled"):
-                        msg = f"Order {order_id} was {status} for {symbol}. Aborting STAGE_1_CSP transition."
-                        logger.warning(msg)
-                        self.notifier.send_notification(title=f"Order {status.capitalize()}", message=msg, level="WARNING")
-                        return
+            if not long_order_id:
+                logger.error(f"Failed to place BUY hedge order for {symbol}.")
+                return
 
-                if not order_filled:
-                    self.client.cancel_order(order_id)
-                    msg = f"Order {order_id} timed out as pending limit order for {symbol}. Order cancelled. Aborting STAGE_1_CSP transition."
+            long_order_filled = False
+            for _ in range(3):
+                time.sleep(5)
+                status = self.client.get_order_status(long_order_id)
+                if status == "complete":
+                    long_order_filled = True
+                    break
+                elif status in ("rejected", "cancelled"):
+                    msg = f"Hedge order {long_order_id} was {status} for {symbol}. Aborting STAGE_1_CSP transition."
                     logger.warning(msg)
-                    self.notifier.send_notification(title="Order Timeout", message=msg, level="WARNING")
+                    self.notifier.send_notification(title=f"Order {status.capitalize()}", message=msg, level="WARNING")
                     return
 
-                msg = f"Order placed successfully for {symbol}. STAGE_1_CSP entry: {strike} PE expiring on {expiry} at {entry_price}."
-                logger.info(msg)
-                self.notifier.send_notification(title="Order Placed", message=msg, level="INFO")
-                self.state[symbol]["current_stage"] = "STAGE_1_CSP"
-                self.state[symbol]["active_position"] = {
-                    "strike": strike,
-                    "expiry": expiry,
-                    "instrument_key": instrument_key,
-                    "entry_price": entry_price,
-                    "order_id": order_id,
-                    "quantity": final_quantity
-                }
-                self._save_state(symbol)
-            else:
-                logger.error("Failed to place order.")
+            if not long_order_filled:
+                self.client.cancel_order(long_order_id)
+                msg = f"Hedge order {long_order_id} timed out as pending limit order for {symbol}. Order cancelled. Aborting STAGE_1_CSP transition."
+                logger.warning(msg)
+                self.notifier.send_notification(title="Order Timeout", message=msg, level="WARNING")
+                return
+
+            # Leg 2: Execute the SELL (Short) ONLY if the BUY order is completed
+            short_order_id = self.client.place_order_by_key(instrument_key=short_instrument_key, side="SELL", quantity=final_quantity, price=short_entry_price, is_live=is_live)
+
+            if not short_order_id:
+                msg = f"CRITICAL: Failed to place SELL short order for {symbol} after filling hedge. Manual intervention required to close the dangling long put."
+                logger.critical(msg)
+                self.notifier.send_notification(title="CRITICAL: Short Order Failed", message=msg, level="ERROR")
+                return
+
+            short_order_filled = False
+            for _ in range(3):
+                time.sleep(5)
+                status = self.client.get_order_status(short_order_id)
+                if status == "complete":
+                    short_order_filled = True
+                    break
+                elif status in ("rejected", "cancelled"):
+                    self.client.cancel_order(short_order_id)
+                    msg = f"CRITICAL: Short order {short_order_id} was {status} for {symbol}. Manual intervention required to close the dangling long put."
+                    logger.critical(msg)
+                    self.notifier.send_notification(title="CRITICAL: Short Order Failed", message=msg, level="ERROR")
+                    return
+
+            if not short_order_filled:
+                self.client.cancel_order(short_order_id)
+                msg = f"CRITICAL: Short order {short_order_id} timed out as pending limit order for {symbol}. Order cancelled. Manual intervention required to close the dangling long put."
+                logger.critical(msg)
+                self.notifier.send_notification(title="CRITICAL: Order Timeout", message=msg, level="ERROR")
+                return
+
+            msg = f"Credit Spread placed successfully for {symbol}. STAGE_1_CSP entry: Short {short_strike} PE / Long {long_strike} PE expiring on {short_expiry}."
+            logger.info(msg)
+            self.notifier.send_notification(title="Order Placed", message=msg, level="INFO")
+
+            self.state[symbol]["current_stage"] = "STAGE_1_CSP"
+            self.state[symbol]["active_position"] = {
+                "strike": short_strike,
+                "expiry": short_expiry,
+                "instrument_key": short_instrument_key,
+                "entry_price": short_entry_price,
+                "order_id": short_order_id,
+                "quantity": final_quantity
+            }
+            self.state[symbol]["hedge_position"] = {
+                "strike": long_strike,
+                "expiry": long_expiry,
+                "instrument_key": long_instrument_key,
+                "entry_price": long_entry_price,
+                "order_id": long_order_id,
+                "quantity": final_quantity
+            }
+            self._save_state(symbol)
 
         elif current_stage == "STAGE_1_CSP":
             logger.info(f"Executing daily cycle for {symbol} in STAGE_1_CSP state.")
