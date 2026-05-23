@@ -13,9 +13,9 @@ logger = logging.getLogger(__name__)
 HEARTBEAT_URL = os.getenv("HEARTBEAT_URL")
 
 TARGET_SYMBOLS = {
-    "RELIANCE": 250,
-    "HDFCBANK": 550,
-    "INFY": 400
+    "RELIANCE": {"allocation_pct": 0.15},
+    "HDFCBANK": {"allocation_pct": 0.15},
+    "INFY": {"allocation_pct": 0.10}
 }
 
 def _run_daily_wheel(is_live: bool = False):
@@ -23,10 +23,10 @@ def _run_daily_wheel(is_live: bool = False):
     wheel = WheelStateMachine()
     notifier = Notifier()
 
-    for symbol, quantity in TARGET_SYMBOLS.items():
+    for symbol, symbol_config in TARGET_SYMBOLS.items():
         try:
-            logger.info(f"Processing symbol: {symbol} with quantity: {quantity}")
-            wheel.execute_daily_cycle(symbol=symbol, quantity_shares=quantity, is_live=is_live)
+            logger.info(f"Processing symbol: {symbol} with config: {symbol_config}")
+            wheel.execute_daily_cycle(symbol=symbol, symbol_config=symbol_config, is_live=is_live)
         except Exception as e:
             logger.error(f"Error processing {symbol}: {e}", exc_info=True)
             notifier.send_notification(
