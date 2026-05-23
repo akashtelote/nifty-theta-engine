@@ -1,12 +1,16 @@
 import logging
 import time
 import pytz
+import os
+import requests
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from strategies.wheel_strategy import WheelStateMachine
 from core.notifier import Notifier
 
 logger = logging.getLogger(__name__)
+
+HEARTBEAT_URL = os.getenv("HEARTBEAT_URL")
 
 TARGET_SYMBOLS = {
     "RELIANCE": {"allocation_pct": 0.15},
@@ -32,6 +36,12 @@ def _run_daily_wheel(is_live: bool = False):
             )
 
     logger.info("Daily wheel execution completed.")
+
+    if HEARTBEAT_URL:
+        try:
+            requests.get(HEARTBEAT_URL, timeout=5)
+        except Exception as e:
+            logger.warning(f"Failed to send heartbeat ping: {e}")
 
 def start_scheduler(is_live: bool = False):
     tz = pytz.timezone('Asia/Kolkata')
