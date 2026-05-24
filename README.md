@@ -1,3 +1,4 @@
+```markdown
 # Upstox Algorithmic Options System (Iron Shield Credit Spread Engine)
 
 **An autonomous, containerized production trading system built using Python, Polars, and SQLite3 for the National Stock Exchange of India (NSE) F&O market. It executes risk-defined Bull Put Credit Spreads, dynamically filters market regimes via the India VIX index, calculates real-time margin-scaled lot positioning, and exposes a decoupled analytics interface.**
@@ -32,6 +33,7 @@ Below is the decoupled data flow pipeline for the Iron Shield Credit Spread Engi
 | Discord Alerting    |        |     Persistence         |        | Order Dispatch Engine     |
 |      Gateway        |        |                         |        | (Buy 1st, Sell 2nd)       |
 +---------------------+        +-------------------------+        +---------------------------+
+
 ```
 
 ---
@@ -39,21 +41,27 @@ Below is the decoupled data flow pipeline for the Iron Shield Credit Spread Engi
 ## Core Feature Matrix
 
 ### 1. Dynamic Credit Spread Mechanics
+
 Defined-risk entry utilizing an automated **two-leg execution sequence**. The system mandates that the **Long Hedge Put is filled prior to Short Put entry** to enforce margin reduction and ensure risk is strictly capped.
 
 ### 2. Treasury & Position Sizing Engine
+
 Live calculation of available cash limits via the Upstox Margin API to scale position lots based on localized risk constraints (**`allocation_pct`**) and exact option contract spread widths.
 
 ### 3. Persistence Layer
+
 ACID-compliant **SQLite3 relational engine** tracking active positions, historical cost basis, and global realized metrics. Unpacks flat DB records into nested strategy state objects dynamically.
 
 ### 4. Fault Tolerance & Telemetry
+
 Integrated Network Guard managing HTTP 429 rate-limiting backoffs, VIX macro circuit breakers, decoupled multi-channel alerting via **Discord webhooks**, and an external **Dead Man's Snitch heartbeat ping loop** to verify daemon uptime.
 
 ### 5. The Lab (Polars Backtester)
-Standalone offline simulation laboratory leveraging **Polars lazy frames** and **yfinance** to evaluate performance parameters across historical market cycles. Used for quantitative strategy tuning.
+
+Standalone offline simulation laboratory leveraging **Polars lazy frames** and **yfinance** to evaluate performance parameters across historical market cycles. Used for quantitative strategy tuning and portfolio metrics normalization.
 
 ### 6. The Command Center (Analytics Dashboard)
+
 A decoupled **Streamlit web container** serving localized metrics tracking live portfolios, allocation spreads, and performance matrices reading strictly from the decentralized SQLite persistence layer.
 
 ---
@@ -75,6 +83,7 @@ A decoupled **Streamlit web container** serving localized metrics tracking live 
 ├── main.py               # Main bot daemon entry point and runtime initiator
 └── strategies/
     └── wheel_strategy.py # Core State Machine: Dynamic Credit Spread and Covered Call logic
+
 ```
 
 ---
@@ -96,7 +105,8 @@ MOCK_MARKET=False
 
 # External Webhooks & Telemetry
 DISCORD_WEBHOOK_URL=your_discord_webhook_url_here
-HEARTBEAT_URL=https://nosnch.in/your_snitch_token
+HEARTBEAT_URL=[https://nosnch.in/your_snitch_token](https://nosnch.in/your_snitch_token)
+
 ```
 
 ---
@@ -104,26 +114,81 @@ HEARTBEAT_URL=https://nosnch.in/your_snitch_token
 ## Local Development & Container Deployment
 
 ### Dependency Management (Local)
+
 This project utilizes [uv](https://github.com/astral-sh/uv) for lightning-fast package management.
 
 To install dependencies locally:
+
 ```bash
 uv pip install -e .
+
 ```
+
 Or to add specific packages:
+
 ```bash
 uv add <package_name>
+
 ```
 
 ### Container Deployment Workflow
+
 The complete architecture is structured around standard Linux container engines. You can initiate the entire multi-node environment (Bot Daemon and Streamlit Workspace) via **Podman** or **Docker**.
 
+To facilitate the Upstox login workflow inside a containerized setup, ensure your container runtime configures the inbound network bindings to expose both port `8000` (for the OAuth login redirect loopback) and port `8501` (for the visualization node).
+
+#### Production docker-compose.yml / podman-compose.yml
+
+```yaml
+version: '3.8'
+
+services:
+  upstox_wheel_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: upstox_wheel_bot
+    restart: always
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    command: ["uv", "run", "main.py", "start"]
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: upstox_pnl_dashboard
+    restart: always
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - upstox_wheel_bot
+    command: ["uv", "run", "streamlit", "run", "dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
+
+```
+
 Start the production nodes in detached mode:
+
 ```bash
 podman compose up -d --build
+
 ```
+
 *(Note: Replace `podman` with `docker` depending on your engine).*
 
 ### Accessing the System
-- **Bot Daemon Logs:** Inspect daemon operations via `podman compose logs -f bot`
-- **Analytics Command Center:** The Streamlit workspace is available locally at **[http://localhost:8501](http://localhost:8501)**
+
+* **Bot Daemon Logs:** Inspect daemon operations via `podman compose logs -f upstox_wheel_bot`
+* **Analytics Command Center:** The Streamlit workspace is available locally at **[http://localhost:8501](https://www.google.com/search?q=http://localhost:8501)**
+
+```
+
+```
