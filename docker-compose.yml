@@ -1,13 +1,31 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  upstox-wheel-bot:
-    build: .
-    container_name: upstox-wheel-bot
-    restart: unless-stopped
+  upstox_wheel_bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: upstox_wheel_bot
+    restart: always
     env_file:
       - .env
-    environment:
-      - TZ=Asia/Kolkata
     volumes:
       - ./data:/app/data
+    command: ["uv", "run", "main.py", "start"]
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: upstox_pnl_dashboard
+    restart: always
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/app/data
+    # Added depends_on to ensure database exists before dashboard spins up
+    depends_on:
+      - upstox_wheel_bot
+    command: ["uv", "run", "streamlit", "run", "dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
