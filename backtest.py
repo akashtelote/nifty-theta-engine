@@ -3,6 +3,14 @@ import numpy as np
 import polars as pl
 import yfinance as yf
 
+LOT_SIZES = {
+    "RELIANCE.NS": 250,
+    "HDFCBANK.NS": 550,
+    "INFY.NS": 400,
+    "MARUTI.NS": 65,
+    "SBIN.NS": 1500
+}
+
 
 def fetch_historical_data(ticker: str, start_date: str, end_date: str) -> pl.DataFrame:
     """
@@ -84,7 +92,7 @@ def estimate_premium(spot: float, strike: float, vix: float, dte: int = 30) -> f
     """
     return (spot * (vix / 100.0)) * 0.10 * (strike / spot)
 
-def run_backtest(df: pl.DataFrame, initial_capital: float = 500000.0) -> dict:
+def run_backtest(df: pl.DataFrame, lot_size: int, initial_capital: float = 500000.0) -> dict:
     """
     Simulates the Wheel Strategy backtest using a predefined DataFrame.
     """
@@ -97,6 +105,7 @@ def run_backtest(df: pl.DataFrame, initial_capital: float = 500000.0) -> dict:
     total_trades = 0
     winning_trades = 0
     trade_history = []
+    trade_yields = []
     entry_date = None
 
     for row in df.iter_rows(named=True):
@@ -122,7 +131,6 @@ def run_backtest(df: pl.DataFrame, initial_capital: float = 500000.0) -> dict:
             long_strike = short_strike * 0.98
             net_credit = estimate_premium(spot, short_strike, vix)
 
-            realized_pnl += net_credit
             in_trade = True
             days_in_trade = 0
             total_trades += 1
@@ -138,13 +146,19 @@ def run_backtest(df: pl.DataFrame, initial_capital: float = 500000.0) -> dict:
             # Exit Logic
             days_in_trade += 1
             if days_in_trade == 30:
+                margin_blocked = (short_strike - long_strike) * lot_size
                 if spot > short_strike:
                     # Trade won (expires worthless). Retain premium.
                     winning_trades += 1
+                    trade_pnl_rupees = net_credit * lot_size
                 else:
                     # Trade lost. Calculate loss and deduct from PnL.
                     loss = (short_strike - long_strike) - net_credit
-                    realized_pnl -= loss
+                    trade_pnl_rupees = -loss * lot_size
+
+                realized_pnl += trade_pnl_rupees
+                trade_yield_pct = (trade_pnl_rupees / margin_blocked) * 100
+                trade_yields.append(trade_yield_pct)
 
                 # Reset trade status
                 in_trade = False
@@ -154,43 +168,54 @@ def run_backtest(df: pl.DataFrame, initial_capital: float = 500000.0) -> dict:
                 net_credit = 0.0
 
     win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
+    average_yield_pct = np.mean(trade_yields) if trade_yields else 0.0
 
     return {
         "total_trades": total_trades,
         "winning_trades": winning_trades,
         "win_rate": win_rate,
-        "final_pnl": realized_pnl
+        "final_pnl": realized_pnl,
+        "average_yield_pct": float(average_yield_pct),
+        "trade_yields": trade_yields
     }
 
 if __name__ == "__main__":
-    portfolio = ["RELIANCE.NS", "HDFCBANK.NS", "INFY.NS", "TATAMOTORS.NS", "SBIN.NS"]
+    portfolio = ["RELIANCE.NS", "HDFCBANK.NS", "INFY.NS", "MARUTI.NS", "SBIN.NS"]
 
     portfolio_total_trades = 0
     portfolio_winning_trades = 0
     portfolio_net_pnl = 0.0
+    portfolio_all_yields = []
 
     for ticker in portfolio:
         print(f"Running simulation for {ticker}...")
         df = fetch_historical_data(ticker, "2021-01-01", "2026-01-01")
-        results = run_backtest(df)
+
+        lot_size = LOT_SIZES[ticker]
+        results = run_backtest(df, lot_size)
 
         total_trades = results['total_trades']
         winning_trades = results['winning_trades']
         win_rate = results['win_rate']
         final_pnl = results['final_pnl']
+        average_yield_pct = results['average_yield_pct']
+
+        portfolio_all_yields.extend(results['trade_yields'])
 
         portfolio_total_trades += total_trades
         portfolio_winning_trades += winning_trades
         portfolio_net_pnl += final_pnl
 
-        print(f"  -> {ticker}: {total_trades} Trades | {win_rate:.2f}% Win | {final_pnl:.2f} PnL")
+        print(f"  -> {ticker}: {total_trades} Trades | {win_rate:.2f}% Win | ₹{final_pnl:.2f} PnL | Avg Yield: {average_yield_pct:.2f}%")
 
     print("\n" + "=" * 50)
     print("AGGREGATED PORTFOLIO RESULTS")
     print("=" * 50)
 
     global_win_rate = (portfolio_winning_trades / portfolio_total_trades * 100) if portfolio_total_trades > 0 else 0.0
+    global_average_yield = np.mean(portfolio_all_yields) if portfolio_all_yields else 0.0
 
     print(f"Total Trades:      {portfolio_total_trades}")
     print(f"Global Win Rate:   {global_win_rate:.2f}%")
-    print(f"Net Portfolio PnL: {portfolio_net_pnl:.2f}")
+    print(f"Global Avg Yield:  {global_average_yield:.2f}%")
+    print(f"Net Portfolio PnL: ₹{portfolio_net_pnl:.2f}")
