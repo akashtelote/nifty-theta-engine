@@ -1,90 +1,129 @@
-PART 1: CODEBASE WIKI
-Internal Architecture & Core Modules
-main.py
-The primary entry point of the trading bot, utilizing argparse to provide a unified Command Line Interface (CLI). It structures execution into distinct subcommands:
+# Upstox Algorithmic Options System (Iron Shield Credit Spread Engine)
 
-auth: Generates or refreshes the Upstox API token.
-screen: Runs the Smart Money Filter to find institutional whales.
-trade: Allows running a simulated paper trade or a live trade directly.
-start: Initializes the daily APScheduler daemon. It includes a --live flag that toggles the execution from the default paper-trading mode to executing real orders on the Upstox exchange.
-core/scheduler.py
-Manages the automated execution schedule using APScheduler. Configured specifically for the Indian market (Asia/Kolkata timezone), it utilizes a CronTrigger to execute the _run_daily_wheel function precisely at 15:15 IST from Monday to Friday. The scheduler runs in a background thread, kept alive by an infinite sleep loop in the main thread.
+**An autonomous, containerized production trading system built using Python, Polars, and SQLite3 for the National Stock Exchange of India (NSE) F&O market. It executes risk-defined Bull Put Credit Spreads, dynamically filters market regimes via the India VIX index, calculates real-time margin-scaled lot positioning, and exposes a decoupled analytics interface.**
 
-core/client.py
-Handles all external interactions with the Upstox API.
+---
 
-401 Auto-Healing (_make_authenticated_request): Wraps API calls with self-healing network logic. If a request returns a 401 Unauthorized error, it intercepts the failure, evicts the expired token.json, seamlessly calls the auth module to fetch a fresh token, and retries the request exactly once.
-Dynamic Calendar Resolution (get_option_chain): Fetches option contracts and parses their expiry dates to automatically find the most optimal expiration within a mechanical 10 to 42 Days to Expiration (DTE) window. It standardizes the data into a high-performance Polars DataFrame, mapping the instrument_key, strike, expiry, bid, ask, and last_price.
-strategies/wheel_strategy.py
-The brain of the bot, implementing the Options Wheel Strategy using a deterministic State Machine.
+## Table of Contents
+1. [System Architecture](#system-architecture)
+2. [Core Feature Matrix](#core-feature-matrix)
+3. [Project Directory Layout](#project-directory-layout)
+4. [Environment Configuration Matrix (.env)](#environment-configuration-matrix-env)
+5. [Local Development & Container Deployment](#local-development--container-deployment)
 
-State Flow: The bot progresses through IDLE (looking for a trade) $\rightarrow$ STAGE_1_CSP (selling a Cash-Secured Put) $\rightarrow$ STAGE_2_CC (selling a Covered Call if assigned).
-Polars Math: Calculates target options efficiently, seeking Puts 10% Out-of-the-Money (OTM) and Calls mathematically at or above the adjusted cost basis.
-State Persistence: Maintains its internal ledger across reboots using a local wheel_state.json file. It leverages filelock to guarantee thread-safe read/write operations during concurrent or automated executions.
-core/auth.py
-Responsible for the fully headless Upstox token generation. By leveraging the UpstoxTOTP package, it combines the standard credentials (USER_ID, PASSWORD, API_KEY, etc.) with a TOTP_SECRET to automatically fetch an access_token without requiring manual browser-based OAuth logins.
+---
 
-core/notifier.py
-The Discord Webhook notification engine. It constructs rich Embed payloads to stream critical updates and errors directly to a Discord channel. It maps log levels to decimal colors: INFO defaults to Blue, WARNING is Yellow, and ERROR triggers Red embeds.
+## System Architecture
 
-Deployment Specs
-deploy.sh: A robust bash script to automate headless Podman deployments. It checks for a .env file, pulls the latest code, tears down existing containers (podman compose down), rebuilds the image, prunes dangling images, and launches the updated container in the background (up -d).
-Dockerfile: Uses a slim Python 3.11 base image to minimize footprint. It installs tzdata to enforce the Asia/Kolkata timezone internally and utilizes uv as the lightning-fast package manager. It maximizes build layer caching by syncing pyproject.toml and uv.lock before copying the rest of the application.
-PART 2: PRODUCTION README.md
-Upstox Wheel Options Trading Bot
-An automated, headless Options Trading Bot designed for the Indian Stock Market (NSE) leveraging the Upstox API. This bot programmatically executes the Options Wheel Strategy, cycling through Cash-Secured Puts (CSP) and Covered Calls (CC) using a deterministic state machine and robust quantitative option selection.
+Below is the decoupled data flow pipeline for the Iron Shield Credit Spread Engine:
 
-⚠️ DISCLAIMER: READ CAREFULLY
-THIS SOFTWARE IS FOR EDUCATIONAL PURPOSES ONLY.
+```text
++---------------------+        +-------------------------+        +---------------------------+
+|                     |        |                         |        |                           |
+|  Scheduler Daemon   | -----> | Live Funds API Check &  | -----> |  Polars Option Selection  |
+|   (APScheduler)     |        |    Risk Validation      |        |      & VIX Regimes        |
+|                     |        |                         |        |                           |
++---------------------+        +-------------------------+        +---------------------------+
+                                                                                |
+                                                                                v
++---------------------+        +-------------------------+        +---------------------------+
+|                     |        |                         |        |                           |
+| Streamlit UI Node / | <----- |    SQLite3 Ledger       | <----- | Margin-Optimized 2-Leg    |
+| Discord Alerting    |        |     Persistence         |        | Order Dispatch Engine     |
+|      Gateway        |        |                         |        | (Buy 1st, Sell 2nd)       |
++---------------------+        +-------------------------+        +---------------------------+
+```
 
-Trading financial derivatives, including options, involves significant financial risk and may not be suitable for all investors. You can lose substantial amounts of capital. The authors, contributors, and maintainers of this repository are NOT financial advisors and are NOT responsible for any financial losses or damages incurred from using this software. Always review the code carefully and thoroughly test in paper-trading/mock mode before ever running with live funds. Use at your own risk.
+---
 
-✨ Key Features
-Automated State Machine: Deterministically moves between IDLE, STAGE_1_CSP, and STAGE_2_CC states, saving progress locally to ensure recovery across reboots.
-Auto-Healing API Network: Inline 401 auto-healing logic seamlessly drops expired tokens, re-authenticates completely headlessly via TOTP, and retries failed API calls.
-Polars-Driven Options Math: Lightning-fast quantitative processing to dynamically resolve the optimal 10-42 DTE expiration calendars and calculate strictly 10% OTM target strikes.
-Rootless Podman Deployment: Fully containerized architecture using uv for hyper-fast dependency management and APScheduler for precise 15:15 IST execution.
-Rich Discord Notifications: Real-time webhook streaming of state changes, executions, and critical errors right to your server.
-📋 Prerequisites
-Runtime: Linux environment with Podman and podman-compose installed.
-Language: Python 3.11 / 3.12
-Broker: Upstox API Developer Credentials (API Key, API Secret, User ID, Password, PIN, and TOTP Secret).
-Notifications: A Discord Server with Webhook URL capabilities.
-🔐 Environment Variables
-Create a .env file in the root of the repository matching this template:
+## Core Feature Matrix
 
+### 1. Dynamic Credit Spread Mechanics
+Defined-risk entry utilizing an automated **two-leg execution sequence**. The system mandates that the **Long Hedge Put is filled prior to Short Put entry** to enforce margin reduction and ensure risk is strictly capped.
+
+### 2. Treasury & Position Sizing Engine
+Live calculation of available cash limits via the Upstox Margin API to scale position lots based on localized risk constraints (**`allocation_pct`**) and exact option contract spread widths.
+
+### 3. Persistence Layer
+ACID-compliant **SQLite3 relational engine** tracking active positions, historical cost basis, and global realized metrics. Unpacks flat DB records into nested strategy state objects dynamically.
+
+### 4. Fault Tolerance & Telemetry
+Integrated Network Guard managing HTTP 429 rate-limiting backoffs, VIX macro circuit breakers, decoupled multi-channel alerting via **Discord webhooks**, and an external **Dead Man's Snitch heartbeat ping loop** to verify daemon uptime.
+
+### 5. The Lab (Polars Backtester)
+Standalone offline simulation laboratory leveraging **Polars lazy frames** and **yfinance** to evaluate performance parameters across historical market cycles. Used for quantitative strategy tuning.
+
+### 6. The Command Center (Analytics Dashboard)
+A decoupled **Streamlit web container** serving localized metrics tracking live portfolios, allocation spreads, and performance matrices reading strictly from the decentralized SQLite persistence layer.
+
+---
+
+## Project Directory Layout
+
+```text
+.
+├── backtest.py           # Standalone offline simulation lab leveraging yfinance and Polars
+├── config/               # Global settings, token configuration, and Upstox API keys
+├── core/                 # Engine core logic
+│   ├── auth.py           # Upstox API authentication handler
+│   ├── client.py         # Resilient Upstox HTTP client with built-in rate limit handling
+│   ├── scheduler.py      # Main APScheduler daemon triggering the daily cycles
+│   └── notifier.py       # Discord Webhook integration for runtime telemetry
+├── dashboard.py          # Command Center: Streamlit Analytics Web UI
+├── data/                 # SQLite database storage (wheel_state.db) and Parquet fixtures
+├── docker-compose.yml    # Main orchestration profile for deploying system containers
+├── main.py               # Main bot daemon entry point and runtime initiator
+└── strategies/
+    └── wheel_strategy.py # Core State Machine: Dynamic Credit Spread and Covered Call logic
+```
+
+---
+
+## Environment Configuration Matrix (.env)
+
+Below is a structurally sound sample `.env` configuration file required for system startup.
+
+```env
 # Upstox API Credentials
-UPSTOX_USER_ID=your_upstox_id
-UPSTOX_PASSWORD=your_password
-UPSTOX_PIN_CODE=your_6_digit_pin
-UPSTOX_TOTP_SECRET=your_base32_totp_secret
-UPSTOX_API_KEY=your_api_key
-UPSTOX_API_SECRET=your_api_secret
-UPSTOX_REDIRECT_URI=https://127.0.0.1:5000/
+UPSTOX_API_KEY=your_api_key_here
+UPSTOX_SECRET_KEY=your_secret_key_here
+UPSTOX_REDIRECT_URI=http://localhost:8000/callback
 
-# External Integrations
-WEBHOOK_URL=your_discord_webhook_url
-
-# Feature Flags
+# Risk Matrix & Treasury Parameters
+VIX_MAX_THRESHOLD=25.0
+ALLOCATION_PCT_PER_TRADE=0.15
 MOCK_MARKET=False
-🚀 Installation & Deployment
-Clone the repository:
-git clone <your-repo-url>
-cd upstox-wheel-bot
-Setup the Environment: Create and populate the .env file with your credentials as shown above.
-Deploy Headlessly (Production): Ensure deploy.sh has execution permissions, then run the build sequence:
-chmod +x deploy.sh
-./deploy.sh
-💻 Usage / Local Testing
-For local development or testing, it is highly recommended to utilize uv.
 
-1. Authentication Check: Manually force the bot to login headlessly and generate the token.json.
+# External Webhooks & Telemetry
+DISCORD_WEBHOOK_URL=your_discord_webhook_url_here
+HEARTBEAT_URL=https://nosnch.in/your_snitch_token
+```
 
-uv run python main.py auth
-2. Start the Bot in Paper-Trading Mode: Boot up the scheduler locally without pushing live trades to Upstox.
+---
 
-uv run python main.py start
-3. Start the Bot in LIVE Mode: Append the live flag to execute real, funded exchange orders.
+## Local Development & Container Deployment
 
-uv run python main.py start --live
-🧪 MOCK_MARKET Testing Mode: If you want to test the bot's logic and state machine safely when the Indian F&O market is closed or when you don't want to hit the live API, simply set MOCK_MARKET=True in your .env file. The bot will automatically inject mock market data and dummy Option Chains, allowing you to safely observe the state machine progression without external dependencies.
+### Dependency Management (Local)
+This project utilizes [uv](https://github.com/astral-sh/uv) for lightning-fast package management.
+
+To install dependencies locally:
+```bash
+uv pip install -e .
+```
+Or to add specific packages:
+```bash
+uv add <package_name>
+```
+
+### Container Deployment Workflow
+The complete architecture is structured around standard Linux container engines. You can initiate the entire multi-node environment (Bot Daemon and Streamlit Workspace) via **Podman** or **Docker**.
+
+Start the production nodes in detached mode:
+```bash
+podman compose up -d --build
+```
+*(Note: Replace `podman` with `docker` depending on your engine).*
+
+### Accessing the System
+- **Bot Daemon Logs:** Inspect daemon operations via `podman compose logs -f bot`
+- **Analytics Command Center:** The Streamlit workspace is available locally at **[http://localhost:8501](http://localhost:8501)**
