@@ -182,11 +182,10 @@ class UpstoxClient:
         if self.is_mock_market:
             return 500000.0
 
-        url = "https://api.upstox.com/v2/user/get-margin"
+        url = "https://api.upstox.com/v3/user/get-funds-and-margin"
 
-        # Upstox get-margin requires the segment query param, but basic API endpoint docs
-        # suggest segment=EQ works for equity funds. We'll pass it if needed, but simple GET often suffices.
-        response = self._make_authenticated_request("GET", url, timeout=10)
+        headers = {'Api-Version': '3.0'}
+        response = self._make_authenticated_request("GET", url, headers=headers, timeout=10)
 
         if not response:
             return None
@@ -196,10 +195,10 @@ class UpstoxClient:
             return None
 
         try:
-            data = response.json().get("data", {})
+            data = response.json()
             if not data:
                 return None
-            return float(data.get("equity", {}).get("available_margin", 0.0))
+            return float(data.get("data", {}).get("available_to_trade", {}).get("total", 0.0))
         except Exception as e:
             logger.error(f"Margin API Exception: {e}. Raw Response: {response.text}", exc_info=True)
             return None
