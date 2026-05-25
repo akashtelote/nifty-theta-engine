@@ -1,3 +1,7 @@
+import os
+import logging
+import yfinance as yf
+import pandas as pd
 import polars as pl
 import numpy as np
 import joblib
@@ -150,6 +154,39 @@ def run_weekend_training(data_path="data/data_lake/macro.parquet", model_path="m
     Orchestrator function to execute the full weekend ML retraining pipeline.
     Loads raw data, generates features, labels regimes, balances classes, and trains the model.
     """
+    if not os.path.exists(data_path):
+        os.makedirs(os.path.dirname(data_path), exist_ok=True)
+        logging.info("Bootstrapping data lake. Downloading 5 years of historical NIFTY and VIX data...")
+
+        try:
+            nifty = yf.download("^NSEI", period="5y")
+            vix = yf.download("^INDIAVIX", period="5y")
+
+            if nifty.empty or vix.empty:
+                raise ValueError("Downloaded data is empty.")
+
+            df = pd.merge(nifty[["Close"]], vix[["Close"]], left_index=True, right_index=True, how="inner")
+
+            # Strip timezone
+            df.index = pd.to_datetime(df.index).tz_localize(None)
+
+            # Reset index so Date is a column
+            df = df.reset_index()
+
+            # Rename columns strictly to: Date, NIFTY_Close, VIX_Close
+            df.columns = ["Date", "NIFTY_Close", "VIX_Close"]
+
+            # Drop any rows with NaN values (holidays or missing data)
+            df = df.dropna()
+
+            # Convert the Pandas DataFrame to a Polars DataFrame and save
+            df_polars = pl.from_pandas(df)
+            df_polars.write_parquet(data_path)
+
+        except Exception as e:
+            logging.critical("Failed to bootstrap data lake from yfinance")
+            raise e
+
     # 1. Load the parquet data using Polars LazyFrame
     lf = pl.scan_parquet(data_path)
 
