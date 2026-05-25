@@ -1,5 +1,7 @@
 import polars as pl
 import numpy as np
+import joblib
+from xgboost import XGBClassifier
 
 def generate_macro_features(lf: pl.LazyFrame) -> pl.LazyFrame:
     """
@@ -142,3 +144,31 @@ def balance_classes(lf: pl.LazyFrame, random_state: int = 42) -> pl.LazyFrame:
 
     # Return as a LazyFrame to resume out-of-core compatibility in the pipeline
     return df_balanced.lazy()
+
+def run_weekend_training(data_path="data/data_lake/macro.parquet", model_path="models/xgb_vix_regime_v1.pkl"):
+    """
+    Orchestrator function to execute the full weekend ML retraining pipeline.
+    Loads raw data, generates features, labels regimes, balances classes, and trains the model.
+    """
+    # 1. Load the parquet data using Polars LazyFrame
+    lf = pl.scan_parquet(data_path)
+
+    # 2. Sequential Pipeline
+    lf = generate_macro_features(lf)
+    lf = label_vix_regimes(lf)
+    lf = balance_classes(lf)
+
+    # 3. Materialize the final balanced LazyFrame into memory
+    df = lf.collect().to_pandas()
+
+    # 4. Isolate features (X) and target label (y)
+    # Ensure identifier columns like 'Date' are dropped from features
+    y = df["Target"]
+    X = df.drop(columns=["Target", "Date"], errors="ignore")
+
+    # 5. Train standard XGBClassifier
+    model = XGBClassifier(random_state=42)
+    model.fit(X, y)
+
+    # 6. Save the trained artifact
+    joblib.dump(model, model_path)

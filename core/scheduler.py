@@ -7,6 +7,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from strategies.wheel_strategy import WheelStateMachine
 from core.notifier import Notifier
+from ml.vix_pipeline import run_weekend_training
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,14 @@ def _run_daily_wheel(is_live: bool = False):
         except Exception as e:
             logger.warning(f"Failed to send heartbeat ping: {e}")
 
+def _scheduled_ml_retraining():
+    logger.info("Initiating Weekend ML Compute Window: Retraining VIX Predictive Model.")
+    try:
+        run_weekend_training()
+        logger.info("Weekend ML Compute Window completed successfully.")
+    except Exception as e:
+        logger.error(f"Failed during Weekend ML Retraining: {e}", exc_info=True)
+
 def start_scheduler(is_live: bool = False):
     tz = pytz.timezone('Asia/Kolkata')
     scheduler = BackgroundScheduler(timezone=tz)
@@ -58,6 +67,19 @@ def start_scheduler(is_live: bool = False):
         _run_daily_wheel,
         trigger=trigger,
         args=[is_live]
+    )
+
+    ml_trigger = CronTrigger(
+        day_of_week='sat',
+        hour=2,
+        minute=0,
+        timezone=tz
+    )
+
+    scheduler.add_job(
+        _scheduled_ml_retraining,
+        trigger=ml_trigger,
+        misfire_grace_time=3600
     )
 
     logger.info(f"Scheduler initialized. Bot is standing by for the 15:15 IST execution. (Live Mode: {is_live})")
