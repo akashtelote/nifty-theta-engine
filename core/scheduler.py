@@ -19,6 +19,14 @@ TARGET_SYMBOLS = {
     "INFY": {"allocation_pct": 0.10}
 }
 
+LOT_SIZES = {
+    "RELIANCE": 250, "RELIANCE.NS": 250,
+    "HDFCBANK": 550, "HDFCBANK.NS": 550,
+    "INFY": 400, "INFY.NS": 400,
+    "MARUTI": 65, "MARUTI.NS": 65,
+    "SBIN": 1500, "SBIN.NS": 1500
+}
+
 def _run_daily_wheel(is_live: bool = False):
     logger.info(f"Starting daily wheel execution. (Live Mode: {is_live})")
     wheel = WheelStateMachine()
@@ -27,7 +35,7 @@ def _run_daily_wheel(is_live: bool = False):
     for symbol, symbol_config in TARGET_SYMBOLS.items():
         try:
             logger.info(f"Processing symbol: {symbol} with config: {symbol_config}")
-            wheel.execute_daily_cycle(symbol=symbol, symbol_config=symbol_config, is_live=is_live)
+            wheel.execute_daily_cycle(symbol=symbol, symbol_config=symbol_config, quantity_shares=LOT_SIZES.get(symbol, 1), is_live=is_live)
         except Exception as e:
             logger.error(f"Error processing {symbol}: {e}", exc_info=True)
             notifier.send_notification(
