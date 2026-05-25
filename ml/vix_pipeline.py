@@ -208,4 +208,5 @@ def run_weekend_training(data_path="data/data_lake/macro.parquet", model_path="m
     model.fit(X, y)
 
     # 6. Save the trained artifact
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
     joblib.dump(model, model_path)
