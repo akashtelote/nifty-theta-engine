@@ -192,7 +192,7 @@ class UpstoxClient:
             return None
 
         if response.status_code != 200:
-            logger.error(f"Upstox API HTTP Error {response.status_code}: {response.text}")
+            logger.error(f"Upstox Margin API Error. Status: {response.status_code}, Body: {response.text}")
             return None
 
         try:
@@ -201,7 +201,7 @@ class UpstoxClient:
                 return None
             return float(data.get("equity", {}).get("available_margin", 0.0))
         except Exception as e:
-            logger.error(f"Failed to parse available margin response: {e}", exc_info=True)
+            logger.error(f"Margin API Exception: {e}. Raw Response: {response.text}", exc_info=True)
             return None
 
     def get_order_status(self, order_id: str) -> str | None:
