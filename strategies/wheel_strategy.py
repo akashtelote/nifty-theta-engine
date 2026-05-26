@@ -334,7 +334,7 @@ class WheelStateMachine:
 
         return df.row(0, named=True)
 
-    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, min_days: int = 10, max_days: int = 42) -> tuple[dict | None, dict | None]:
+    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, vix_prob: float, min_days: int = 10, max_days: int = 42) -> tuple[dict | None, dict | None]:
         if chain_df.is_empty():
             return None, None
 
@@ -369,16 +369,12 @@ class WheelStateMachine:
         if df.is_empty():
             return None, None
 
-        current_vix = self.client.get_india_vix()
-        if current_vix is None:
-            current_vix = 15.0
-
-        if current_vix < 13.0:
-            otm_pct = 0.06
-        elif 13.0 <= current_vix <= 18.0:
-            otm_pct = 0.10
+        if vix_prob < 0.30:
+            otm_pct = 0.02
+        elif 0.30 <= vix_prob < 0.60:
+            otm_pct = 0.03
         else:
-            otm_pct = 0.15
+            otm_pct = 0.04
 
         target_strike = spot_price * (1 - otm_pct)
 
@@ -422,6 +418,19 @@ class WheelStateMachine:
 
         long_put_row = hedge_df.row(0, named=True)
 
+        # Slippage Guardrails Check
+        for leg_name, row in [("Short PE", short_put_row), ("Long PE", long_put_row)]:
+            bid = row.get("bid")
+            ask = row.get("ask")
+            if bid is None or bid == 0:
+                logger.warning(f"Bid price is missing or 0 for {leg_name}. Aborting trade to prevent slippage.")
+                return None, None
+
+            spread_pct = (ask - bid) / bid
+            if spread_pct > 0.15:
+                logger.warning(f"Bid-Ask spread too wide ({spread_pct * 100:.1f}%) for {leg_name}. Aborting trade to prevent slippage.")
+                return None, None
+
         return short_put_row, long_put_row
 
     def execute_daily_cycle(self, symbol: str, quantity_shares: int, symbol_config: dict, is_live: bool = False):
@@ -454,7 +463,7 @@ class WheelStateMachine:
 
             chain_df = self.client.get_option_chain(symbol)
 
-            targets = self._select_target_put(chain_df, spot_price)
+            targets = self._select_target_put(chain_df, spot_price, spike_prob)
             if targets is None or targets[0] is None or targets[1] is None:
                 logger.warning(f"Could not find a suitable target PUT spread for {symbol}. Aborting daily cycle.")
                 return
@@ -683,6 +692,92 @@ class WheelStateMachine:
                     return
 
             if expiry_date != date.today():
+                # Dynamic Profit-Taking (50% Rule)
+                hedge_position = self.state[symbol].get("hedge_position")
+                if active_position and hedge_position:
+                    short_entry_price = active_position.get("entry_price", 0.0)
+                    long_entry_price = hedge_position.get("entry_price", 0.0)
+                    initial_credit = short_entry_price - long_entry_price
+
+                    short_instrument_key = active_position.get("instrument_key")
+                    long_instrument_key = hedge_position.get("instrument_key")
+
+                    chain_df = self.client.get_option_chain(symbol, expiry_date=expiry_str)
+
+                    short_contract_df = chain_df.filter(pl.col("instrument_key") == short_instrument_key)
+                    long_contract_df = chain_df.filter(pl.col("instrument_key") == long_instrument_key)
+
+                    if not short_contract_df.is_empty() and not long_contract_df.is_empty():
+                        short_live_ask = short_contract_df.row(0, named=True).get("ask")
+                        long_live_bid = long_contract_df.row(0, named=True).get("bid")
+
+                        if short_live_ask is not None and long_live_bid is not None:
+                            current_cost_to_close = short_live_ask - long_live_bid
+
+                            if current_cost_to_close <= 0.5 * initial_credit:
+                                msg = f"[PROFIT TAKING] 50% Rule triggered for {symbol}. Initial Credit: {initial_credit:.2f}, Current Cost to Close: {current_cost_to_close:.2f}. Initiating closing orders..."
+                                logger.info(msg)
+                                self.notifier.send_notification(title="Profit Taking Triggered", message=msg, level="INFO")
+
+                                # Buy to close Short Put
+                                btc_order_id = self.client.place_order_by_key(
+                                    instrument_key=short_instrument_key,
+                                    side="BUY",
+                                    quantity=quantity_shares,
+                                    price=short_live_ask,
+                                    is_live=is_live
+                                )
+
+                                # Sell to close Long Put
+                                stc_order_id = self.client.place_order_by_key(
+                                    instrument_key=long_instrument_key,
+                                    side="SELL",
+                                    quantity=quantity_shares,
+                                    price=long_live_bid,
+                                    is_live=is_live
+                                )
+
+                                if btc_order_id and stc_order_id:
+                                    # Simplistic wait for both orders
+                                    orders_filled = False
+                                    for _ in range(3):
+                                        time.sleep(5)
+                                        btc_status = self.client.get_order_status(btc_order_id)
+                                        stc_status = self.client.get_order_status(stc_order_id)
+
+                                        if btc_status == "complete" and stc_status == "complete":
+                                            orders_filled = True
+                                            break
+                                        elif "rejected" in (btc_status, stc_status) or "cancelled" in (btc_status, stc_status):
+                                            abort_msg = f"Profit taking orders for {symbol} were rejected/cancelled. Aborting."
+                                            logger.warning(abort_msg)
+                                            self.notifier.send_notification(title="Profit Taking Failed", message=abort_msg, level="WARNING")
+                                            return
+
+                                    if not orders_filled:
+                                        self.client.cancel_order(btc_order_id)
+                                        self.client.cancel_order(stc_order_id)
+                                        timeout_msg = f"Profit taking orders timed out as pending limit order for {symbol}. Orders cancelled."
+                                        logger.warning(timeout_msg)
+                                        self.notifier.send_notification(title="Profit Taking Timeout", message=timeout_msg, level="WARNING")
+                                        return
+
+                                    # Successful closing
+                                    profit = (initial_credit - current_cost_to_close) * quantity_shares
+                                    self.state[symbol]["realized_pnl"] += profit
+                                    self.state[symbol]["current_stage"] = "IDLE"
+                                    self.state[symbol]["active_position"] = None
+                                    self.state[symbol]["hedge_position"] = None
+                                    self._save_state(symbol)
+
+                                    success_msg = f"Profit taking completed successfully for {symbol}. Profit: {profit}. Resetting state to IDLE."
+                                    logger.info(success_msg)
+                                    self.notifier.send_notification(title="Profit Taking Complete", message=success_msg, level="INFO")
+                                    return
+                                else:
+                                    logger.error(f"Failed to place profit taking orders for {symbol}.")
+                                    return
+
                 logger.info("Holding position...")
                 return
 
