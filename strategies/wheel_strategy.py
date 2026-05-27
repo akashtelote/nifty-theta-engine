@@ -1,5 +1,5 @@
 import time
-import sqlite3
+import psycopg2
 import os
 import logging
 from datetime import datetime, date
@@ -18,13 +18,9 @@ class WheelStateMachine:
     def __init__(self):
         """
         Initializes the Wheel Strategy State Machine.
-        Safely loads or creates the data/wheel_state.db database to prevent
-        race conditions during concurrent/daily executions.
+        Safely connects to the PostgreSQL database using DATABASE_URL.
         """
-        self.db_file = "data/wheel_state.db"
-
-        # Ensure data directory exists
-        os.makedirs(os.path.dirname(self.db_file), exist_ok=True)
+        self.db_url = os.getenv("DATABASE_URL", "postgresql://wheelbot:securepassword@localhost:5432/wheeldb")
 
         self._initialize_db()
         self.state = self._load_state()
@@ -34,46 +30,32 @@ class WheelStateMachine:
 
     def _initialize_db(self):
         """
-        Initializes the SQLite database and creates the wheel_state table if it doesn't exist.
+        Initializes the PostgreSQL database and creates the wheel_state table if it doesn't exist.
         """
         try:
-            conn = sqlite3.connect(self.db_file)
+            conn = psycopg2.connect(self.db_url)
             cursor = conn.cursor()
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS wheel_state (
                     symbol TEXT PRIMARY KEY,
                     current_stage TEXT,
                     instrument_key TEXT,
-                    strike_price REAL,
+                    strike_price DOUBLE PRECISION,
                     expiry TEXT,
                     trade_date TEXT,
-                    entry_price REAL,
+                    entry_price DOUBLE PRECISION,
                     order_id TEXT,
                     assigned_shares INTEGER,
-                    average_cost_basis REAL,
-                    realized_pnl REAL,
+                    average_cost_basis DOUBLE PRECISION,
+                    realized_pnl DOUBLE PRECISION,
                     hedge_instrument_key TEXT,
-                    hedge_strike_price REAL,
-                    hedge_entry_price REAL,
+                    hedge_strike_price DOUBLE PRECISION,
+                    hedge_entry_price DOUBLE PRECISION,
                     hedge_order_id TEXT
                 )
             ''')
-
-            # Migration block for existing databases
-            for column_def in [
-                "hedge_instrument_key TEXT",
-                "hedge_strike_price REAL",
-                "hedge_entry_price REAL",
-                "hedge_order_id TEXT"
-            ]:
-                try:
-                    cursor.execute(f"ALTER TABLE wheel_state ADD COLUMN {column_def}")
-                except sqlite3.OperationalError:
-                    # Column already exists
-                    pass
-
             conn.commit()
-        except sqlite3.Error as e:
+        except psycopg2.Error as e:
             logger.error(f"Error initializing database: {e}")
         finally:
             if 'conn' in locals() and conn:
@@ -81,11 +63,11 @@ class WheelStateMachine:
 
     def _load_state(self) -> dict:
         """
-        Loads state from the SQLite database and parses it into the nested dictionary format.
+        Loads state from the PostgreSQL database and parses it into the nested dictionary format.
         """
         state = {}
         try:
-            conn = sqlite3.connect(self.db_file)
+            conn = psycopg2.connect(self.db_url)
             cursor = conn.cursor()
             cursor.execute('''
                 SELECT symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
@@ -120,7 +102,7 @@ class WheelStateMachine:
                     },
                     "realized_pnl": realized_pnl if realized_pnl is not None else 0.0
                 }
-        except sqlite3.Error as e:
+        except psycopg2.Error as e:
             logger.error(f"Error loading state from database: {e}")
         finally:
             if 'conn' in locals() and conn:
@@ -129,7 +111,7 @@ class WheelStateMachine:
 
     def _save_state(self, symbol: str):
         """
-        Saves the state for a specific symbol to the SQLite database.
+        Saves the state for a specific symbol to the PostgreSQL database.
         """
         symbol_state = self.state.get(symbol)
         if not symbol_state:
@@ -171,19 +153,34 @@ class WheelStateMachine:
             hedge_order_id = None
 
         try:
-            conn = sqlite3.connect(self.db_file)
+            conn = psycopg2.connect(self.db_url)
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT OR REPLACE INTO wheel_state
+                INSERT INTO wheel_state
                 (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
                  entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl,
                  hedge_instrument_key, hedge_strike_price, hedge_entry_price, hedge_order_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (symbol) DO UPDATE SET
+                    current_stage = EXCLUDED.current_stage,
+                    instrument_key = EXCLUDED.instrument_key,
+                    strike_price = EXCLUDED.strike_price,
+                    expiry = EXCLUDED.expiry,
+                    trade_date = EXCLUDED.trade_date,
+                    entry_price = EXCLUDED.entry_price,
+                    order_id = EXCLUDED.order_id,
+                    assigned_shares = EXCLUDED.assigned_shares,
+                    average_cost_basis = EXCLUDED.average_cost_basis,
+                    realized_pnl = EXCLUDED.realized_pnl,
+                    hedge_instrument_key = EXCLUDED.hedge_instrument_key,
+                    hedge_strike_price = EXCLUDED.hedge_strike_price,
+                    hedge_entry_price = EXCLUDED.hedge_entry_price,
+                    hedge_order_id = EXCLUDED.hedge_order_id
             ''', (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
                   entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl,
                   hedge_instrument_key, hedge_strike_price, hedge_entry_price, hedge_order_id))
             conn.commit()
-        except sqlite3.Error as e:
+        except psycopg2.Error as e:
             logger.error(f"Error saving state to database for {symbol}: {e}")
         finally:
             if 'conn' in locals() and conn:
