@@ -5,17 +5,20 @@ RUN apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
-# Install uv
-RUN pip install uv
+# Install uv directly from astral's official image (much faster than pip)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Copy only dependency files first to leverage Docker layer caching
+# Copy dependency files first
 COPY pyproject.toml uv.lock ./
 
-# Install dependencies using uv
+# Sync dependencies (creates /app/.venv)
 RUN uv sync --frozen --no-dev
 
-# Copy application code
+# Inject the virtual environment into the system path
+ENV PATH="/app/.venv/bin:$PATH"
+
+# Copy the rest of the application
 COPY . .
 
-# Set default execution command (paper-trading mode by default)
-CMD ["uv", "run", "python", "main.py", "start"]
+# Raw python execution for graceful SIGTERM handling
+CMD ["python", "main.py", "start"]

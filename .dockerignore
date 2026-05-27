@@ -4,6 +4,7 @@ __pycache__/
 *.pyo
 *.pyd
 data/
-.env
 .git/
 .github/
+*.db
+*.log
