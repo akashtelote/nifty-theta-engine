@@ -1,4 +1,5 @@
-import sqlite3
+import os
+import psycopg2
 import polars as pl
 import streamlit as st
 
@@ -9,12 +10,15 @@ st.title("Wheel Strategy Analytics Dashboard")
 @st.cache_data(ttl=60)
 def load_data() -> pl.DataFrame:
     try:
-        conn = sqlite3.connect("data/wheel_state.db")
+        db_url = os.getenv("DATABASE_URL", "postgresql://wheelbot:securepassword@localhost:5432/wheeldb")
+        conn = psycopg2.connect(db_url)
+        # Using string representation of connection string since read_database might expect an engine/connection string
+        # actually, polars read_database supports connection objects from dbapi2 compliant libraries
         query = "SELECT * FROM wheel_state"
         df = pl.read_database(query, connection=conn)
         conn.close()
         return df
-    except sqlite3.OperationalError as e:
+    except psycopg2.OperationalError as e:
         st.error(f"Error loading database: {e}")
         # Return empty DataFrame with expected schema
         return pl.DataFrame(schema={

@@ -1,6 +1,20 @@
 version: '3.8'
 
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: postgres_db
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   upstox_wheel_bot:
     build:
       context: .
@@ -11,6 +25,9 @@ services:
       - .env
     volumes:
       - ./data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
     command: ["uv", "run", "main.py", "start"]
 
   dashboard:
@@ -27,5 +44,9 @@ services:
       - ./data:/app/data
     # Added depends_on to ensure database exists before dashboard spins up
     depends_on:
-      - upstox_wheel_bot
+      db:
+        condition: service_healthy
     command: ["uv", "run", "streamlit", "run", "dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
+
+volumes:
+  postgres_data:
