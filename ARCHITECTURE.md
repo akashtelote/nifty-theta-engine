@@ -36,6 +36,12 @@ This document serves as a living audit of the current production state of the co
 
 ## The Execution Engine (strategies/wheel_strategy.py)
 
+- **Treasury & Position Sizing Engine:** The bot dynamically scales its positions based on required margin and predefined risk allocations rather than full notional share value. The sizing sequence operates as follows:
+  1. **Capital Initialization:** The bot actively fetches live available margin from the Upstox API (`/v3/user/get-funds-and-margin`). If running in mock market mode, it bypasses the API and hardcodes the balance to ₹5,00,000.0.
+  2. **Target Capital:** It computes the capital allocated to the specific trade by multiplying the available margin by the symbol's configured `allocation_pct` (e.g., ₹5,00,000 * 0.10 = ₹50,000).
+  3. **Required Margin Per Lot:** For defined-risk credit spreads, the margin is calculated as the spread width multiplied by the standard lot size: `(short_strike - long_strike) * lot_size` (e.g., ₹20 wide * 400 shares = ₹8,000).
+  4. **Lot Sizing:** The engine determines the maximum number of full lots it can trade by dividing the target capital by the required margin per lot, strictly flooring the result (`math.floor()`).
+  5. **Edge Case (Insufficient Capital):** If the calculated number of lots is zero (i.e., the target capital is less than the margin required for a single lot), the engine immediately aborts the trade, logs a warning, and sends a Discord alert to prevent executing invalid trades or risking unsupported positions.
 - **VIX Circuit Breaker:** The bot dynamically uses the output (`vix_prob`) from the ML predictor. If `vix_prob` is >= 0.75, the bot aborts the trade cycle and stays in cash. For probabilities < 0.75, `vix_prob` dictates the Out-of-The-Money (OTM) percentage target for Put options (e.g., < 0.30 = 2% OTM, 0.30-0.60 = 3% OTM, > 0.60 = 4% OTM).
 - **Slippage Guardrails:** Before executing any option legs, the engine calculates the bid-ask spread `((ask - bid) / bid)`. If the spread exceeds 15% or the bid is missing/zero, the trade is aborted to protect against severe slippage.
 - **Dynamic Profit-Taking (50% Rule):** During the `STAGE_1_CSP` (Credit Spread) phase, the engine tracks the initial net credit received. If the real-time cost to close the spread drops to <= 50% of the initial credit, the bot automatically buys back the short put and sells the long put, logging realized profit and resetting the state to `IDLE`.
