@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import redis
 from datetime import datetime, timezone, timedelta
 from filelock import FileLock
 from upstox_totp.client import UpstoxTOTP
@@ -19,14 +20,34 @@ TOKEN_FORCE_REFRESH_GUARD_SECONDS = 300
 def get_current_timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+def get_centralized_token() -> str | None:
+    """
+    Fetches the active token from the centralized Redis bus managed by System A.
+    """
+    redis_url = os.getenv("REDIS_URL", "redis://host.docker.internal:6379/0")
+    try:
+        r = redis.from_url(redis_url, decode_responses=True)
+        token = r.get("upstox:active_token")
+        return token
+    except Exception as e:
+        logger.error(f"Failed to connect to Redis or fetch token: {e}")
+        return None
+
 def authenticate_and_save_token(force_refresh: bool = False) -> str:
     """
     Thread-safe function to authenticate with Upstox API and save the token.
-    Uses FileLock to prevent multiple processes from refreshing the token simultaneously.
-    If force_refresh is True, it will try to get a new token unless the token was created
-    within the force-refresh guard interval (e.g., 300 seconds).
+    Acts as a proxy: first attempts to fetch the centralized token from Redis.
+    If that fails, falls back to the legacy TOTP flow (which will invalidate System A's session).
     """
     load_dotenv()
+
+    # 1. Attempt to fetch token from Centralized Redis Bus
+    centralized_token = get_centralized_token()
+    if centralized_token:
+        logger.info("Successfully retrieved centralized Upstox token from Redis.")
+        return centralized_token
+
+    logger.critical("Redis token missing. System A is unreachable. Executing emergency fallback login. WARNING: This will kill System A's active session!")
 
     # Ensure data directory exists
     os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)

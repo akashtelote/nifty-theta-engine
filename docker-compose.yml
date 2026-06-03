@@ -23,6 +23,10 @@ services:
     image: upstox_wheel_base:latest
     container_name: upstox_wheel_bot
     restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - REDIS_URL=redis://host.docker.internal:6379/0
     env_file:
       - .env
     volumes:
