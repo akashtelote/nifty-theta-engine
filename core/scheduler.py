@@ -14,17 +14,11 @@ logger = logging.getLogger(__name__)
 HEARTBEAT_URL = os.getenv("HEARTBEAT_URL")
 
 TARGET_SYMBOLS = {
-    "RELIANCE": {"allocation_pct": 0.15},
-    "HDFCBANK": {"allocation_pct": 0.15},
-    "INFY": {"allocation_pct": 0.10}
+    "NSE_INDEX|Nifty 50": {"allocation_pct": 1.0} # Budget constraint is now hardcoded in strategy
 }
 
 LOT_SIZES = {
-    "RELIANCE": 250, "RELIANCE.NS": 250,
-    "HDFCBANK": 550, "HDFCBANK.NS": 550,
-    "INFY": 400, "INFY.NS": 400,
-    "MARUTI": 65, "MARUTI.NS": 65,
-    "SBIN": 1500, "SBIN.NS": 1500
+    "NSE_INDEX|Nifty 50": 25
 }
 
 def _run_daily_wheel(is_live: bool = False):
@@ -35,7 +29,7 @@ def _run_daily_wheel(is_live: bool = False):
     for symbol, symbol_config in TARGET_SYMBOLS.items():
         try:
             logger.info(f"Processing symbol: {symbol} with config: {symbol_config}")
-            wheel.execute_daily_cycle(symbol=symbol, symbol_config=symbol_config, quantity_shares=LOT_SIZES.get(symbol, 1), is_live=is_live)
+            wheel.execute_daily_cycle(symbol=symbol, symbol_config=symbol_config, quantity_shares=LOT_SIZES.get(symbol, 25), is_live=is_live)
         except Exception as e:
             logger.error(f"Error processing {symbol}: {e}", exc_info=True)
             notifier.send_notification(
@@ -65,7 +59,7 @@ def start_scheduler(is_live: bool = False):
     scheduler = BackgroundScheduler(timezone=tz)
 
     trigger = CronTrigger(
-        day_of_week='mon-fri',
+        day_of_week='fri',
         hour=15,
         minute=15,
         timezone=tz

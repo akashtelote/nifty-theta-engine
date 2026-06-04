@@ -22,44 +22,10 @@ class WheelStateMachine:
         """
         self.db_url = os.getenv("DATABASE_URL", "postgresql://wheelbot:securepassword@localhost:5432/wheeldb")
 
-        self._initialize_db()
         self.state = self._load_state()
         self.client = UpstoxClient()
         self.notifier = Notifier()
         self.ml_predictor = VixRegimePredictor()
-
-    def _initialize_db(self):
-        """
-        Initializes the PostgreSQL database and creates the wheel_state table if it doesn't exist.
-        """
-        try:
-            conn = psycopg2.connect(self.db_url)
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS wheel_state (
-                    symbol TEXT PRIMARY KEY,
-                    current_stage TEXT,
-                    instrument_key TEXT,
-                    strike_price DOUBLE PRECISION,
-                    expiry TEXT,
-                    trade_date TEXT,
-                    entry_price DOUBLE PRECISION,
-                    order_id TEXT,
-                    assigned_shares INTEGER,
-                    average_cost_basis DOUBLE PRECISION,
-                    realized_pnl DOUBLE PRECISION,
-                    hedge_instrument_key TEXT,
-                    hedge_strike_price DOUBLE PRECISION,
-                    hedge_entry_price DOUBLE PRECISION,
-                    hedge_order_id TEXT
-                )
-            ''')
-            conn.commit()
-        except psycopg2.Error as e:
-            logger.error(f"Error initializing database: {e}")
-        finally:
-            if 'conn' in locals() and conn:
-                conn.close()
 
     def _load_state(self) -> dict:
         """
@@ -70,40 +36,41 @@ class WheelStateMachine:
             conn = psycopg2.connect(self.db_url)
             cursor = conn.cursor()
             cursor.execute('''
-                SELECT symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
-                       entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl,
-                       hedge_instrument_key, hedge_strike_price, hedge_entry_price, hedge_order_id
-                FROM wheel_state
+                SELECT symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
+                       long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
+                       trade_date, expiry_date, realized_pnl
+                FROM index_spread_state
             ''')
             rows = cursor.fetchall()
             for row in rows:
-                (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
-                 entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl,
-                 hedge_instrument_key, hedge_strike_price, hedge_entry_price, hedge_order_id) = row
+                (symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
+                 long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
+                 trade_date, expiry_date, realized_pnl) = row
 
                 state[symbol] = {
                     "current_stage": current_stage,
-                    "active_position": None if instrument_key is None else {
-                        "instrument_key": instrument_key,
-                        "strike": strike_price,
-                        "expiry": expiry,
-                        "entry_price": entry_price,
-                        "order_id": order_id
+                    "active_position": None if short_instrument_key is None else {
+                        "instrument_key": short_instrument_key,
+                        "strike": short_strike,
+                        "expiry": expiry_date,
+                        "entry_price": short_entry_price,
+                        "order_id": short_order_id,
+                        "quantity": quantity
                     },
-                    "hedge_position": None if hedge_instrument_key is None else {
-                        "instrument_key": hedge_instrument_key,
-                        "strike": hedge_strike_price,
-                        "entry_price": hedge_entry_price,
-                        "order_id": hedge_order_id
+                    "hedge_position": None if long_instrument_key is None else {
+                        "instrument_key": long_instrument_key,
+                        "strike": long_strike,
+                        "expiry": expiry_date,
+                        "entry_price": long_entry_price,
+                        "order_id": long_order_id,
+                        "quantity": quantity
                     },
-                    "inventory": {
-                        "assigned_shares": assigned_shares if assigned_shares is not None else 0,
-                        "average_cost_basis": average_cost_basis if average_cost_basis is not None else 0.0
-                    },
+                    "net_credit_received": net_credit_received if net_credit_received is not None else 0.0,
                     "realized_pnl": realized_pnl if realized_pnl is not None else 0.0
                 }
         except psycopg2.Error as e:
             logger.error(f"Error loading state from database: {e}")
+            # Ensure the table exists or log a warning if it hasn't been initialized yet
         finally:
             if 'conn' in locals() and conn:
                 conn.close()
@@ -120,65 +87,69 @@ class WheelStateMachine:
         current_stage = symbol_state.get("current_stage", "IDLE")
         active_position = symbol_state.get("active_position")
         hedge_position = symbol_state.get("hedge_position")
-        inventory = symbol_state.get("inventory", {})
+        net_credit_received = symbol_state.get("net_credit_received", 0.0)
         realized_pnl = symbol_state.get("realized_pnl", 0.0)
 
-        assigned_shares = inventory.get("assigned_shares", 0)
-        average_cost_basis = inventory.get("average_cost_basis", 0.0)
-
         if active_position:
-            instrument_key = active_position.get("instrument_key")
-            strike_price = active_position.get("strike")
-            expiry = active_position.get("expiry")
-            entry_price = active_position.get("entry_price")
-            order_id = active_position.get("order_id")
+            short_instrument_key = active_position.get("instrument_key")
+            short_strike = active_position.get("strike")
+            short_entry_price = active_position.get("entry_price")
+            short_order_id = active_position.get("order_id")
+            quantity = active_position.get("quantity")
+            expiry_date = active_position.get("expiry")
             trade_date = date.today().isoformat()
         else:
-            instrument_key = None
-            strike_price = None
-            expiry = None
-            entry_price = None
-            order_id = None
+            short_instrument_key = None
+            short_strike = None
+            short_entry_price = None
+            short_order_id = None
+            quantity = None
+            expiry_date = None
             trade_date = None
 
         if hedge_position:
-            hedge_instrument_key = hedge_position.get("instrument_key")
-            hedge_strike_price = hedge_position.get("strike")
-            hedge_entry_price = hedge_position.get("entry_price")
-            hedge_order_id = hedge_position.get("order_id")
+            long_instrument_key = hedge_position.get("instrument_key")
+            long_strike = hedge_position.get("strike")
+            long_entry_price = hedge_position.get("entry_price")
+            long_order_id = hedge_position.get("order_id")
+            if quantity is None:
+                quantity = hedge_position.get("quantity")
+            # expiry_date should be the same as short
+            if not expiry_date:
+                expiry_date = hedge_position.get("expiry")
         else:
-            hedge_instrument_key = None
-            hedge_strike_price = None
-            hedge_entry_price = None
-            hedge_order_id = None
+            long_instrument_key = None
+            long_strike = None
+            long_entry_price = None
+            long_order_id = None
 
         try:
             conn = psycopg2.connect(self.db_url)
             cursor = conn.cursor()
             cursor.execute('''
-                INSERT INTO wheel_state
-                (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
-                 entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl,
-                 hedge_instrument_key, hedge_strike_price, hedge_entry_price, hedge_order_id)
+                INSERT INTO index_spread_state
+                (symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
+                 long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
+                 trade_date, expiry_date, realized_pnl)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (symbol) DO UPDATE SET
                     current_stage = EXCLUDED.current_stage,
-                    instrument_key = EXCLUDED.instrument_key,
-                    strike_price = EXCLUDED.strike_price,
-                    expiry = EXCLUDED.expiry,
+                    short_instrument_key = EXCLUDED.short_instrument_key,
+                    short_strike = EXCLUDED.short_strike,
+                    short_entry_price = EXCLUDED.short_entry_price,
+                    short_order_id = EXCLUDED.short_order_id,
+                    long_instrument_key = EXCLUDED.long_instrument_key,
+                    long_strike = EXCLUDED.long_strike,
+                    long_entry_price = EXCLUDED.long_entry_price,
+                    long_order_id = EXCLUDED.long_order_id,
+                    quantity = EXCLUDED.quantity,
+                    net_credit_received = EXCLUDED.net_credit_received,
                     trade_date = EXCLUDED.trade_date,
-                    entry_price = EXCLUDED.entry_price,
-                    order_id = EXCLUDED.order_id,
-                    assigned_shares = EXCLUDED.assigned_shares,
-                    average_cost_basis = EXCLUDED.average_cost_basis,
-                    realized_pnl = EXCLUDED.realized_pnl,
-                    hedge_instrument_key = EXCLUDED.hedge_instrument_key,
-                    hedge_strike_price = EXCLUDED.hedge_strike_price,
-                    hedge_entry_price = EXCLUDED.hedge_entry_price,
-                    hedge_order_id = EXCLUDED.hedge_order_id
-            ''', (symbol, current_stage, instrument_key, strike_price, expiry, trade_date,
-                  entry_price, order_id, assigned_shares, average_cost_basis, realized_pnl,
-                  hedge_instrument_key, hedge_strike_price, hedge_entry_price, hedge_order_id))
+                    expiry_date = EXCLUDED.expiry_date,
+                    realized_pnl = EXCLUDED.realized_pnl
+            ''', (symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
+                  long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
+                  trade_date, expiry_date, realized_pnl))
             conn.commit()
         except psycopg2.Error as e:
             logger.error(f"Error saving state to database for {symbol}: {e}")
@@ -258,10 +229,8 @@ class WheelStateMachine:
             self.state[symbol] = {
                 "current_stage": "IDLE",
                 "active_position": None,
-                "inventory": {
-                    "assigned_shares": 0,
-                    "average_cost_basis": 0.0
-                },
+                "hedge_position": None,
+                "net_credit_received": 0.0,
                 "realized_pnl": 0.0
             }
             self._save_state(symbol)
@@ -395,7 +364,7 @@ class WheelStateMachine:
 
         # Calculate Hedge Width
         short_strike = short_put_row["strike"]
-        hedge_target_strike = short_strike * 0.98
+        hedge_target_strike = short_strike - 100
         short_expiry = short_put_row["expiry"]
 
         # Filter for Long Put (Hedge) with the same expiry
@@ -485,29 +454,21 @@ class WheelStateMachine:
 
             logger.info(f"Targets selected for {symbol}: Short {short_strike} PE (Bid: {short_entry_price}), Long {long_strike} PE (Ask: {long_entry_price}), Expiring on {short_expiry}")
 
-            # Dynamic Position Sizing
-            available_funds = self.client.get_available_margin()
-            if available_funds is None:
-                msg = f"Failed to fetch available margin for {symbol}. Aborting daily cycle to protect capital."
-                logger.warning(msg)
-                self.notifier.send_notification(title="Margin Fetch Failed", message=msg, level="WARNING")
-                return
+            # Dynamic Position Sizing (Hardcoded Budget)
+            BUDGET = 20000.0
+            lot_size = LOT_SIZES.get(symbol, 25) # Default NIFTY lot size is 25
 
-            allocation_pct = symbol_config.get("allocation_pct", 0.10)
-            lot_size = LOT_SIZES.get(symbol, 1)
-
-            target_capital = available_funds * allocation_pct
             required_capital_per_lot = (short_strike - long_strike) * lot_size
             if required_capital_per_lot <= 0:
                 logger.error(f"Invalid required capital per lot ({required_capital_per_lot}) for {symbol}. Short strike: {short_strike}, Long strike: {long_strike}. Aborting.")
                 return
 
-            num_lots = math.floor(target_capital / required_capital_per_lot)
+            num_lots = math.floor(BUDGET / required_capital_per_lot)
 
             if num_lots == 0:
-                msg = f"Insufficient funds to trade {symbol}. Target capital: {target_capital}, Required for 1 lot: {required_capital_per_lot}. Aborting."
-                logger.warning(msg)
-                self.notifier.send_notification(title="Insufficient Funds", message=msg, level="WARNING")
+                msg = f"CRITICAL: Insufficient funds to trade {symbol}. Budget: {BUDGET}, Required for 1 lot: {required_capital_per_lot}. Aborting."
+                logger.critical(msg)
+                self.notifier.send_notification(title="Insufficient Funds", message=msg, level="ERROR")
                 return
 
             final_quantity = num_lots * lot_size
@@ -590,6 +551,7 @@ class WheelStateMachine:
                 "order_id": long_order_id,
                 "quantity": final_quantity
             }
+            self.state[symbol]["net_credit_received"] = (short_entry_price - long_entry_price) * final_quantity
             self._save_state(symbol)
 
         elif current_stage == "STAGE_1_CSP":
@@ -601,7 +563,7 @@ class WheelStateMachine:
                 self._save_state(symbol)
                 return
 
-            quantity_shares = active_position.get("quantity", LOT_SIZES.get(symbol, 1))
+            quantity_shares = active_position.get("quantity", LOT_SIZES.get(symbol, 25))
 
             expiry_str = active_position.get("expiry")
             try:
@@ -623,73 +585,8 @@ class WheelStateMachine:
             entry_price = active_position["entry_price"]
             instrument_key = active_position["instrument_key"]
 
-            # Defensive Trigger
-            if dte <= 3 and spot_price <= strike:
-                msg = f"[DEFENSE] Position for {symbol} is ITM with only {dte} days to expiry. Initiating defensive buy-back..."
-                logger.warning(msg)
-                self.notifier.send_notification(title="Defensive Roll Triggered", message=msg, level="WARNING")
-
-                df = self.client.get_option_chain(symbol, expiry_date=expiry_str)
-                contract_df = df.filter(pl.col("instrument_key") == instrument_key)
-
-                if contract_df.is_empty():
-                    logger.error(f"Could not find contract {instrument_key} in option chain for defensive roll.")
-                    return
-
-                contract_row = contract_df.row(0, named=True)
-                buy_price = contract_row.get("ask")
-
-                if buy_price is None or buy_price == 0.0:
-                    buy_price = contract_row.get("last_price")
-
-                if buy_price is None or buy_price == 0.0:
-                    logger.error(f"No valid price (Ask or Last) found for {instrument_key} to buy back. Aborting.")
-                    return
-
-                logger.info(f"Attempting to buy back {instrument_key} at {buy_price}")
-                order_id = self.client.place_order_by_key(
-                    instrument_key=instrument_key,
-                    side="BUY",
-                    quantity=quantity_shares,
-                    price=buy_price,
-                    is_live=is_live
-                )
-
-                if order_id:
-                    order_filled = False
-                    for _ in range(3):
-                        time.sleep(5)
-                        status = self.client.get_order_status(order_id)
-                        if status == "complete":
-                            order_filled = True
-                            break
-                        elif status in ("rejected", "cancelled"):
-                            abort_msg = f"Defensive order {order_id} was {status} for {symbol}. Aborting defensive roll."
-                            logger.warning(abort_msg)
-                            self.notifier.send_notification(title=f"Order {status.capitalize()}", message=abort_msg, level="WARNING")
-                            return
-
-                    if not order_filled:
-                        self.client.cancel_order(order_id)
-                        timeout_msg = f"Defensive order {order_id} timed out as pending limit order for {symbol}. Order cancelled. Aborting defensive roll."
-                        logger.warning(timeout_msg)
-                        self.notifier.send_notification(title="Order Timeout", message=timeout_msg, level="WARNING")
-                        return
-
-                    success_msg = f"Defensive buy-back completed successfully for {symbol}. Resetting state to IDLE."
-                    logger.info(success_msg)
-                    self.notifier.send_notification(title="Defensive Buy-Back Complete", message=success_msg, level="INFO")
-
-                    self.state[symbol]["current_stage"] = "IDLE"
-                    self.state[symbol]["active_position"] = None
-                    self._save_state(symbol)
-                    return
-                else:
-                    logger.error(f"Failed to place defensive buy order for {symbol}.")
-                    return
-
             if expiry_date != date.today():
-                # Dynamic Profit-Taking (50% Rule)
+                # Dynamic Profit-Taking (50% Rule) and Stop-Loss (200% Rule)
                 hedge_position = self.state[symbol].get("hedge_position")
                 if active_position and hedge_position:
                     short_entry_price = active_position.get("entry_price", 0.0)
@@ -712,11 +609,11 @@ class WheelStateMachine:
                             current_cost_to_close = short_live_ask - long_live_bid
 
                             if current_cost_to_close <= 0.5 * initial_credit:
-                                msg = f"[PROFIT TAKING] 50% Rule triggered for {symbol}. Initial Credit: {initial_credit:.2f}, Current Cost to Close: {current_cost_to_close:.2f}. Initiating closing orders..."
+                                msg = f"[PROFIT TAKING] 50% Rule triggered for {symbol}. Initial Credit: {initial_credit:.2f}, Current Cost to Close: {current_cost_to_close:.2f}. Initiating closing orders (Limit)..."
                                 logger.info(msg)
                                 self.notifier.send_notification(title="Profit Taking Triggered", message=msg, level="INFO")
 
-                                # Buy to close Short Put
+                                # Buy to close Short Put (Limit)
                                 btc_order_id = self.client.place_order_by_key(
                                     instrument_key=short_instrument_key,
                                     side="BUY",
@@ -725,7 +622,7 @@ class WheelStateMachine:
                                     is_live=is_live
                                 )
 
-                                # Sell to close Long Put
+                                # Sell to close Long Put (Limit)
                                 stc_order_id = self.client.place_order_by_key(
                                     instrument_key=long_instrument_key,
                                     side="SELL",
@@ -775,155 +672,83 @@ class WheelStateMachine:
                                     logger.error(f"Failed to place profit taking orders for {symbol}.")
                                     return
 
+                            elif current_cost_to_close >= 2.0 * initial_credit:
+                                msg = f"[STOP LOSS] 200% Rule triggered for {symbol}. Initial Credit: {initial_credit:.2f}, Current Cost to Close: {current_cost_to_close:.2f}. Initiating emergency closing orders (Market)..."
+                                logger.critical(msg)
+                                self.notifier.send_notification(title="Stop Loss Triggered", message=msg, level="ERROR")
+
+                                # Buy to close Short Put (Market)
+                                btc_order_id = self.client.place_order_by_key(
+                                    instrument_key=short_instrument_key,
+                                    side="BUY",
+                                    quantity=quantity_shares,
+                                    price=0.0, # Market order
+                                    is_live=is_live
+                                )
+
+                                # Sell to close Long Put (Market)
+                                stc_order_id = self.client.place_order_by_key(
+                                    instrument_key=long_instrument_key,
+                                    side="SELL",
+                                    quantity=quantity_shares,
+                                    price=0.0, # Market order
+                                    is_live=is_live
+                                )
+
+                                if btc_order_id and stc_order_id:
+                                    # Since they are market orders, they should fill immediately, but we can verify briefly
+                                    for _ in range(3):
+                                        time.sleep(2)
+                                        btc_status = self.client.get_order_status(btc_order_id)
+                                        stc_status = self.client.get_order_status(stc_order_id)
+
+                                        if btc_status == "complete" and stc_status == "complete":
+                                            break
+
+                                    loss = (initial_credit - current_cost_to_close) * quantity_shares
+                                    self.state[symbol]["realized_pnl"] += loss
+                                    self.state[symbol]["current_stage"] = "IDLE"
+                                    self.state[symbol]["active_position"] = None
+                                    self.state[symbol]["hedge_position"] = None
+                                    self._save_state(symbol)
+
+                                    success_msg = f"Stop loss completed successfully for {symbol}. Realized Loss: {loss}. Resetting state to IDLE."
+                                    logger.info(success_msg)
+                                    self.notifier.send_notification(title="Stop Loss Complete", message=success_msg, level="INFO")
+                                    return
+                                else:
+                                    logger.error(f"Failed to place stop loss market orders for {symbol}.")
+                                    return
+
                 logger.info("Holding position...")
                 return
 
-            if spot_price > strike:
-                # Worthless Expiration (OTM)
-                profit = entry_price * quantity_shares
-                self.state[symbol]["realized_pnl"] += profit
-                self.state[symbol]["current_stage"] = "IDLE"
-                self.state[symbol]["active_position"] = None
-                msg = f"Put expired worthless for {symbol}. Profit: {profit}. New realized PnL: {self.state[symbol]['realized_pnl']}"
-                logger.info(msg)
-                self.notifier.send_notification(title="Put Expired Worthless", message=msg, level="INFO")
-            else:
-                # Assignment (ITM)
-                new_cost_basis = max(0.0, strike - entry_price)
-                self.state[symbol]["inventory"]["assigned_shares"] = quantity_shares
-                self.state[symbol]["inventory"]["average_cost_basis"] = new_cost_basis
-                self.state[symbol]["current_stage"] = "STAGE_2_CC"
-                self.state[symbol]["active_position"] = None
-                msg = f"Put assigned for {symbol}. Assigned shares: {quantity_shares}. New cost basis: {new_cost_basis}"
-                logger.info(msg)
-                self.notifier.send_notification(title="Put Assigned", message=msg, level="INFO")
+            # Expiration Day Logic (Index Options Cash Settled)
+            # Both legs are cash-settled against closing price, no physical assignment.
+            hedge_position = self.state[symbol].get("hedge_position")
+            short_entry_price = active_position.get("entry_price", 0.0)
+            long_entry_price = hedge_position.get("entry_price", 0.0) if hedge_position else 0.0
+            initial_credit = short_entry_price - long_entry_price
+
+            short_strike = active_position["strike"]
+            long_strike = hedge_position["strike"] if hedge_position else 0.0
+
+            # Calculate settlement payout for the spread at expiration
+            short_payout = max(0.0, short_strike - spot_price) * -1
+            long_payout = max(0.0, long_strike - spot_price)
+
+            settlement_value = short_payout + long_payout
+
+            total_profit = (initial_credit + settlement_value) * quantity_shares
+
+            self.state[symbol]["realized_pnl"] += total_profit
+            self.state[symbol]["current_stage"] = "IDLE"
+            self.state[symbol]["active_position"] = None
+            self.state[symbol]["hedge_position"] = None
+
+            msg = f"Spread cash-settled on expiration for {symbol}. Spot: {spot_price}, Initial Credit: {initial_credit:.2f}, Settlement: {settlement_value:.2f}. Total Profit: {total_profit}. New realized PnL: {self.state[symbol]['realized_pnl']}"
+            logger.info(msg)
+            self.notifier.send_notification(title="Spread Cash Settled", message=msg, level="INFO")
 
             self._save_state(symbol)
 
-        elif current_stage == "STAGE_2_CC":
-            logger.info(f"Executing daily cycle for {symbol} in STAGE_2_CC state.")
-            active_position = self.state[symbol].get("active_position")
-
-            # Since assignment happened in STAGE_1_CSP, the inventory has the assigned shares.
-            # We use this as our CC selling quantity.
-            quantity_shares = self.state[symbol]["inventory"]["assigned_shares"]
-            if quantity_shares == 0:
-                quantity_shares = LOT_SIZES.get(symbol, 1)
-
-            if active_position is not None:
-                quantity_shares = active_position.get("quantity", quantity_shares)
-
-                expiry_str = active_position.get("expiry")
-                try:
-                    expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
-                except (ValueError, TypeError):
-                    logger.error(f"Invalid expiry date format for {symbol}: {expiry_str}")
-                    return
-
-                if expiry_date != date.today():
-                    logger.info("Holding covered call, expiry is not today.")
-                    return
-
-                spot_price = self.client.get_market_quote_ltp(symbol)
-                if spot_price is None:
-                    msg = f"Failed to fetch LTP for {symbol} on expiry day. Aborting daily cycle."
-                    logger.warning(msg)
-                    self.notifier.send_notification(title="LTP Fetch Failed", message=msg, level="WARNING")
-                    return
-
-                strike = active_position["strike"]
-                entry_price = active_position["entry_price"]
-
-                if spot_price <= strike:
-                    # Worthless Expiration (OTM)
-                    profit = entry_price * quantity_shares
-                    self.state[symbol]["realized_pnl"] += profit
-                    self.state[symbol]["active_position"] = None
-                    msg = f"Call expired worthless for {symbol}. Profit: {profit}. Shares retained. New realized PnL: {self.state[symbol]['realized_pnl']}"
-                    logger.info(msg)
-                    self.notifier.send_notification(title="Call Expired Worthless", message=msg, level="INFO")
-                else:
-                    # Assignment (ITM) - Shares called away
-                    capital_gains = (strike - self.state[symbol]["inventory"]["average_cost_basis"]) * quantity_shares
-                    premium_profit = entry_price * quantity_shares
-                    total_profit = capital_gains + premium_profit
-
-                    self.state[symbol]["realized_pnl"] += total_profit
-                    self.state[symbol]["inventory"]["assigned_shares"] = 0
-                    self.state[symbol]["inventory"]["average_cost_basis"] = 0.0
-                    self.state[symbol]["active_position"] = None
-                    self.state[symbol]["current_stage"] = "IDLE"
-                    msg = f"Shares called away for {symbol}. Total profit: {total_profit}. Cycle complete."
-                    logger.info(msg)
-                    self.notifier.send_notification(title="Shares Called Away", message=msg, level="INFO")
-
-                self._save_state(symbol)
-                return
-
-            # We need to sell a call
-            cost_basis = self.state[symbol]["inventory"]["average_cost_basis"]
-
-            spot_price = self.client.get_market_quote_ltp(symbol)
-            if spot_price is None:
-                msg = f"Failed to fetch LTP for {symbol} in STAGE_2_CC. Aborting daily cycle."
-                logger.warning(msg)
-                self.notifier.send_notification(title="LTP Fetch Failed", message=msg, level="WARNING")
-                return
-
-            chain_df = self.client.get_option_chain(symbol)
-
-            target_call = self._select_target_call(chain_df, spot_price, cost_basis)
-            if target_call is None:
-                logger.warning(f"No valid calls found above cost basis for {symbol}, holding shares.")
-                return
-
-            instrument_key = target_call.get("instrument_key")
-            strike = target_call.get("strike")
-            expiry = target_call.get("expiry")
-            entry_price = target_call.get("bid") # using contract bid price for entry
-
-            if entry_price is None or entry_price == 0 or entry_price == 0.0:
-                msg = f"Selected contract has no liquidity (Bid = 0) for {symbol}. Aborting cycle."
-                logger.warning(msg)
-                self.notifier.send_notification(title="Missing Liquidity", message=msg, level="WARNING")
-                return
-
-            logger.info(f"Target Call selected: {strike} CE expiring on {expiry} for {symbol}. Bid price: {entry_price}")
-
-            order_id = self.client.place_order_by_key(instrument_key=instrument_key, side="SELL", quantity=quantity_shares, price=entry_price, is_live=is_live)
-
-            if order_id:
-                order_filled = False
-                for _ in range(3):
-                    time.sleep(5)
-                    status = self.client.get_order_status(order_id)
-                    if status == "complete":
-                        order_filled = True
-                        break
-                    elif status in ("rejected", "cancelled"):
-                        msg = f"Order {order_id} was {status} for {symbol}. Aborting STAGE_2_CC entry."
-                        logger.warning(msg)
-                        self.notifier.send_notification(title=f"Order {status.capitalize()}", message=msg, level="WARNING")
-                        return
-
-                if not order_filled:
-                    self.client.cancel_order(order_id)
-                    msg = f"Order {order_id} timed out as pending limit order for {symbol}. Order cancelled. Aborting STAGE_2_CC entry."
-                    logger.warning(msg)
-                    self.notifier.send_notification(title="Order Timeout", message=msg, level="WARNING")
-                    return
-
-                msg = f"Order placed successfully for {symbol}. STAGE_2_CC entry: {strike} CE expiring on {expiry} at {entry_price}."
-                logger.info(msg)
-                self.notifier.send_notification(title="Order Placed", message=msg, level="INFO")
-                self.state[symbol]["active_position"] = {
-                    "strike": strike,
-                    "expiry": expiry,
-                    "instrument_key": instrument_key,
-                    "entry_price": entry_price,
-                    "order_id": order_id,
-                    "quantity": quantity_shares
-                }
-                self._save_state(symbol)
-            else:
-                logger.error("Failed to place call order.")
