@@ -13,11 +13,11 @@ logger = logging.getLogger(__name__)
 HEARTBEAT_URL = os.getenv("HEARTBEAT_URL")
 
 TARGET_SYMBOLS = {
-    "NSE_INDEX|Nifty 50": {"allocation_pct": 1.0} # Budget constraint is now hardcoded in strategy
+    "Nifty 50": {"allocation_pct": 1.0} # Budget constraint is now hardcoded in strategy
 }
 
 LOT_SIZES = {
-    "NSE_INDEX|Nifty 50": 25
+    "Nifty 50": 25
 }
 
 def _run_daily_wheel(is_live: bool = False):
