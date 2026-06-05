@@ -42,7 +42,7 @@ services:
     container_name: upstox_pnl_dashboard
     restart: always
     ports:
-      - "8501:8501"
+      - "8502:8501"
     env_file:
       - .env
     volumes:
