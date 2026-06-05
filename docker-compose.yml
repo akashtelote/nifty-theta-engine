@@ -3,12 +3,12 @@ version: '3.8'
 services:
   db:
     image: postgres:15-alpine
-    container_name: postgres_db
+    container_name: nifty_postgres_db
     restart: always
     env_file:
       - .env
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - nifty_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -20,8 +20,8 @@ services:
       context: .
       dockerfile: Dockerfile
     # Tag the build so the dashboard can reuse it instantly
-    image: upstox_wheel_base:latest
-    container_name: upstox_wheel_bot
+    image: nifty_wheel_base:latest
+    container_name: nifty_wheel_bot
     restart: always
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -38,8 +38,8 @@ services:
 
   dashboard:
     # Do not build again. Use the image compiled by the bot service.
-    image: upstox_wheel_base:latest
-    container_name: upstox_pnl_dashboard
+    image: nifty_wheel_base:latest
+    container_name: nifty_dashboard
     restart: always
     ports:
       - "8502:8501"
@@ -56,4 +56,4 @@ services:
     command: ["uv", "run", "streamlit", "run", "dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
 
 volumes:
-  postgres_data:
+  nifty_postgres_data:
