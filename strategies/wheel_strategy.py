@@ -8,7 +8,6 @@ from core.client import UpstoxClient
 import math
 from core.notifier import Notifier
 import yfinance as yf
-from ml_service.vix_inference_worker import VixRegimePredictor
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +24,6 @@ class WheelStateMachine:
         self.state = self._load_state()
         self.client = UpstoxClient()
         self.notifier = Notifier()
-        self.ml_predictor = VixRegimePredictor()
 
     def _load_state(self) -> dict:
         """
@@ -157,68 +155,6 @@ class WheelStateMachine:
             if 'conn' in locals() and conn:
                 conn.close()
 
-    def _fetch_macro_context(self) -> pl.LazyFrame:
-        """
-        Fetches the last 40 days of NIFTY 50 and India VIX data.
-        Cleans and merges them into a single Polars DataFrame returning a LazyFrame.
-        """
-        logger.info("Fetching macro context for ML regime filter.")
-        try:
-            # Download last 40 days
-            nifty = yf.download("^NSEI", period="40d", progress=False)
-            vix = yf.download("^INDIAVIX", period="40d", progress=False)
-
-            if nifty.empty or vix.empty:
-                logger.warning("Failed to fetch NIFTY or VIX data from yfinance.")
-                # Return empty frame that will trigger failsafe in predictor
-                return pl.DataFrame({"Date": [], "NIFTY_Close": [], "VIX_Close": []}).lazy()
-
-            # Flatten multi-index if necessary (yf sometimes returns multi-index for close)
-            if isinstance(nifty.columns, pl.Series) or hasattr(nifty.columns, "levels"): # Check if MultiIndex
-                 if "Close" in nifty:
-                     nifty_close = nifty["Close"]["^NSEI"]
-                 else:
-                     nifty_close = nifty.iloc[:, 0] # fallback
-            else:
-                nifty_close = nifty["Close"] if "Close" in nifty else nifty.iloc[:, 0]
-
-            if isinstance(vix.columns, pl.Series) or hasattr(vix.columns, "levels"):
-                if "Close" in vix:
-                    vix_close = vix["Close"]["^INDIAVIX"]
-                else:
-                    vix_close = vix.iloc[:, 0]
-            else:
-                vix_close = vix["Close"] if "Close" in vix else vix.iloc[:, 0]
-
-            import pandas as pd
-            nifty_date = pd.to_datetime(nifty.index).tz_localize(None)
-            vix_date = pd.to_datetime(vix.index).tz_localize(None)
-
-            nifty_df = pl.DataFrame({
-                "Date": nifty_date,
-                "NIFTY_Close": nifty_close.values
-            })
-
-            vix_df = pl.DataFrame({
-                "Date": vix_date,
-                "VIX_Close": vix_close.values
-            })
-
-            # Cast Date to pl.Date
-            nifty_df = nifty_df.with_columns(pl.col("Date").cast(pl.Date))
-            vix_df = vix_df.with_columns(pl.col("Date").cast(pl.Date))
-
-            # Merge, forward fill and drop nulls
-            merged_df = nifty_df.join(vix_df, on="Date", how="left")
-            merged_df = merged_df.with_columns(pl.col("VIX_Close").fill_null(strategy="forward"))
-            merged_df = merged_df.drop_nulls()
-
-            return merged_df.lazy()
-
-        except Exception as e:
-            logger.error(f"Error fetching macro context: {e}", exc_info=True)
-            return pl.DataFrame({"Date": [], "NIFTY_Close": [], "VIX_Close": []}).lazy()
-
     def ensure_symbol_state(self, symbol: str):
         """
         Ensures that a symbol has the default state initialized.
@@ -300,7 +236,7 @@ class WheelStateMachine:
 
         return df.row(0, named=True)
 
-    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, vix_prob: float, min_days: int = 10, max_days: int = 42) -> tuple[dict | None, dict | None]:
+    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, min_days: int = 10, max_days: int = 42) -> tuple[dict | None, dict | None]:
         if chain_df.is_empty():
             return None, None
 
@@ -335,12 +271,7 @@ class WheelStateMachine:
         if df.is_empty():
             return None, None
 
-        if vix_prob < 0.30:
-            otm_pct = 0.02
-        elif 0.30 <= vix_prob < 0.60:
-            otm_pct = 0.03
-        else:
-            otm_pct = 0.04
+        otm_pct = 0.01
 
         target_strike = spot_price * (1 - otm_pct)
 
@@ -409,17 +340,6 @@ class WheelStateMachine:
         if current_stage == "IDLE":
             logger.info(f"Executing daily cycle for {symbol} in IDLE state.")
 
-            # VIX Circuit Breaker with ML Regime Filter
-            recent_data = self._fetch_macro_context()
-            spike_prob = self.ml_predictor.predict_spike_probability(recent_data)
-            logger.info(f"ML Regime Filter spike probability: {spike_prob:.4f}")
-
-            if spike_prob >= 0.75:
-                msg = f"ML Regime Filter triggered. High probability of volatility spike ({spike_prob:.4f}). Aborting trade execution for {symbol}."
-                logger.warning(msg)
-                self.notifier.send_notification(title="ML Regime Filter", message=msg, level="WARNING")
-                return
-
             spot_price = self.client.get_market_quote_ltp(symbol)
             if spot_price is None:
                 msg = f"Failed to fetch LTP for {symbol}. Aborting daily cycle."
@@ -429,7 +349,7 @@ class WheelStateMachine:
 
             chain_df = self.client.get_option_chain(symbol)
 
-            targets = self._select_target_put(chain_df, spot_price, spike_prob)
+            targets = self._select_target_put(chain_df, spot_price)
             if targets is None or targets[0] is None or targets[1] is None:
                 logger.warning(f"Could not find a suitable target PUT spread for {symbol}. Aborting daily cycle.")
                 return
