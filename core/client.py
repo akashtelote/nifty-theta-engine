@@ -104,11 +104,14 @@ class UpstoxClient:
 
         return response
 
-    def _get_instrument_token(self, symbol: str) -> str | None:
+    def _get_instrument_token(self, symbol: str, segment: str = None) -> str | None:
         """
         Looks up the real instrument token from the Upstox NSE equities master file.
         Caches the file locally for 24 hours.
         """
+        if segment is None:
+            segment = "NSE_INDEX" if symbol == "Nifty 50" else "NSE_EQ"
+
         csv_path = "data/nse_fo_instruments.csv"
         lock_path = "data/nse_fo_instruments.csv.lock"
         url = "https://assets.upstox.com/market-quote/instruments/exchange/NSE.csv.gz"
@@ -163,9 +166,9 @@ class UpstoxClient:
             df = df.rename({col: col.strip().lower() for col in df.columns})
 
             # Look up the symbol
-            filtered_df = df.filter(pl.col("tradingsymbol") == symbol)
+            filtered_df = df.filter((pl.col("tradingsymbol") == symbol) & (pl.col("segment") == segment))
             if filtered_df.height == 0:
-                logger.error(f"Symbol '{symbol}' not found in instruments master.")
+                logger.error(f"Symbol '{symbol}' with segment '{segment}' not found in instruments master.")
                 return None
 
             instrument_key = str(filtered_df.select("instrument_key").item())
