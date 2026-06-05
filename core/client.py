@@ -166,7 +166,11 @@ class UpstoxClient:
             df = df.rename({col: col.strip().lower() for col in df.columns})
 
             # Look up the symbol
-            filtered_df = df.filter((pl.col("tradingsymbol") == symbol) & (pl.col("exchange") == exchange))
+            filtered_df = df.filter(
+                ((pl.col("tradingsymbol").str.to_uppercase() == symbol.upper()) |
+                 (pl.col("name").str.to_uppercase() == symbol.upper())) &
+                (pl.col("exchange") == exchange)
+            )
             if filtered_df.height == 0:
                 logger.error(f"Symbol '{symbol}' with exchange '{exchange}' not found in instruments master.")
                 return None

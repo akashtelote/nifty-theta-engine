@@ -1,12 +1,17 @@
 import argparse
 import logging
 import sys
+from datetime import datetime, timedelta, timezone
 from core.auth import authenticate_and_save_token
 from core.smart_money import SmartMoneyFilter
 from core.client import UpstoxClient
 from core.scheduler import start_scheduler
 
 # Basic logging configuration for all core modules
+# Force IST (Asia/Kolkata) timezone for all standard library logging
+ist = timezone(timedelta(hours=5, minutes=30))
+logging.Formatter.converter = lambda *args: datetime.now(ist).timetuple()
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
