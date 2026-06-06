@@ -22,19 +22,13 @@ logger = logging.getLogger(__name__)
 
 def run_trade(args):
     """Run a simulated paper trade or live trade."""
-    if args.live:
-        logger.warning("WARNING: INITIATING LIVE EXCHANGE ORDER!")
-    else:
-        logger.info(f"Initiating paper trade for {args.quantity} shares of {args.symbol} at ₹{args.price}...")
+    logger.info(f"Initiating trade for {args.quantity} shares of {args.symbol} at ₹{args.price}...")
 
     client = UpstoxClient()
-    order_id = client.place_order(args.symbol, args.side, args.quantity, args.price, is_live=args.live)
+    order_id = client.place_order(args.symbol, args.side, args.quantity, args.price)
 
     if order_id:
-        if args.live:
-            logger.info(f"Successfully routed LIVE trade. Upstox Order ID: {order_id}")
-        else:
-            logger.info(f"Successfully routed PAPER trade. Mock Order ID: {order_id}")
+        logger.info(f"Successfully routed trade. Order ID: {order_id}")
 
 def main():
     parser = argparse.ArgumentParser(description="Indian Trading Bot - Unified CLI")
@@ -49,15 +43,13 @@ def main():
 
     # Subcommand: trade
     trade_parser = subparsers.add_parser("trade", help="Run a simulated paper trade or live trade")
-    trade_parser.add_argument("symbol", type=str, help="Trading symbol (e.g., RELIANCE)")
+    trade_parser.add_argument("symbol", type=str, help="Trading symbol (e.g., Nifty 50)")
     trade_parser.add_argument("side", type=str, choices=["BUY", "SELL"], help="Order side (BUY/SELL)")
     trade_parser.add_argument("quantity", type=int, help="Quantity to trade")
     trade_parser.add_argument("price", type=float, help="Order price")
-    trade_parser.add_argument("--live", action="store_true", help="Execute a REAL trade on the Upstox exchange")
 
     # Subcommand: start
     start_parser = subparsers.add_parser("start", help="Start the daily scheduler")
-    start_parser.add_argument("--live", action="store_true", help="Run the scheduled bot in REAL live trading mode")
 
     args = parser.parse_args()
 
@@ -73,7 +65,7 @@ def main():
         run_trade(args)
     elif args.command == "start":
         logger.info("Executing start command...")
-        start_scheduler(args.live)
+        start_scheduler()
 
 if __name__ == "__main__":
     main()
