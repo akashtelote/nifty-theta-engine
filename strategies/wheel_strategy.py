@@ -7,11 +7,10 @@ import polars as pl
 from core.client import UpstoxClient
 import math
 from core.notifier import Notifier
-import yfinance as yf
 
 logger = logging.getLogger(__name__)
 
-LOT_SIZES = {"RELIANCE": 250, "HDFCBANK": 550, "INFY": 400}
+LOT_SIZES = {"Nifty 50": 25}
 
 class WheelStateMachine:
     def __init__(self):
@@ -330,14 +329,14 @@ class WheelStateMachine:
 
         return short_put_row, long_put_row
 
-    def execute_daily_cycle(self, symbol: str, quantity_shares: int, symbol_config: dict, is_live: bool = False):
+    def execute_daily_cycle(self, symbol: str, quantity_shares: int, symbol_config: dict):
         # Reload state from DB before proceeding
         self.state = self._load_state()
         self.ensure_symbol_state(symbol)
 
         current_stage = self.state[symbol].get("current_stage", "IDLE")
 
-        if current_stage == "IDLE":
+        if current_stage in ("IDLE", "CLOSED"):
             logger.info(f"Executing daily cycle for {symbol} in IDLE state.")
 
             spot_price = self.client.get_market_quote_ltp(symbol)
@@ -394,7 +393,7 @@ class WheelStateMachine:
             final_quantity = num_lots * lot_size
 
             # Leg 1: Execute the BUY (Hedge)
-            long_order_id = self.client.place_order_by_key(instrument_key=long_instrument_key, side="BUY", quantity=final_quantity, price=long_entry_price, is_live=is_live)
+            long_order_id = self.client.place_order_by_key(instrument_key=long_instrument_key, side="BUY", quantity=final_quantity, price=long_entry_price)
 
             if not long_order_id:
                 logger.error(f"Failed to place BUY hedge order for {symbol}.")
@@ -421,7 +420,7 @@ class WheelStateMachine:
                 return
 
             # Leg 2: Execute the SELL (Short) ONLY if the BUY order is completed
-            short_order_id = self.client.place_order_by_key(instrument_key=short_instrument_key, side="SELL", quantity=final_quantity, price=short_entry_price, is_live=is_live)
+            short_order_id = self.client.place_order_by_key(instrument_key=short_instrument_key, side="SELL", quantity=final_quantity, price=short_entry_price)
 
             if not short_order_id:
                 msg = f"CRITICAL: Failed to place SELL short order for {symbol} after filling hedge. Manual intervention required to close the dangling long put."
@@ -474,201 +473,100 @@ class WheelStateMachine:
             self.state[symbol]["net_credit_received"] = (short_entry_price - long_entry_price) * final_quantity
             self._save_state(symbol)
 
-        elif current_stage == "STAGE_1_CSP":
-            logger.info(f"Executing daily cycle for {symbol} in STAGE_1_CSP state.")
-            active_position = self.state[symbol].get("active_position")
-            if not active_position:
-                logger.error(f"Active position missing for {symbol} in STAGE_1_CSP state. Resetting to IDLE.")
-                self.state[symbol]["current_stage"] = "IDLE"
-                self._save_state(symbol)
-                return
+    def check_exits(self):
+        """
+        Periodically evaluate active positions for Take Profit, Stop Loss, and Time Stop conditions.
+        """
+        self.state = self._load_state()
+        for symbol, data in self.state.items():
+            if data.get("current_stage") != "STAGE_1_CSP":
+                continue
 
-            quantity_shares = active_position.get("quantity", LOT_SIZES.get(symbol, 25))
+            active_position = data.get("active_position")
+            hedge_position = data.get("hedge_position")
 
-            expiry_str = active_position.get("expiry")
-            try:
-                expiry_date = datetime.strptime(expiry_str, "%Y-%m-%d").date()
-            except (ValueError, TypeError):
-                logger.error(f"Invalid expiry date format for {symbol}: {expiry_str}")
-                return
-
-            dte = (expiry_date - date.today()).days
+            if not active_position or not hedge_position:
+                continue
 
             spot_price = self.client.get_market_quote_ltp(symbol)
             if spot_price is None:
-                msg = f"Failed to fetch LTP for {symbol}. Aborting daily cycle."
-                logger.warning(msg)
-                self.notifier.send_notification(title="LTP Fetch Failed", message=msg, level="WARNING")
-                return
+                continue
 
-            strike = active_position["strike"]
-            entry_price = active_position["entry_price"]
-            instrument_key = active_position["instrument_key"]
-
-            if expiry_date != date.today():
-                # Dynamic Profit-Taking (50% Rule) and Stop-Loss (200% Rule)
-                hedge_position = self.state[symbol].get("hedge_position")
-                if active_position and hedge_position:
-                    short_entry_price = active_position.get("entry_price", 0.0)
-                    long_entry_price = hedge_position.get("entry_price", 0.0)
-                    initial_credit = short_entry_price - long_entry_price
-
-                    short_instrument_key = active_position.get("instrument_key")
-                    long_instrument_key = hedge_position.get("instrument_key")
-
-                    chain_df = self.client.get_option_chain(symbol, expiry_date=expiry_str)
-
-                    short_contract_df = chain_df.filter(pl.col("instrument_key") == short_instrument_key)
-                    long_contract_df = chain_df.filter(pl.col("instrument_key") == long_instrument_key)
-
-                    if not short_contract_df.is_empty() and not long_contract_df.is_empty():
-                        short_live_ask = short_contract_df.row(0, named=True).get("ask")
-                        long_live_bid = long_contract_df.row(0, named=True).get("bid")
-
-                        if short_live_ask is not None and long_live_bid is not None:
-                            current_cost_to_close = short_live_ask - long_live_bid
-
-                            if current_cost_to_close <= 0.5 * initial_credit:
-                                msg = f"[PROFIT TAKING] 50% Rule triggered for {symbol}. Initial Credit: {initial_credit:.2f}, Current Cost to Close: {current_cost_to_close:.2f}. Initiating closing orders (Limit)..."
-                                logger.info(msg)
-                                self.notifier.send_notification(title="Profit Taking Triggered", message=msg, level="INFO")
-
-                                # Buy to close Short Put (Limit)
-                                btc_order_id = self.client.place_order_by_key(
-                                    instrument_key=short_instrument_key,
-                                    side="BUY",
-                                    quantity=quantity_shares,
-                                    price=short_live_ask,
-                                    is_live=is_live
-                                )
-
-                                # Sell to close Long Put (Limit)
-                                stc_order_id = self.client.place_order_by_key(
-                                    instrument_key=long_instrument_key,
-                                    side="SELL",
-                                    quantity=quantity_shares,
-                                    price=long_live_bid,
-                                    is_live=is_live
-                                )
-
-                                if btc_order_id and stc_order_id:
-                                    # Simplistic wait for both orders
-                                    orders_filled = False
-                                    for _ in range(3):
-                                        time.sleep(5)
-                                        btc_status = self.client.get_order_status(btc_order_id)
-                                        stc_status = self.client.get_order_status(stc_order_id)
-
-                                        if btc_status == "complete" and stc_status == "complete":
-                                            orders_filled = True
-                                            break
-                                        elif "rejected" in (btc_status, stc_status) or "cancelled" in (btc_status, stc_status):
-                                            abort_msg = f"Profit taking orders for {symbol} were rejected/cancelled. Aborting."
-                                            logger.warning(abort_msg)
-                                            self.notifier.send_notification(title="Profit Taking Failed", message=abort_msg, level="WARNING")
-                                            return
-
-                                    if not orders_filled:
-                                        self.client.cancel_order(btc_order_id)
-                                        self.client.cancel_order(stc_order_id)
-                                        timeout_msg = f"Profit taking orders timed out as pending limit order for {symbol}. Orders cancelled."
-                                        logger.warning(timeout_msg)
-                                        self.notifier.send_notification(title="Profit Taking Timeout", message=timeout_msg, level="WARNING")
-                                        return
-
-                                    # Successful closing
-                                    profit = (initial_credit - current_cost_to_close) * quantity_shares
-                                    self.state[symbol]["realized_pnl"] += profit
-                                    self.state[symbol]["current_stage"] = "IDLE"
-                                    self.state[symbol]["active_position"] = None
-                                    self.state[symbol]["hedge_position"] = None
-                                    self._save_state(symbol)
-
-                                    success_msg = f"Profit taking completed successfully for {symbol}. Profit: {profit}. Resetting state to IDLE."
-                                    logger.info(success_msg)
-                                    self.notifier.send_notification(title="Profit Taking Complete", message=success_msg, level="INFO")
-                                    return
-                                else:
-                                    logger.error(f"Failed to place profit taking orders for {symbol}.")
-                                    return
-
-                            elif current_cost_to_close >= 2.0 * initial_credit:
-                                msg = f"[STOP LOSS] 200% Rule triggered for {symbol}. Initial Credit: {initial_credit:.2f}, Current Cost to Close: {current_cost_to_close:.2f}. Initiating emergency closing orders (Market)..."
-                                logger.critical(msg)
-                                self.notifier.send_notification(title="Stop Loss Triggered", message=msg, level="ERROR")
-
-                                # Buy to close Short Put (Market)
-                                btc_order_id = self.client.place_order_by_key(
-                                    instrument_key=short_instrument_key,
-                                    side="BUY",
-                                    quantity=quantity_shares,
-                                    price=0.0, # Market order
-                                    is_live=is_live
-                                )
-
-                                # Sell to close Long Put (Market)
-                                stc_order_id = self.client.place_order_by_key(
-                                    instrument_key=long_instrument_key,
-                                    side="SELL",
-                                    quantity=quantity_shares,
-                                    price=0.0, # Market order
-                                    is_live=is_live
-                                )
-
-                                if btc_order_id and stc_order_id:
-                                    # Since they are market orders, they should fill immediately, but we can verify briefly
-                                    for _ in range(3):
-                                        time.sleep(2)
-                                        btc_status = self.client.get_order_status(btc_order_id)
-                                        stc_status = self.client.get_order_status(stc_order_id)
-
-                                        if btc_status == "complete" and stc_status == "complete":
-                                            break
-
-                                    loss = (initial_credit - current_cost_to_close) * quantity_shares
-                                    self.state[symbol]["realized_pnl"] += loss
-                                    self.state[symbol]["current_stage"] = "IDLE"
-                                    self.state[symbol]["active_position"] = None
-                                    self.state[symbol]["hedge_position"] = None
-                                    self._save_state(symbol)
-
-                                    success_msg = f"Stop loss completed successfully for {symbol}. Realized Loss: {loss}. Resetting state to IDLE."
-                                    logger.info(success_msg)
-                                    self.notifier.send_notification(title="Stop Loss Complete", message=success_msg, level="INFO")
-                                    return
-                                else:
-                                    logger.error(f"Failed to place stop loss market orders for {symbol}.")
-                                    return
-
-                logger.info("Holding position...")
-                return
-
-            # Expiration Day Logic (Index Options Cash Settled)
-            # Both legs are cash-settled against closing price, no physical assignment.
-            hedge_position = self.state[symbol].get("hedge_position")
             short_entry_price = active_position.get("entry_price", 0.0)
-            long_entry_price = hedge_position.get("entry_price", 0.0) if hedge_position else 0.0
+            long_entry_price = hedge_position.get("entry_price", 0.0)
             initial_credit = short_entry_price - long_entry_price
 
-            short_strike = active_position["strike"]
-            long_strike = hedge_position["strike"] if hedge_position else 0.0
+            short_instrument_key = active_position.get("instrument_key")
+            long_instrument_key = hedge_position.get("instrument_key")
+            expiry_str = active_position.get("expiry")
+            quantity_shares = active_position.get("quantity", LOT_SIZES.get(symbol, 25))
 
-            # Calculate settlement payout for the spread at expiration
-            short_payout = max(0.0, short_strike - spot_price) * -1
-            long_payout = max(0.0, long_strike - spot_price)
+            chain_df = self.client.get_option_chain(symbol, expiry_date=expiry_str)
+            short_contract_df = chain_df.filter(pl.col("instrument_key") == short_instrument_key)
+            long_contract_df = chain_df.filter(pl.col("instrument_key") == long_instrument_key)
 
-            settlement_value = short_payout + long_payout
+            if short_contract_df.is_empty() or long_contract_df.is_empty():
+                continue
 
-            total_profit = (initial_credit + settlement_value) * quantity_shares
+            short_live_ask = short_contract_df.row(0, named=True).get("ask")
+            long_live_bid = long_contract_df.row(0, named=True).get("bid")
 
-            self.state[symbol]["realized_pnl"] += total_profit
-            self.state[symbol]["current_stage"] = "IDLE"
-            self.state[symbol]["active_position"] = None
-            self.state[symbol]["hedge_position"] = None
+            if short_live_ask is None or long_live_bid is None:
+                continue
 
-            msg = f"Spread cash-settled on expiration for {symbol}. Spot: {spot_price}, Initial Credit: {initial_credit:.2f}, Settlement: {settlement_value:.2f}. Total Profit: {total_profit}. New realized PnL: {self.state[symbol]['realized_pnl']}"
-            logger.info(msg)
-            self.notifier.send_notification(title="Spread Cash Settled", message=msg, level="INFO")
+            current_cost_to_close = short_live_ask - long_live_bid
+            short_strike = active_position.get("strike")
 
-            self._save_state(symbol)
+            # Condition 1: Take Profit (<= 20% initial credit)
+            take_profit = current_cost_to_close <= 0.20 * initial_credit
+
+            # Condition 2: Stop Loss (>= 200% initial credit OR spot breaches short strike)
+            stop_loss = current_cost_to_close >= 2.0 * initial_credit or spot_price <= short_strike
+
+            # Condition 3: Time Stop (Thursday Expiry >= 15:00 IST)
+            now = datetime.now()
+            # Thursday is weekday() == 3
+            time_stop = now.weekday() == 3 and now.hour >= 15
+
+            if take_profit or stop_loss or time_stop:
+                reason = "Take Profit" if take_profit else ("Stop Loss" if stop_loss else "Time Stop")
+                msg = f"[{reason}] Exit triggered for {symbol}. Initial Credit: {initial_credit:.2f}, Cost to Close: {current_cost_to_close:.2f}, Spot: {spot_price:.2f}. Initiating closing orders..."
+                logger.info(msg)
+                self.notifier.send_notification(title=f"{reason} Triggered", message=msg, level="INFO" if take_profit or time_stop else "WARNING")
+
+                btc_order_id = self.client.place_order_by_key(
+                    instrument_key=short_instrument_key,
+                    side="BUY",
+                    quantity=quantity_shares,
+                    price=0.0 # Market order for swift exit
+                )
+
+                stc_order_id = self.client.place_order_by_key(
+                    instrument_key=long_instrument_key,
+                    side="SELL",
+                    quantity=quantity_shares,
+                    price=0.0 # Market order for swift exit
+                )
+
+                if btc_order_id and stc_order_id:
+                    for _ in range(3):
+                        time.sleep(2)
+                        btc_status = self.client.get_order_status(btc_order_id)
+                        stc_status = self.client.get_order_status(stc_order_id)
+
+                        if btc_status == "complete" and stc_status == "complete":
+                            break
+
+                    pnl = (initial_credit - current_cost_to_close) * quantity_shares
+                    self.state[symbol]["realized_pnl"] += pnl
+                    self.state[symbol]["current_stage"] = "CLOSED"
+                    self.state[symbol]["active_position"] = None
+                    self.state[symbol]["hedge_position"] = None
+                    self._save_state(symbol)
+
+                    success_msg = f"Exit completed for {symbol} due to {reason}. P&L: {pnl:.2f}. State updated to CLOSED."
+                    logger.info(success_msg)
+                    self.notifier.send_notification(title="Exit Complete", message=success_msg, level="INFO")
+                else:
+                    logger.error(f"Failed to execute closing orders for {symbol}.")
 

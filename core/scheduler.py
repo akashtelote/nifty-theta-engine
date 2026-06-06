@@ -20,15 +20,15 @@ LOT_SIZES = {
     "Nifty 50": 25
 }
 
-def _run_daily_wheel(is_live: bool = False):
-    logger.info(f"Starting daily wheel execution. (Live Mode: {is_live})")
+def _run_daily_wheel():
+    logger.info("Starting daily wheel execution.")
     wheel = WheelStateMachine()
     notifier = Notifier()
 
     for symbol, symbol_config in TARGET_SYMBOLS.items():
         try:
             logger.info(f"Processing symbol: {symbol} with config: {symbol_config}")
-            wheel.execute_daily_cycle(symbol=symbol, symbol_config=symbol_config, quantity_shares=LOT_SIZES.get(symbol, 25), is_live=is_live)
+            wheel.execute_daily_cycle(symbol=symbol, symbol_config=symbol_config, quantity_shares=LOT_SIZES.get(symbol, 25))
         except Exception as e:
             logger.error(f"Error processing {symbol}: {e}", exc_info=True)
             notifier.send_notification(
@@ -45,11 +45,29 @@ def _run_daily_wheel(is_live: bool = False):
         except Exception as e:
             logger.warning(f"Failed to send heartbeat ping: {e}")
 
-def start_scheduler(is_live: bool = False):
+def _run_exits():
+    logger.info("Starting exit evaluation.")
+    wheel = WheelStateMachine()
+    notifier = Notifier()
+
+    try:
+        wheel.check_exits()
+    except Exception as e:
+        logger.error(f"Error checking exits: {e}", exc_info=True)
+        notifier.send_notification(
+            title="Critical Exit Manager Error",
+            message=f"CRITICAL ERROR in Exit Manager: {e}",
+            level="ERROR"
+        )
+
+    logger.info("Exit evaluation completed.")
+
+def start_scheduler():
     tz = pytz.timezone('Asia/Kolkata')
     scheduler = BackgroundScheduler(timezone=tz)
 
-    trigger = CronTrigger(
+    # Entry Trigger: Friday 15:15
+    entry_trigger = CronTrigger(
         day_of_week='fri',
         hour=15,
         minute=15,
@@ -58,11 +76,23 @@ def start_scheduler(is_live: bool = False):
 
     scheduler.add_job(
         _run_daily_wheel,
-        trigger=trigger,
-        args=[is_live]
+        trigger=entry_trigger
     )
 
-    logger.info(f"Scheduler initialized. Bot is standing by for the 15:15 IST execution. (Live Mode: {is_live})")
+    # Exit Trigger: Hourly during market hours (9:00 - 15:00) Monday - Friday
+    exit_trigger = CronTrigger(
+        day_of_week='mon-fri',
+        hour='9-15',
+        minute=0,
+        timezone=tz
+    )
+
+    scheduler.add_job(
+        _run_exits,
+        trigger=exit_trigger
+    )
+
+    logger.info("Scheduler initialized. Bot is standing by for execution and exits.")
     scheduler.start()
 
     try:

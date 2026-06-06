@@ -35,6 +35,7 @@ class UpstoxClient:
         """
         self.access_token = None
         self.is_mock_market = str(os.getenv("MOCK_MARKET", "False")).lower() in ("true", "1", "yes")
+        self.is_paper_trade = str(os.getenv("PAPER_TRADE", "True")).lower() in ("true", "1", "yes")
         token_file = "data/token.json"
 
         try:
@@ -235,7 +236,7 @@ class UpstoxClient:
         """
         Fetches the status of a specific order.
         """
-        if self.is_mock_market or order_id == "PAPER_ORDER_123":
+        if self.is_paper_trade or order_id == "PAPER_ORDER_123":
             return "complete"
 
         url = "https://api.upstox.com/v2/order/details"
@@ -303,15 +304,10 @@ class UpstoxClient:
         """
         # Temporary local testing fallback for closed market hours
         if self.is_mock_market:
-            if symbol == "RELIANCE":
-                logger.info("Market closed/Testing mode. Injecting mock LTP for RELIANCE: 2500.0")
-                return 2500.0
-            elif symbol == "HDFCBANK":
-                logger.info("Market closed/Testing mode. Injecting mock LTP for HDFCBANK: 1500.0")
-                return 1500.0
-            elif symbol == "INFY":
-                logger.info("Market closed/Testing mode. Injecting mock LTP for INFY: 1600.0")
-                return 1600.0
+            if symbol == "Nifty 50":
+                logger.info("Market closed/Testing mode. Injecting mock LTP for Nifty 50: 22000.0")
+                return 22000.0
+            return 1000.0 # Default mock value
 
         instrument_key = self._get_instrument_token(symbol)
         if not instrument_key:
@@ -352,7 +348,7 @@ class UpstoxClient:
             logger.error(f"[ERROR] Failed to parse LTP: {e}", exc_info=True)
             return None
 
-    def place_order(self, symbol: str, side: str, quantity: int, price: float, is_live: bool = False):
+    def place_order(self, symbol: str, side: str, quantity: int, price: float):
         """
         Places an order or routes a paper trade.
         """
@@ -361,13 +357,13 @@ class UpstoxClient:
             logger.error(f"Could not find instrument key for {symbol}")
             return None
 
-        return self.place_order_by_key(instrument_key, side, quantity, price, is_live)
+        return self.place_order_by_key(instrument_key, side, quantity, price)
 
-    def place_order_by_key(self, instrument_key: str, side: str, quantity: int, price: float, is_live: bool = False):
+    def place_order_by_key(self, instrument_key: str, side: str, quantity: int, price: float):
         """
         Places an order or routes a paper trade using an instrument key.
         """
-        if not is_live:
+        if self.is_paper_trade:
             logger.info(f"Successfully routed PAPER trade: {side} {quantity} for {instrument_key} @ ₹{price}")
             return "PAPER_ORDER_123"
 
@@ -425,18 +421,11 @@ class UpstoxClient:
         if self.is_mock_market:
             mock_expiry = (datetime.now() + timedelta(days=20)).strftime("%Y-%m-%d")
             mock_rows = []
-            if symbol == "RELIANCE":
-                # Spot is 2500. Generate strikes from 2200 to 2600
-                for strike in [2200, 2250, 2300, 2350, 2400, 2450, 2500, 2550]:
-                    mock_rows.append({"instrument_key": f"NSE_FO|RELIANCE{strike}PE", "type": "PE", "strike": float(strike), "expiry": mock_expiry, "bid": 15.0 - 0.05, "ask": 15.0 + 0.05, "last_price": 15.0})
-            elif symbol == "HDFCBANK":
-                # Spot is 1500. Generate strikes from 1300 to 1600
-                for strike in [1300, 1340, 1360, 1380, 1400, 1440, 1500, 1540]:
-                    mock_rows.append({"instrument_key": f"NSE_FO|HDFCBANK{strike}PE", "type": "PE", "strike": float(strike), "expiry": mock_expiry, "bid": 10.0 - 0.05, "ask": 10.0 + 0.05, "last_price": 10.0})
-            elif symbol == "INFY":
-                # Spot is 1600. Generate strikes from 1400 to 1700
-                for strike in [1400, 1440, 1460, 1480, 1500, 1540, 1600, 1640]:
-                    mock_rows.append({"instrument_key": f"NSE_FO|INFY{strike}PE", "type": "PE", "strike": float(strike), "expiry": mock_expiry, "bid": 12.0 - 0.05, "ask": 12.0 + 0.05, "last_price": 12.0})
+            if symbol == "Nifty 50":
+                # Spot is 22000. Generate strikes around it
+                for strike in range(21000, 23000, 100):
+                    mock_rows.append({"instrument_key": f"NSE_FO|NIFTY{strike}PE", "type": "PE", "strike": float(strike), "expiry": mock_expiry, "bid": 50.0 - 0.05, "ask": 50.0 + 0.05, "last_price": 50.0})
+                    mock_rows.append({"instrument_key": f"NSE_FO|NIFTY{strike}CE", "type": "CE", "strike": float(strike), "expiry": mock_expiry, "bid": 50.0 - 0.05, "ask": 50.0 + 0.05, "last_price": 50.0})
 
             if mock_rows:
                 logger.info(f"Market closed/Testing mode. Generating mock Option Chain matrix for {symbol}")
@@ -560,7 +549,7 @@ class UpstoxClient:
             """
             Cancels an open order on the Upstox exchange.
             """
-            if self.is_mock_market or order_id == "PAPER_ORDER_123":
+            if self.is_paper_trade or order_id == "PAPER_ORDER_123":
                 logger.info(f"PAPER TRADE: Successfully cancelled pending order {order_id}")
                 return True
 

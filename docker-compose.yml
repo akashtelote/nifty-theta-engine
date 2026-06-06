@@ -41,6 +41,8 @@ services:
     image: nifty_wheel_base:latest
     container_name: nifty_dashboard
     restart: always
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8502:8501"
     env_file:
