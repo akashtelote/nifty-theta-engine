@@ -33,6 +33,28 @@ def get_centralized_token() -> str | None:
         logger.error(f"Failed to connect to Redis or fetch token: {e}")
         return None
 
+def _delete_centralized_token() -> None:
+    """
+    Deletes the active token from the centralized Redis bus.
+    """
+    redis_url = os.getenv("REDIS_URL", "redis://host.docker.internal:6379/0")
+    try:
+        r = redis.from_url(redis_url, decode_responses=True)
+        r.delete("upstox:active_token")
+    except Exception as e:
+        logger.error(f"Failed to connect to Redis or delete token: {e}")
+
+def _save_centralized_token(token: str) -> None:
+    """
+    Saves the active token to the centralized Redis bus.
+    """
+    redis_url = os.getenv("REDIS_URL", "redis://host.docker.internal:6379/0")
+    try:
+        r = redis.from_url(redis_url, decode_responses=True)
+        r.set("upstox:active_token", token)
+    except Exception as e:
+        logger.error(f"Failed to connect to Redis or save token: {e}")
+
 def authenticate_and_save_token(force_refresh: bool = False) -> str:
     """
     Thread-safe function to authenticate with Upstox API and save the token.
@@ -41,13 +63,17 @@ def authenticate_and_save_token(force_refresh: bool = False) -> str:
     """
     load_dotenv()
 
-    # 1. Attempt to fetch token from Centralized Redis Bus
-    centralized_token = get_centralized_token()
-    if centralized_token:
-        logger.info("Successfully retrieved centralized Upstox token from Redis.")
-        return centralized_token
+    if force_refresh:
+        logger.info("force_refresh is True. Deleting centralized token from Redis and skipping fetch.")
+        _delete_centralized_token()
+    else:
+        # 1. Attempt to fetch token from Centralized Redis Bus
+        centralized_token = get_centralized_token()
+        if centralized_token:
+            logger.info("Successfully retrieved centralized Upstox token from Redis.")
+            return centralized_token
 
-    logger.critical("Redis token missing. System A is unreachable. Executing emergency fallback login. WARNING: This will kill System A's active session!")
+    logger.critical("Executing fallback login. WARNING: This will kill other active sessions!")
 
     # Ensure data directory exists
     os.makedirs(os.path.dirname(TOKEN_FILE), exist_ok=True)
@@ -127,7 +153,10 @@ def authenticate_and_save_token(force_refresh: bool = False) -> str:
             with open(TOKEN_FILE, "w") as f:
                 json.dump(token_data, f, indent=4)
 
-            logger.info("Successfully generated and saved new token.")
+            # Save to Centralized Redis Bus
+            _save_centralized_token(new_access_token)
+
+            logger.info("Successfully generated and saved new token locally and to Redis.")
             return new_access_token
 
         except Exception as e:
