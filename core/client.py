@@ -9,7 +9,7 @@ import polars as pl
 from datetime import datetime, timedelta
 from filelock import FileLock, Timeout
 
-from core.auth import authenticate_and_save_token
+from core.auth import authenticate_and_save_token, get_centralized_token
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class UpstoxClient:
             response = fetch_data_safe(requests.request, method, url, headers=headers, timeout=timeout, **kwargs)
 
         if response is not None and response.status_code == 401:
-            logger.warning("Access token rejected (401). Evicting token file and forcing re-authentication...")
+            logger.warning("Access token rejected (401). Evicting token file and executing intelligent self-healing...")
 
             # Safely delete the cached token file
             token_file = "data/token.json"
@@ -82,7 +82,28 @@ class UpstoxClient:
             except (FileNotFoundError, OSError) as e:
                 logger.warning(f"Could not remove token file {token_file}: {e}")
 
-            # Invoke auth layer to pull a fresh token
+            # Fetch latest token from Centralized Redis Bus
+            redis_token = get_centralized_token()
+            dead_token = self.access_token
+
+            # Compare tokens
+            if redis_token and redis_token != dead_token:
+                logger.info("Discovered new token from Redis (another bot refreshed it). Retrying API request with new Redis token...")
+                self.access_token = redis_token
+                headers['Authorization'] = f'Bearer {self.access_token}'
+                retry_response = fetch_data_safe(requests.request, method, url, headers=headers, timeout=timeout, **kwargs)
+
+                if retry_response and retry_response.status_code != 401:
+                    if retry_response.status_code != 200:
+                        logger.error(f"Retry request with Redis token failed with status {retry_response.status_code}")
+                    return retry_response
+                else:
+                    logger.warning("Retry with Redis token also returned 401. Redis token is dead.")
+
+            # If Redis token is the SAME, OR if the retry above threw a 401, the cache is officially dead.
+            logger.warning("Redis cache is officially dead. Executing TOTP fallback (force_refresh=True)...")
+
+            # Invoke auth layer to pull a fresh token (which will explicitly delete Redis token and execute TOTP)
             try:
                 self.access_token = authenticate_and_save_token(force_refresh=True)
                 if not self.access_token:
@@ -95,12 +116,12 @@ class UpstoxClient:
             # Update headers with new token
             headers['Authorization'] = f'Bearer {self.access_token}'
 
-            # Retry exactly one time
-            logger.info("Retrying request with fresh access token...")
-            retry_response = fetch_data_safe(requests.request, method, url, headers=headers, timeout=timeout, **kwargs)
-            if retry_response and retry_response.status_code != 200:
-                logger.error(f"Retry request failed with status {retry_response.status_code}")
-            return retry_response
+            # Retry with the brand-new TOTP token
+            logger.info("Retrying request with brand-new TOTP access token...")
+            final_retry_response = fetch_data_safe(requests.request, method, url, headers=headers, timeout=timeout, **kwargs)
+            if final_retry_response and final_retry_response.status_code != 200:
+                logger.error(f"Final retry request failed with status {final_retry_response.status_code}")
+            return final_retry_response
 
         return response
 
