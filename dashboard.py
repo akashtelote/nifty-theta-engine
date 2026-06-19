@@ -14,7 +14,7 @@ def load_data() -> pl.DataFrame:
         conn = psycopg2.connect(db_url)
         # Using string representation of connection string since read_database might expect an engine/connection string
         # actually, polars read_database supports connection objects from dbapi2 compliant libraries
-        query = "SELECT * FROM wheel_state"
+        query = "SELECT * FROM index_spread_state"
         df = pl.read_database(query, connection=conn)
         conn.close()
         return df
@@ -24,14 +24,18 @@ def load_data() -> pl.DataFrame:
         return pl.DataFrame(schema={
             "symbol": pl.Utf8,
             "current_stage": pl.Utf8,
-            "instrument_key": pl.Utf8,
-            "strike_price": pl.Float64,
-            "expiry": pl.Utf8,
+            "short_instrument_key": pl.Utf8,
+            "short_strike": pl.Float64,
+            "short_entry_price": pl.Float64,
+            "short_order_id": pl.Utf8,
+            "long_instrument_key": pl.Utf8,
+            "long_strike": pl.Float64,
+            "long_entry_price": pl.Float64,
+            "long_order_id": pl.Utf8,
+            "quantity": pl.Int64,
+            "net_credit_received": pl.Float64,
             "trade_date": pl.Utf8,
-            "entry_price": pl.Float64,
-            "order_id": pl.Utf8,
-            "assigned_shares": pl.Int64,
-            "average_cost_basis": pl.Float64,
+            "expiry_date": pl.Utf8,
             "realized_pnl": pl.Float64
         })
     except Exception as e:
@@ -46,7 +50,7 @@ if df.is_empty():
     st.stop()
 
 # Ensure expected columns exist (in case of partial schemas)
-expected_columns = ["symbol", "current_stage", "instrument_key", "strike_price", "expiry", "trade_date", "entry_price", "order_id", "assigned_shares", "average_cost_basis", "realized_pnl"]
+expected_columns = ["symbol", "current_stage", "short_instrument_key", "short_strike", "short_entry_price", "short_order_id", "long_instrument_key", "long_strike", "long_entry_price", "long_order_id", "quantity", "net_credit_received", "trade_date", "expiry_date", "realized_pnl"]
 for col in expected_columns:
     if col not in df.columns:
         # Add missing column with null values
@@ -76,8 +80,8 @@ if active_positions.is_empty():
     st.info("No active positions currently.")
 else:
     active_display = active_positions.select([
-        "symbol", "current_stage", "instrument_key", "strike_price",
-        "expiry", "entry_price", "trade_date"
+        "symbol", "current_stage", "short_strike", "long_strike",
+        "net_credit_received", "quantity", "expiry_date", "trade_date"
     ])
     st.dataframe(active_display.to_pandas(), use_container_width=True, hide_index=True)
 
@@ -105,9 +109,21 @@ with col_v2:
 
 # --- Historical Logs Table ---
 st.header("Historical Trade Ledger")
-historical_df = df.filter((pl.col("current_stage") == "IDLE") & (pl.col("realized_pnl").fill_null(0.0) != 0))
+
+@st.cache_data(ttl=60)
+def load_trade_history() -> pl.DataFrame:
+    try:
+        db_url = os.getenv("DATABASE_URL", "postgresql://wheelbot:securepassword@localhost:5432/wheeldb")
+        conn = psycopg2.connect(db_url)
+        history_df = pl.read_database("SELECT * FROM trade_history ORDER BY closed_at DESC", connection=conn)
+        conn.close()
+        return history_df
+    except Exception:
+        return pl.DataFrame()
+
+historical_df = load_trade_history()
 
 if historical_df.is_empty():
-    st.info("No historical trades with realized PnL found.")
+    st.info("No historical trades found.")
 else:
     st.dataframe(historical_df.to_pandas(), use_container_width=True, hide_index=True)

@@ -1,7 +1,7 @@
 ```markdown
 # Upstox Algorithmic Options System (Iron Shield Credit Spread Engine)
 
-**An autonomous, containerized production trading system built using Python, Polars, and SQLite3 for the National Stock Exchange of India (NSE) F&O market. It executes risk-defined Bull Put Credit Spreads, dynamically filters market regimes via the India VIX index, calculates real-time margin-scaled lot positioning, and exposes a decoupled analytics interface.**
+**An autonomous, containerized production trading system built using Python, Polars, and PostgreSQL for the National Stock Exchange of India (NSE) F&O market. It executes risk-defined Bull Put Credit Spreads, dynamically filters market regimes via the India VIX index, calculates real-time margin-scaled lot positioning, and exposes a decoupled analytics interface.**
 
 ---
 
@@ -29,7 +29,7 @@ Below is the decoupled data flow pipeline for the Iron Shield Credit Spread Engi
                                                                                 v
 +---------------------+        +-------------------------+        +---------------------------+
 |                     |        |                         |        |                           |
-| Streamlit UI Node / | <----- |    SQLite3 Ledger       | <----- | Margin-Optimized 2-Leg    |
+| Streamlit UI Node / | <----- |    PostgreSQL Ledger       | <----- | Margin-Optimized 2-Leg    |
 | Discord Alerting    |        |     Persistence         |        | Order Dispatch Engine     |
 |      Gateway        |        |                         |        | (Buy 1st, Sell 2nd)       |
 +---------------------+        +-------------------------+        +---------------------------+
@@ -50,7 +50,7 @@ Live calculation of available cash limits via the Upstox Margin API to scale pos
 
 ### 3. Persistence Layer
 
-ACID-compliant **SQLite3 relational engine** tracking active positions, historical cost basis, and global realized metrics. Unpacks flat DB records into nested strategy state objects dynamically.
+ACID-compliant **PostgreSQL relational engine** tracking active positions, historical cost basis, and global realized metrics. Unpacks flat DB records into nested strategy state objects dynamically.
 
 ### 4. Fault Tolerance & Telemetry
 
@@ -78,7 +78,7 @@ A decoupled **Streamlit web container** serving localized metrics tracking live 
 │   ├── scheduler.py      # Main APScheduler daemon triggering the daily cycles
 │   └── notifier.py       # Discord Webhook integration for runtime telemetry
 ├── dashboard.py          # Command Center: Streamlit Analytics Web UI
-├── data/                 # SQLite database storage (wheel_state.db) and Parquet fixtures
+├── data/                 # Token cache, instrument data, and Parquet fixtures
 ├── docker-compose.yml    # Main orchestration profile for deploying system containers
 ├── main.py               # Main bot daemon entry point and runtime initiator
 └── strategies/

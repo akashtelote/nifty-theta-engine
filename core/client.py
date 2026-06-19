@@ -5,6 +5,7 @@ import requests
 import time
 import gzip
 import io
+import uuid
 import polars as pl
 from datetime import datetime, timedelta
 from filelock import FileLock, Timeout
@@ -232,11 +233,38 @@ class UpstoxClient:
             logger.error(f"Margin API Exception: {e}. Raw Response: {response.text}", exc_info=True)
             return None
 
+    def get_positions(self) -> list[dict]:
+        """Fetches current open positions from Upstox."""
+        if self.is_mock_market:
+            return []
+
+        url = "https://api.upstox.com/v2/portfolio/short-term-positions"
+        response = self._make_authenticated_request("GET", url, timeout=10)
+
+        if not response or response.status_code != 200:
+            logger.error(f"Failed to fetch positions. Status: {response.status_code if response else 'None'}")
+            return []
+
+        try:
+            data = response.json().get("data", [])
+            return [
+                {
+                    "instrument_token": pos.get("instrument_token", ""),
+                    "quantity": pos.get("quantity", 0),
+                    "average_price": pos.get("average_price", 0.0),
+                    "product": pos.get("product", ""),
+                }
+                for pos in data
+            ]
+        except Exception as e:
+            logger.error(f"Failed to parse positions response: {e}", exc_info=True)
+            return []
+
     def get_order_status(self, order_id: str) -> str | None:
         """
         Fetches the status of a specific order.
         """
-        if self.is_paper_trade or order_id == "PAPER_ORDER_123":
+        if self.is_paper_trade or order_id.startswith("PAPER_"):
             return "complete"
 
         url = "https://api.upstox.com/v2/order/details"
@@ -359,13 +387,17 @@ class UpstoxClient:
 
         return self.place_order_by_key(instrument_key, side, quantity, price)
 
-    def place_order_by_key(self, instrument_key: str, side: str, quantity: int, price: float):
+    def place_order_by_key(self, instrument_key: str, side: str, quantity: int, price: float, order_type: str = None):
         """
         Places an order or routes a paper trade using an instrument key.
         """
+        if order_type is None:
+            order_type = "MARKET" if price == 0.0 else "LIMIT"
+
         if self.is_paper_trade:
-            logger.info(f"Successfully routed PAPER trade: {side} {quantity} for {instrument_key} @ ₹{price}")
-            return "PAPER_ORDER_123"
+            paper_id = f"PAPER_{uuid.uuid4().hex[:8]}"
+            logger.info(f"Successfully routed PAPER trade: {side} {quantity} for {instrument_key} @ ₹{price} [{order_type}] -> {paper_id}")
+            return paper_id
 
         url = "https://api.upstox.com/v2/order/place"
 
@@ -377,14 +409,14 @@ class UpstoxClient:
             "quantity": quantity,
             "product": "D",
             "validity": "DAY",
-            "price": price,
+            "price": price if order_type == "LIMIT" else 0,
             "trigger_price": 0.0,
             "instrument_token": instrument_key,
-            "order_type": "LIMIT",
+            "order_type": order_type,
             "transaction_type": side.upper()
         }
 
-        logger.info(f"DEBUG - Token snippet: {str(self.access_token)[:15]}...")
+        logger.debug(f"Token snippet: {str(self.access_token)[:15]}...")
 
         response = self._make_authenticated_request("POST", url, headers=headers, json=payload, timeout=10)
         if not response:
@@ -549,7 +581,7 @@ class UpstoxClient:
             """
             Cancels an open order on the Upstox exchange.
             """
-            if self.is_paper_trade or order_id == "PAPER_ORDER_123":
+            if self.is_paper_trade or order_id.startswith("PAPER_"):
                 logger.info(f"PAPER TRADE: Successfully cancelled pending order {order_id}")
                 return True
 

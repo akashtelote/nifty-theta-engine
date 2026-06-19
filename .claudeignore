@@ -1,0 +1,16 @@
+*.parquet
+*.pkl
+*.pickle
+*.keras
+*.csv
+*.page
+/data/*
+/models/*
+/ml/models/*
+data/**/*.csv
+outputs/**/*.csv
+*.log
+*.lock
+node_modules/
+dist/
+__pycache__/

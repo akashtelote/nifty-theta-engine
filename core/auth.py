@@ -1,11 +1,11 @@
 import os
 import json
 import logging
-import redis
 from datetime import datetime, timezone, timedelta
 from filelock import FileLock
 from upstox_totp.client import UpstoxTOTP
 from dotenv import load_dotenv
+from config.settings import get_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +24,8 @@ def get_centralized_token() -> str | None:
     """
     Fetches the active token from the centralized Redis bus managed by System A.
     """
-    redis_url = os.getenv("REDIS_URL", "redis://host.docker.internal:6379/0")
     try:
-        r = redis.from_url(redis_url, decode_responses=True)
+        r = get_redis_client()
         token = r.get("upstox:active_token")
         return token
     except Exception as e:
@@ -37,9 +36,8 @@ def _delete_centralized_token() -> None:
     """
     Deletes the active token from the centralized Redis bus.
     """
-    redis_url = os.getenv("REDIS_URL", "redis://host.docker.internal:6379/0")
     try:
-        r = redis.from_url(redis_url, decode_responses=True)
+        r = get_redis_client()
         r.delete("upstox:active_token")
     except Exception as e:
         logger.error(f"Failed to connect to Redis or delete token: {e}")
@@ -48,9 +46,8 @@ def _save_centralized_token(token: str) -> None:
     """
     Saves the active token to the centralized Redis bus.
     """
-    redis_url = os.getenv("REDIS_URL", "redis://host.docker.internal:6379/0")
     try:
-        r = redis.from_url(redis_url, decode_responses=True)
+        r = get_redis_client()
         r.set("upstox:active_token", token)
     except Exception as e:
         logger.error(f"Failed to connect to Redis or save token: {e}")
