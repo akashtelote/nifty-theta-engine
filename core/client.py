@@ -342,7 +342,7 @@ class UpstoxClient:
             logger.error(f"Could not find instrument key for {symbol}")
             return None
 
-        url = f"https://api.upstox.com/v2/market-quote/ltp"
+        url = "https://api.upstox.com/v2/market-quote/ltp"
         params = {
             "instrument_key": instrument_key
         }
@@ -576,6 +576,29 @@ class UpstoxClient:
         })
 
         return df
+
+    def get_order_fill_price(self, order_id: str) -> float | None:
+        """Returns the average fill price for a completed order, or None."""
+        if self.is_paper_trade or order_id.startswith("PAPER_"):
+            return None
+
+        url = "https://api.upstox.com/v2/order/details"
+        params = {"order_id": order_id}
+
+        response = self._make_authenticated_request("GET", url, params=params, timeout=10)
+
+        if not response or response.status_code != 200:
+            return None
+
+        try:
+            data = response.json().get("data", [])
+            if not data:
+                return None
+            avg = data[0].get("average_price")
+            return float(avg) if avg is not None else None
+        except Exception as e:
+            logger.error(f"Failed to parse fill price for {order_id}: {e}", exc_info=True)
+            return None
 
     def cancel_order(self, order_id: str) -> bool:
             """

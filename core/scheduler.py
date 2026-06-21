@@ -18,6 +18,22 @@ TARGET_SYMBOLS = {
     "Nifty 50": {"allocation_pct": 1.0}
 }
 
+_ws_wheel: WheelStateMachine | None = None
+_ws_monitor = None
+
+
+def _refresh_realtime_state():
+    """Refresh the WS monitor's thresholds and subscriptions after position changes."""
+    if _ws_wheel is None or _ws_monitor is None:
+        return
+    try:
+        _ws_wheel.state = _ws_wheel._load_state()
+        _ws_wheel.refresh_exit_thresholds()
+        _ws_monitor.update_subscriptions(_ws_wheel.active_instrument_keys())
+    except Exception as e:
+        logger.error(f"Failed to refresh real-time state: {e}", exc_info=True)
+
+
 def _run_daily_wheel():
     logger.info("Starting daily wheel execution.")
     wheel = WheelStateMachine()
@@ -36,6 +52,7 @@ def _run_daily_wheel():
             )
 
     logger.info("Daily wheel execution completed.")
+    _refresh_realtime_state()
 
     if HEARTBEAT_URL:
         try:
@@ -59,6 +76,7 @@ def _run_exits():
         )
 
     logger.info("Exit evaluation completed.")
+    _refresh_realtime_state()
 
 def _check_missed_entry():
     tz = pytz.timezone('Asia/Kolkata')
@@ -77,10 +95,11 @@ def _check_missed_entry():
     logger.info("No missed entries detected — all symbols have active positions.")
 
 def start_scheduler():
+    global _ws_wheel, _ws_monitor
+
     tz = pytz.timezone('Asia/Kolkata')
     scheduler = BackgroundScheduler(timezone=tz)
 
-    # Entry Trigger: Friday 15:15
     entry_trigger = CronTrigger(
         day_of_week='fri',
         hour=15,
@@ -93,7 +112,6 @@ def start_scheduler():
         trigger=entry_trigger
     )
 
-    # Exit Trigger: Hourly during market hours (9:00 - 15:00) Monday - Friday
     exit_trigger = CronTrigger(
         day_of_week='mon-fri',
         hour='9-15',
@@ -119,7 +137,6 @@ def start_scheduler():
     _check_missed_entry()
 
     # Start WebSocket monitor for real-time exit checks (live mode only)
-    ws_monitor = None
     if not settings.PAPER_TRADE and not settings.MOCK_MARKET:
         try:
             from core.ws_monitor import WebSocketMonitor
@@ -127,12 +144,16 @@ def start_scheduler():
 
             token = get_centralized_token()
             if token:
-                def _on_ltp_update(instrument_key: str, ltp: float):
-                    logger.debug(f"Real-time LTP: {instrument_key} = {ltp}")
+                _ws_wheel = WheelStateMachine()
+                _ws_wheel.refresh_exit_thresholds()
 
-                ws_monitor = WebSocketMonitor(access_token=token, on_exit_trigger=_on_ltp_update)
-                ws_monitor.start()
-                logger.info("Real-time WebSocket monitor active.")
+                _ws_monitor = WebSocketMonitor(
+                    access_token=token,
+                    on_tick=_ws_wheel.on_realtime_tick
+                )
+                _ws_monitor.start()
+                _ws_monitor.update_subscriptions(_ws_wheel.active_instrument_keys())
+                logger.info("Real-time WebSocket monitor active with exit thresholds.")
             else:
                 logger.warning("No token available for WebSocket monitor. Falling back to hourly polling.")
         except Exception as e:
@@ -143,6 +164,6 @@ def start_scheduler():
             time.sleep(60)
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received. Shutting down scheduler.")
-        if ws_monitor:
-            ws_monitor.stop()
+        if _ws_monitor:
+            _ws_monitor.stop()
         scheduler.shutdown()

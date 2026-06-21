@@ -22,6 +22,7 @@ def mock_client(monkeypatch):
     client.place_order_by_key.return_value = "PAPER_test1234"
     client.cancel_order.return_value = True
     client.get_positions.return_value = []
+    client.get_order_fill_price.return_value = None
     return client
 
 
@@ -54,11 +55,18 @@ def wheel(mock_client, mock_notifier, mock_db_pool, monkeypatch):
     original_init = WheelStateMachine.__init__
 
     def patched_init(self):
+        import threading
         self.db_url = "postgresql://test:test@localhost/test"
         self._pool = mock_db_pool
         self.state = {}
         self.client = mock_client
         self.notifier = mock_notifier
+        self._exit_thresholds = {}
+        self._exit_in_progress = set()
+        self._exit_lock = threading.Lock()
+        self._breach_first_seen = {}
+        self.DEBOUNCE_SECONDS = 5.0
+        self.INDEX_INSTRUMENT_KEYS = {"Nifty 50": "NSE_INDEX|Nifty 50"}
 
     monkeypatch.setattr(WheelStateMachine, "__init__", patched_init)
     instance = WheelStateMachine()

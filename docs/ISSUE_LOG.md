@@ -176,13 +176,9 @@ The ISS-006 fix uses `MARKET` orders for exits. On illiquid Nifty option strikes
 
 ---
 
-### ENH-005: No real-time WebSocket monitoring
+### ENH-005: No real-time WebSocket monitoring — FIXED
 
-**Severity:** High — hourly polling misses fast moves
-
-Exit conditions are evaluated hourly via polling. A gap-down through the short strike between checks could blow past the stop loss, with up to 60 minutes of unprotected exposure. The Upstox WebSocket API supports real-time LTP feeds.
-
-**Fix:** Add a WebSocket monitor thread that subscribes to active position LTPs and triggers exits in real-time.
+**Status:** Fixed — `ws_monitor.py` rewritten to use SDK's `MarketDataStreamerV3` (protobuf + auto-reconnect). Subscribes to Nifty 50 index LTP, debounced spot-breach detection (5s confirmation), exits via sequenced `_execute_exit`. Scheduler wires `on_realtime_tick` callback and refreshes subscriptions after position changes. Hourly poll kept as backstop. Live-only (gated by `PAPER_TRADE`/`MOCK_MARKET`).
 
 ---
 
@@ -203,6 +199,18 @@ Environment variables are read across multiple modules with implicit string conv
 Only an auto-merge workflow exists. There are no automated checks on pull requests — no linting, no type checking, no test execution. Changes can be merged with broken imports or logic errors.
 
 **Fix:** Add GitHub Actions workflow running pytest and basic linting on PRs.
+
+---
+
+### ENH-008: Exit legs placed simultaneously risk naked short — FIXED
+
+**Status:** Fixed — exit orders now sequenced cover-first: buy-to-close short → verify fill → sell-to-close hedge. BTC failure leaves spread intact; STC failure after BTC fill closes position safely. P&L now uses real fill prices via `get_order_fill_price()` with fallback to theoretical cost.
+
+---
+
+### ENH-009: Exit P&L uses theoretical quotes, not real fills — FIXED
+
+**Status:** Fixed — `UpstoxClient.get_order_fill_price()` reads `average_price` from `/v2/order/details`. `_execute_exit` computes P&L from actual fills when available; falls back to pre-trade cost-to-close for paper trades.
 
 ---
 
