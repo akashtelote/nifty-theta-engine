@@ -22,6 +22,7 @@ def mock_client(monkeypatch):
     client.place_order_by_key.return_value = "PAPER_test1234"
     client.cancel_order.return_value = True
     client.get_positions.return_value = []
+    client.get_order_fill_price.return_value = None
     return client
 
 

@@ -609,10 +609,106 @@ class WheelStateMachine:
                 finally:
                     self._pool.putconn(lock_conn)
 
+    def _execute_exit(self, symbol: str, reason: str, snapshot: dict):
+        """Execute a sequenced exit: buy-to-close short FIRST, then sell-to-close hedge.
+
+        Mirrors the hedge-first entry order to prevent a naked-short window.
+        If BTC fails, the intact spread is left untouched (safe to retry).
+        If BTC fills but STC fails, the short is covered (benign long remains).
+        """
+        short_instrument_key = snapshot["short_instrument_key"]
+        long_instrument_key = snapshot["long_instrument_key"]
+        quantity = snapshot["quantity"]
+        short_live_ask = snapshot["short_live_ask"]
+        long_live_bid = snapshot["long_live_bid"]
+        initial_credit = snapshot["initial_credit"]
+        theoretical_cost = snapshot["current_cost_to_close"]
+
+        # --- Leg 1: Buy-to-close the short (cover the dangerous leg first) ---
+        btc_price = round(short_live_ask * (1 + EXIT_SLIPPAGE_BUFFER_PCT), 2)
+        btc_order_id = self.client.place_order_by_key(
+            instrument_key=short_instrument_key,
+            side="BUY",
+            quantity=quantity,
+            price=btc_price,
+            order_type="LIMIT"
+        )
+
+        if not btc_order_id:
+            msg = f"Failed to place BTC order for {symbol}. Spread intact — will retry next cycle."
+            logger.error(msg)
+            self.notifier.send_notification(title="BTC Order Failed", message=msg, level="ERROR")
+            return
+
+        btc_filled = False
+        for _ in range(3):
+            time.sleep(2)
+            btc_status = self.client.get_order_status(btc_order_id)
+            if btc_status == "complete":
+                btc_filled = True
+                break
+            elif btc_status in ("rejected", "cancelled"):
+                msg = f"BTC order {btc_order_id} was {btc_status} for {symbol}. Spread intact — will retry next cycle."
+                logger.error(msg)
+                self.notifier.send_notification(title=f"BTC {btc_status.capitalize()}", message=msg, level="ERROR")
+                return
+
+        if not btc_filled:
+            self.client.cancel_order(btc_order_id)
+            msg = f"BTC order {btc_order_id} timed out for {symbol}. Cancelled. Spread intact — will retry next cycle."
+            logger.error(msg)
+            self.notifier.send_notification(title="BTC Timeout", message=msg, level="ERROR")
+            return
+
+        # --- Leg 2: Sell-to-close the hedge (short is now covered) ---
+        stc_price = round(long_live_bid * (1 - EXIT_SLIPPAGE_BUFFER_PCT), 2)
+        stc_order_id = self.client.place_order_by_key(
+            instrument_key=long_instrument_key,
+            side="SELL",
+            quantity=quantity,
+            price=stc_price,
+            order_type="LIMIT"
+        )
+
+        stc_filled = False
+        if stc_order_id:
+            for _ in range(3):
+                time.sleep(2)
+                stc_status = self.client.get_order_status(stc_order_id)
+                if stc_status == "complete":
+                    stc_filled = True
+                    break
+
+        # --- Compute P&L from real fills when available ---
+        btc_fill = self.client.get_order_fill_price(btc_order_id)
+        stc_fill = self.client.get_order_fill_price(stc_order_id) if stc_order_id and stc_filled else None
+
+        if btc_fill is not None and stc_fill is not None:
+            actual_cost_to_close = btc_fill - stc_fill
+        else:
+            actual_cost_to_close = theoretical_cost
+
+        pnl = (initial_credit - actual_cost_to_close) * quantity
+
+        # Archive and close — the short is covered regardless of STC outcome
+        self._archive_trade(symbol, reason, pnl)
+        self.state[symbol]["realized_pnl"] += pnl
+        self.state[symbol]["current_stage"] = "CLOSED"
+        self.state[symbol]["active_position"] = None
+        self.state[symbol]["hedge_position"] = None
+        self._save_state(symbol)
+
+        if not stc_order_id or not stc_filled:
+            residual_msg = f"Exit for {symbol}: short covered (BTC filled), but residual hedge {long_instrument_key} not closed. Manual close required."
+            logger.warning(residual_msg)
+            self.notifier.send_notification(title="Residual Hedge", message=residual_msg, level="WARNING")
+
+        success_msg = f"Exit completed for {symbol} due to {reason}. P&L: {pnl:.2f}. State updated to CLOSED."
+        logger.info(success_msg)
+        self.notifier.send_notification(title="Exit Complete", message=success_msg, level="INFO")
+
     def check_exits(self):
-        """
-        Periodically evaluate active positions for Take Profit, Stop Loss, and Time Stop conditions.
-        """
+        """Evaluate active positions for Take Profit, Stop Loss, and Time Stop conditions."""
         self.state = self._load_state()
         for symbol, data in self.state.items():
             if data.get("current_stage") != "STAGE_1_CSP":
@@ -653,13 +749,9 @@ class WheelStateMachine:
             current_cost_to_close = short_live_ask - long_live_bid
             short_strike = active_position.get("strike")
 
-            # Condition 1: Take Profit (<= 20% initial credit)
             take_profit = current_cost_to_close <= 0.20 * initial_credit
-
-            # Condition 2: Stop Loss (>= 200% initial credit OR spot breaches short strike)
             stop_loss = current_cost_to_close >= 2.0 * initial_credit or spot_price <= short_strike
 
-            # Condition 3: Time Stop (Thursday Expiry >= 15:00 IST)
             now = datetime.now(IST)
             time_stop = now.weekday() == 3 and now.hour >= 15
 
@@ -669,53 +761,13 @@ class WheelStateMachine:
                 logger.info(msg)
                 self.notifier.send_notification(title=f"{reason} Triggered", message=msg, level="INFO" if take_profit or time_stop else "WARNING")
 
-                # Marketable-limit: buy above ask to guarantee fill
-                btc_price = round(short_live_ask * (1 + EXIT_SLIPPAGE_BUFFER_PCT), 2)
-                btc_order_id = self.client.place_order_by_key(
-                    instrument_key=short_instrument_key,
-                    side="BUY",
-                    quantity=quantity_shares,
-                    price=btc_price,
-                    order_type="LIMIT"  # Marketable-limit for swift exit
-                )
-
-                # Marketable-limit: sell below bid to guarantee fill
-                stc_price = round(long_live_bid * (1 - EXIT_SLIPPAGE_BUFFER_PCT), 2)
-                stc_order_id = self.client.place_order_by_key(
-                    instrument_key=long_instrument_key,
-                    side="SELL",
-                    quantity=quantity_shares,
-                    price=stc_price,
-                    order_type="LIMIT"  # Marketable-limit for swift exit
-                )
-
-                if btc_order_id and stc_order_id:
-                    both_filled = False
-                    for _ in range(3):
-                        time.sleep(2)
-                        btc_status = self.client.get_order_status(btc_order_id)
-                        stc_status = self.client.get_order_status(stc_order_id)
-
-                        if btc_status == "complete" and stc_status == "complete":
-                            both_filled = True
-                            break
-
-                    if both_filled:
-                        pnl = (initial_credit - current_cost_to_close) * quantity_shares
-                        self._archive_trade(symbol, reason, pnl)
-                        self.state[symbol]["realized_pnl"] += pnl
-                        self.state[symbol]["current_stage"] = "CLOSED"
-                        self.state[symbol]["active_position"] = None
-                        self.state[symbol]["hedge_position"] = None
-                        self._save_state(symbol)
-
-                        success_msg = f"Exit completed for {symbol} due to {reason}. P&L: {pnl:.2f}. State updated to CLOSED."
-                        logger.info(success_msg)
-                        self.notifier.send_notification(title="Exit Complete", message=success_msg, level="INFO")
-                    else:
-                        fail_msg = f"Exit orders not fully filled for {symbol}. BTC={btc_status}, STC={stc_status}. State NOT updated — manual intervention required."
-                        logger.error(fail_msg)
-                        self.notifier.send_notification(title="Exit Verification Failed", message=fail_msg, level="ERROR")
-                else:
-                    logger.error(f"Failed to place closing orders for {symbol}.")
+                self._execute_exit(symbol, reason, {
+                    "short_instrument_key": short_instrument_key,
+                    "long_instrument_key": long_instrument_key,
+                    "quantity": quantity_shares,
+                    "short_live_ask": short_live_ask,
+                    "long_live_bid": long_live_bid,
+                    "initial_credit": initial_credit,
+                    "current_cost_to_close": current_cost_to_close,
+                })
 
