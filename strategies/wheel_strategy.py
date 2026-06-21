@@ -1,3 +1,4 @@
+import threading
 import time
 import psycopg2
 import psycopg2.pool
@@ -27,6 +28,14 @@ class WheelStateMachine:
         self.state = self._load_state()
         self.client = UpstoxClient()
         self.notifier = Notifier()
+
+        self._exit_thresholds: dict[str, dict] = {}
+        self._exit_in_progress: set[str] = set()
+        self._exit_lock = threading.Lock()
+        self._breach_first_seen: dict[str, float] = {}
+        self.DEBOUNCE_SECONDS = 5.0
+
+        self.INDEX_INSTRUMENT_KEYS = {"Nifty 50": "NSE_INDEX|Nifty 50"}
 
     def _load_state(self) -> dict:
         """
@@ -608,6 +617,122 @@ class WheelStateMachine:
                     logger.error(f"Error releasing advisory lock for {symbol}: {e}")
                 finally:
                     self._pool.putconn(lock_conn)
+
+    def active_instrument_keys(self) -> set[str]:
+        """Returns all instrument keys that should be monitored in real-time."""
+        keys: set[str] = set()
+        for symbol, data in self.state.items():
+            if data.get("current_stage") not in ("STAGE_1_CSP", "STAGE_2_CC"):
+                continue
+            active = data.get("active_position") or {}
+            hedge = data.get("hedge_position") or {}
+            if active.get("instrument_key"):
+                keys.add(active["instrument_key"])
+            if hedge.get("instrument_key"):
+                keys.add(hedge["instrument_key"])
+            if symbol in self.INDEX_INSTRUMENT_KEYS:
+                keys.add(self.INDEX_INSTRUMENT_KEYS[symbol])
+        return keys
+
+    def refresh_exit_thresholds(self):
+        """Populate/refresh the in-memory exit threshold cache from current state."""
+        thresholds: dict[str, dict] = {}
+        for symbol, data in self.state.items():
+            if data.get("current_stage") not in ("STAGE_1_CSP",):
+                continue
+            active = data.get("active_position")
+            hedge = data.get("hedge_position")
+            if not active or not hedge:
+                continue
+            short_entry = active.get("entry_price", 0.0)
+            long_entry = hedge.get("entry_price", 0.0)
+            initial_credit = short_entry - long_entry
+            thresholds[symbol] = {
+                "short_strike": active.get("strike"),
+                "short_instrument_key": active.get("instrument_key"),
+                "long_instrument_key": hedge.get("instrument_key"),
+                "quantity": active.get("quantity", LOT_SIZES.get(symbol, 25)),
+                "initial_credit": initial_credit,
+                "expiry": active.get("expiry"),
+                "underlying_key": self.INDEX_INSTRUMENT_KEYS.get(symbol),
+            }
+        self._exit_thresholds = thresholds
+
+    def on_realtime_tick(self, instrument_key: str, ltp: float):
+        """Handle a real-time LTP tick. Debounces breach detection."""
+        matched_symbol = None
+        for symbol, t in self._exit_thresholds.items():
+            if t.get("underlying_key") == instrument_key:
+                matched_symbol = symbol
+                break
+        if matched_symbol is None:
+            return
+
+        if matched_symbol in self._exit_in_progress:
+            return
+
+        t = self._exit_thresholds[matched_symbol]
+        short_strike = t["short_strike"]
+
+        if ltp > short_strike:
+            self._breach_first_seen.pop(matched_symbol, None)
+            return
+
+        now = time.monotonic()
+        first_seen = self._breach_first_seen.get(matched_symbol)
+        if first_seen is None:
+            self._breach_first_seen[matched_symbol] = now
+            logger.info(f"Real-time breach detected for {matched_symbol}: spot {ltp} <= strike {short_strike}. Debouncing...")
+            return
+
+        if (now - first_seen) < self.DEBOUNCE_SECONDS:
+            return
+
+        self._breach_first_seen.pop(matched_symbol, None)
+
+        with self._exit_lock:
+            if matched_symbol in self._exit_in_progress:
+                return
+            self._exit_in_progress.add(matched_symbol)
+
+        logger.warning(f"Real-time exit triggered for {matched_symbol}: spot {ltp} <= strike {short_strike} (confirmed after {self.DEBOUNCE_SECONDS}s debounce)")
+
+        try:
+            self.state = self._load_state()
+            data = self.state.get(matched_symbol, {})
+            if data.get("current_stage") != "STAGE_1_CSP":
+                return
+
+            chain_df = self.client.get_option_chain(matched_symbol, expiry_date=t["expiry"])
+            short_df = chain_df.filter(pl.col("instrument_key") == t["short_instrument_key"])
+            long_df = chain_df.filter(pl.col("instrument_key") == t["long_instrument_key"])
+
+            if short_df.is_empty() or long_df.is_empty():
+                logger.error(f"Cannot fetch live quotes for {matched_symbol} exit. Will retry next tick.")
+                return
+
+            short_live_ask = short_df.row(0, named=True).get("ask")
+            long_live_bid = long_df.row(0, named=True).get("bid")
+            if short_live_ask is None or long_live_bid is None:
+                return
+
+            self.notifier.send_notification(
+                title="Real-Time Stop Loss",
+                message=f"Spot {ltp} breached short strike {short_strike} for {matched_symbol}. Executing exit.",
+                level="WARNING"
+            )
+
+            self._execute_exit(matched_symbol, "Stop Loss (Real-Time)", {
+                "short_instrument_key": t["short_instrument_key"],
+                "long_instrument_key": t["long_instrument_key"],
+                "quantity": t["quantity"],
+                "short_live_ask": short_live_ask,
+                "long_live_bid": long_live_bid,
+                "initial_credit": t["initial_credit"],
+                "current_cost_to_close": short_live_ask - long_live_bid,
+            })
+        finally:
+            self._exit_in_progress.discard(matched_symbol)
 
     def _execute_exit(self, symbol: str, reason: str, snapshot: dict):
         """Execute a sequenced exit: buy-to-close short FIRST, then sell-to-close hedge.
