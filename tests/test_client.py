@@ -57,3 +57,33 @@ class TestOrderStatusWithDynamicIds:
 
             assert client.get_order_status("PAPER_abc12345") == "complete"
             assert client.get_order_status("PAPER_xyz99999") == "complete"
+
+
+class TestAvailableMargin:
+    def _client(self, paper: bool, mock: bool):
+        from core.client import UpstoxClient
+
+        with patch.object(UpstoxClient, "__init__", lambda self: None):
+            client = UpstoxClient()
+            client.is_paper_trade = paper
+            client.is_mock_market = mock
+            client.access_token = "test"
+            return client
+
+    def test_paper_trade_uses_fixed_budget(self):
+        assert self._client(paper=True, mock=False).get_available_margin() == 50000.0
+
+    def test_mock_market_uses_simulated_balance(self):
+        assert self._client(paper=True, mock=True).get_available_margin() == 500000.0
+
+    def test_live_mode_calls_upstox_api(self):
+        client = self._client(paper=False, mock=False)
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "status": "success",
+            "data": {"available_to_trade": {"total": 12345.0}},
+        }
+        with patch.object(client, "_make_authenticated_request", return_value=mock_resp) as req:
+            assert client.get_available_margin() == 12345.0
+            req.assert_called_once()

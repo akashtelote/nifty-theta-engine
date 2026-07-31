@@ -198,10 +198,16 @@ class UpstoxClient:
 
     def get_available_margin(self) -> float | None:
         """
-        Fetches the live available cash/equity margin from the Upstox account.
+        Fetches available cash/equity margin for position sizing.
+
+        Mock market returns a large simulated balance. Paper trade uses a fixed
+        INR 50,000 budget so live Upstox funds are not required. Live mode
+        queries the Upstox funds API.
         """
         if self.is_mock_market:
             return 500000.0
+        if self.is_paper_trade:
+            return 50000.0
 
         url = "https://api.upstox.com/v3/user/get-funds-and-margin"
 
