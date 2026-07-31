@@ -31,27 +31,13 @@ def fetch_data_safe(func, *args, **kwargs):
 class UpstoxClient:
     def __init__(self):
         """
-        Initializes the Upstox API client by loading the access token.
-        If the token file is missing or invalid, it triggers authentication.
+        Initialize with Redis-first token resolution (see authenticate_and_save_token).
+        Local token.json is only a cache; TOTP is last resort.
         """
         self.access_token = None
         self.is_mock_market = str(os.getenv("MOCK_MARKET", "False")).lower() in ("true", "1", "yes")
         self.is_paper_trade = str(os.getenv("PAPER_TRADE", "True")).lower() in ("true", "1", "yes")
-        token_file = "data/token.json"
-
-        try:
-            if os.path.exists(token_file):
-                with open(token_file, "r") as f:
-                    token_data = json.load(f)
-                    self.access_token = token_data.get("access_token")
-
-            if not self.access_token:
-                logger.info("Access token missing or invalid. Triggering authentication.")
-                self.access_token = authenticate_and_save_token(force_refresh=False)
-
-        except (json.JSONDecodeError, IOError) as e:
-            logger.warning(f"Failed to read token file: {e}. Triggering authentication.")
-            self.access_token = authenticate_and_save_token(force_refresh=False)
+        self.access_token = authenticate_and_save_token(force_refresh=False)
 
     def _make_authenticated_request(self, method: str, url: str, **kwargs):
         """
@@ -92,6 +78,11 @@ class UpstoxClient:
             if redis_token and redis_token != dead_token:
                 logger.info("Discovered new token from Redis (another bot refreshed it). Retrying API request with new Redis token...")
                 self.access_token = redis_token
+                try:
+                    from core.auth import _mirror_token_locally
+                    _mirror_token_locally(redis_token)
+                except Exception as e:
+                    logger.warning(f"Could not mirror Redis token locally after 401 heal: {e}")
                 headers['Authorization'] = f'Bearer {self.access_token}'
                 retry_response = fetch_data_safe(requests.request, method, url, headers=headers, timeout=timeout, **kwargs)
 

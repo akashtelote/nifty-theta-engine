@@ -7,6 +7,7 @@ services:
       - .env
     volumes:
       - nifty_postgres_data:/var/lib/postgresql/data
+      - ./init_nifty_schema.sql:/docker-entrypoint-initdb.d/init_nifty_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -25,6 +26,8 @@ services:
       - "host.docker.internal:host-gateway"
     environment:
       - REDIS_URL=redis://host.docker.internal:6379/0
+      - PAPER_TRADE=True
+      - MOCK_MARKET=False
     env_file:
       - .env
     volumes:
@@ -43,6 +46,10 @@ services:
       - "host.docker.internal:host-gateway"
     ports:
       - "8502:8501"
+    environment:
+      - REDIS_URL=redis://host.docker.internal:6379/0
+      - PAPER_TRADE=True
+      - MOCK_MARKET=False
     env_file:
       - .env
     volumes:
