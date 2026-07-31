@@ -24,6 +24,7 @@ class WheelStateMachine:
         """
         self.db_url = os.getenv("DATABASE_URL", "postgresql://wheelbot:securepassword@localhost:5432/wheeldb")
         self._pool = psycopg2.pool.SimpleConnectionPool(1, 5, self.db_url)
+        self._ensure_tables()
 
         self.state = self._load_state()
         self.client = UpstoxClient()
@@ -36,6 +37,37 @@ class WheelStateMachine:
         self.DEBOUNCE_SECONDS = 5.0
 
         self.INDEX_INSTRUMENT_KEYS = {"Nifty 50": "NSE_INDEX|Nifty 50"}
+
+    def _ensure_tables(self):
+        conn = None
+        try:
+            conn = self._pool.getconn()
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS trade_history (
+                    id SERIAL PRIMARY KEY,
+                    symbol TEXT NOT NULL,
+                    short_instrument_key TEXT,
+                    short_strike DOUBLE PRECISION,
+                    short_entry_price DOUBLE PRECISION,
+                    long_instrument_key TEXT,
+                    long_strike DOUBLE PRECISION,
+                    long_entry_price DOUBLE PRECISION,
+                    quantity INTEGER,
+                    net_credit_received DOUBLE PRECISION,
+                    exit_reason TEXT,
+                    realized_pnl DOUBLE PRECISION,
+                    trade_date TEXT,
+                    expiry_date TEXT,
+                    closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            conn.commit()
+        except Exception as e:
+            logger.error(f"Error ensuring tables exist: {e}")
+        finally:
+            if conn:
+                self._pool.putconn(conn)
 
     def _load_state(self) -> dict:
         """
@@ -227,6 +259,10 @@ class WheelStateMachine:
 
     def reconcile_positions(self):
         """Compares DB state against broker positions on startup. Alerts on mismatches."""
+        if self.client.is_paper_trade:
+            logger.info("Paper trade mode — skipping broker position reconciliation.")
+            return
+
         self.state = self._load_state()
         broker_positions = self.client.get_positions()
         broker_keys = {p["instrument_token"] for p in broker_positions if p["quantity"] != 0}
@@ -835,6 +871,11 @@ class WheelStateMachine:
     def check_exits(self):
         """Evaluate active positions for Take Profit, Stop Loss, and Time Stop conditions."""
         self.state = self._load_state()
+        active_symbols = [s for s, d in self.state.items() if d.get("current_stage") == "STAGE_1_CSP"]
+        if not active_symbols:
+            logger.info("No active STAGE_1_CSP positions to evaluate.")
+            return
+        logger.info(f"Evaluating exits for {len(active_symbols)} active position(s): {active_symbols}")
         for symbol, data in self.state.items():
             if data.get("current_stage") != "STAGE_1_CSP":
                 continue
@@ -844,6 +885,29 @@ class WheelStateMachine:
 
             if not active_position or not hedge_position:
                 continue
+
+            expiry_str = active_position.get("expiry")
+            if expiry_str:
+                try:
+                    expiry_date = datetime.strptime(str(expiry_str), "%Y-%m-%d").date()
+                except (ValueError, TypeError):
+                    expiry_date = None
+                if expiry_date and date.today() > expiry_date:
+                    short_entry_price = active_position.get("entry_price", 0.0)
+                    long_entry_price = hedge_position.get("entry_price", 0.0)
+                    initial_credit = short_entry_price - long_entry_price
+                    quantity_shares = active_position.get("quantity", LOT_SIZES.get(symbol, 25))
+                    pnl = initial_credit * quantity_shares
+                    msg = f"Position for {symbol} expired on {expiry_date} while bot was offline. Assuming options expired worthless (max profit). P&L: {pnl:.2f}"
+                    logger.warning(msg)
+                    self.notifier.send_notification(title="Expired Position Auto-Closed", message=msg, level="WARNING")
+                    self._archive_trade(symbol, "Expiry (offline)", pnl)
+                    self.state[symbol]["realized_pnl"] = data.get("realized_pnl", 0.0) + pnl
+                    self.state[symbol]["current_stage"] = "CLOSED"
+                    self.state[symbol]["active_position"] = None
+                    self.state[symbol]["hedge_position"] = None
+                    self._save_state(symbol)
+                    continue
 
             spot_price = self.client.get_market_quote_ltp(symbol)
             if spot_price is None:

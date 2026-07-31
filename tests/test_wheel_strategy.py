@@ -168,8 +168,83 @@ class TestHedgeUnwinding:
         assert wheel.state["Nifty 50"]["current_stage"] == "IDLE"
 
 
+class TestExpiryAutoClose:
+    def test_closes_expired_position(self, wheel, mock_client, mock_notifier):
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        wheel.state["Nifty 50"] = {
+            "current_stage": "STAGE_1_CSP",
+            "active_position": {
+                "instrument_key": "NSE_FO|NIFTY22000PE",
+                "strike": 22000.0,
+                "expiry": yesterday,
+                "entry_price": 50.0,
+                "order_id": "ORD1",
+                "quantity": 25,
+            },
+            "hedge_position": {
+                "instrument_key": "NSE_FO|NIFTY21900PE",
+                "strike": 21900.0,
+                "expiry": yesterday,
+                "entry_price": 30.0,
+                "order_id": "ORD2",
+                "quantity": 25,
+            },
+            "net_credit_received": 500.0,
+            "realized_pnl": 0.0,
+        }
+        wheel.check_exits()
+        assert wheel.state["Nifty 50"]["current_stage"] == "CLOSED"
+        assert wheel.state["Nifty 50"]["active_position"] is None
+        assert wheel.state["Nifty 50"]["realized_pnl"] == 500.0
+        mock_client.get_market_quote_ltp.assert_not_called()
+        mock_notifier.send_notification.assert_called()
+
+    def test_does_not_close_unexpired_position(self, wheel, mock_client):
+        future = (date.today() + timedelta(days=7)).isoformat()
+        wheel.state["Nifty 50"] = {
+            "current_stage": "STAGE_1_CSP",
+            "active_position": {
+                "instrument_key": "NSE_FO|NIFTY22000PE",
+                "strike": 22000.0,
+                "expiry": future,
+                "entry_price": 50.0,
+                "order_id": "ORD1",
+                "quantity": 25,
+            },
+            "hedge_position": {
+                "instrument_key": "NSE_FO|NIFTY21900PE",
+                "strike": 21900.0,
+                "expiry": future,
+                "entry_price": 30.0,
+                "order_id": "ORD2",
+                "quantity": 25,
+            },
+            "net_credit_received": 500.0,
+            "realized_pnl": 0.0,
+        }
+        mock_client.get_market_quote_ltp.return_value = 23000.0
+        mock_client.get_option_chain.return_value = pl.DataFrame(schema={
+            "instrument_key": pl.Utf8, "type": pl.Utf8, "strike": pl.Float64,
+            "expiry": pl.Utf8, "bid": pl.Float64, "ask": pl.Float64, "last_price": pl.Float64
+        })
+        wheel.check_exits()
+        assert wheel.state["Nifty 50"]["current_stage"] == "STAGE_1_CSP"
+
+
 class TestReconciliation:
+    def test_skips_in_paper_trade_mode(self, wheel, mock_client, mock_notifier):
+        mock_client.is_paper_trade = True
+        wheel.state["Nifty 50"] = {
+            "current_stage": "STAGE_1_CSP",
+            "active_position": {"instrument_key": "NSE_FO|NIFTY22000PE"},
+            "hedge_position": {"instrument_key": "NSE_FO|NIFTY21900PE"},
+        }
+        wheel.reconcile_positions()
+        mock_client.get_positions.assert_not_called()
+        mock_notifier.send_notification.assert_not_called()
+
     def test_detects_missing_broker_position(self, wheel, mock_client, mock_notifier):
+        mock_client.is_paper_trade = False
         wheel.state["Nifty 50"] = {
             "current_stage": "STAGE_1_CSP",
             "active_position": {"instrument_key": "NSE_FO|NIFTY22000PE"},
@@ -180,6 +255,7 @@ class TestReconciliation:
         mock_notifier.send_notification.assert_called()
 
     def test_detects_orphan_broker_position(self, wheel, mock_client, mock_notifier):
+        mock_client.is_paper_trade = False
         wheel.state = {}
         mock_client.get_positions.return_value = [
             {"instrument_token": "NSE_FO|ORPHAN", "quantity": 25, "average_price": 50.0, "product": "D"}
@@ -188,6 +264,7 @@ class TestReconciliation:
         mock_notifier.send_notification.assert_called()
 
     def test_no_alert_when_matched(self, wheel, mock_client, mock_notifier):
+        mock_client.is_paper_trade = False
         wheel.state["Nifty 50"] = {
             "current_stage": "STAGE_1_CSP",
             "active_position": {"instrument_key": "NSE_FO|NIFTY22000PE"},

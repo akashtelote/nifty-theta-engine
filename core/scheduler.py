@@ -134,6 +134,14 @@ def start_scheduler():
     except Exception as e:
         logger.error(f"Position reconciliation failed: {e}", exc_info=True)
 
+    # Close any positions that expired while the bot was offline
+    try:
+        wheel = WheelStateMachine()
+        wheel.check_exits()
+        logger.info("Startup expiry sweep completed.")
+    except Exception as e:
+        logger.error(f"Startup expiry sweep failed: {e}", exc_info=True)
+
     _check_missed_entry()
 
     # Start WebSocket monitor for real-time exit checks (live mode only)

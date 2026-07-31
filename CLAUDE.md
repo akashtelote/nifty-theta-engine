@@ -104,9 +104,7 @@ Required in `.env` (see `.env.example`):
 
 ## Database
 
-Single table `index_spread_state` with upsert semantics (one row per symbol). Schema in [init_nifty_schema.sql](init_nifty_schema.sql).
-
-**Warning:** No trade history table exists. When a position closes and resets, previous trade data is overwritten.
+Tables `index_spread_state` (one row per symbol, upsert semantics) and `trade_history` (append-only archive of closed trades). Schema in [init_nifty_schema.sql](init_nifty_schema.sql). The `trade_history` table is auto-created at bot startup if missing.
 
 ## Key Design Decisions
 
