@@ -4,8 +4,12 @@ Exit order must be: buy-to-close short FIRST → verify → sell-to-close hedge 
 This mirrors the hedge-first entry and prevents a naked-short window.
 """
 
+from datetime import date, timedelta
+
 import polars as pl
 from unittest.mock import MagicMock, patch
+
+_FUTURE_EXPIRY = (date.today() + timedelta(days=30)).isoformat()
 
 
 def _make_active_state():
@@ -16,7 +20,7 @@ def _make_active_state():
             "active_position": {
                 "instrument_key": "NSE_FO|NIFTY22000PE",
                 "strike": 22000.0,
-                "expiry": "2026-07-10",
+                "expiry": _FUTURE_EXPIRY,
                 "entry_price": 50.0,
                 "order_id": "ORD_SHORT",
                 "quantity": 25,
@@ -24,7 +28,7 @@ def _make_active_state():
             "hedge_position": {
                 "instrument_key": "NSE_FO|NIFTY21900PE",
                 "strike": 21900.0,
-                "expiry": "2026-07-10",
+                "expiry": _FUTURE_EXPIRY,
                 "entry_price": 30.0,
                 "order_id": "ORD_LONG",
                 "quantity": 25,
@@ -41,9 +45,9 @@ def _make_tp_chain():
     # cost_to_close = short_ask - long_bid = 2.0 - 1.0 = 1.0 (<= 20% * 20 = 4.0) → TP
     return pl.DataFrame([
         {"instrument_key": "NSE_FO|NIFTY22000PE", "type": "PE", "strike": 22000.0,
-         "expiry": "2026-07-10", "bid": 1.5, "ask": 2.0, "last_price": 1.75},
+         "expiry": _FUTURE_EXPIRY, "bid": 1.5, "ask": 2.0, "last_price": 1.75},
         {"instrument_key": "NSE_FO|NIFTY21900PE", "type": "PE", "strike": 21900.0,
-         "expiry": "2026-07-10", "bid": 1.0, "ask": 1.5, "last_price": 1.25},
+         "expiry": _FUTURE_EXPIRY, "bid": 1.0, "ask": 1.5, "last_price": 1.25},
     ])
 
 

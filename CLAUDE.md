@@ -19,7 +19,7 @@ main.py                  CLI entry point (auth | screen | trade | start)
 core/
   auth.py                Upstox token lifecycle (Redis + TOTP fallback)
   client.py              Upstox API client (rate limiting, 401 self-healing)
-  scheduler.py           APScheduler daemon (entry on Fri 15:15, exits hourly)
+  scheduler.py           APScheduler daemon (Fri 15:15 entry; hourly + WS exits)
   notifier.py            Discord webhook alerts
   smart_money.py         Institutional whale score tracker
   loader.py              Nifty 500 constituent fetcher
@@ -39,6 +39,7 @@ Detailed system architecture, data flow, and component documentation:
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture overview
 - [WHEEL_STRATEGY_MANUAL.md](WHEEL_STRATEGY_MANUAL.md) - Strategy operation manual
 - [docs/ISSUE_LOG.md](docs/ISSUE_LOG.md) - Known issues and technical debt
+- [docs/PROFITABILITY_ROADMAP.md](docs/PROFITABILITY_ROADMAP.md) - Staged profitability work (`PROF-*`, ₹50k capital constraint)
 
 ## State Machine
 
@@ -100,6 +101,8 @@ Required in `.env` (see `.env.example`):
 | `REDIS_URL` | Redis connection string |
 | `PAPER_TRADE` | `True` for paper, `False` for live |
 | `MOCK_MARKET` | `True` to use mock data |
+| `MAX_CAPITAL` | Live margin clamp / capital ceiling (default `50000`) |
+| `PAPER_CAPITAL` | Paper-trade budget (default `50000`) |
 | `WEBHOOK_URL` | Discord webhook for alerts |
 
 ## Database
@@ -109,9 +112,11 @@ Tables `index_spread_state` (one row per symbol, upsert semantics) and `trade_hi
 ## Key Design Decisions
 
 - **Hedge-first execution:** Long put (hedge) fills before short put to prevent naked short exposure.
-- **Budget is hardcoded:** `BUDGET = 20000.0` in `wheel_strategy.py:377`, not derived from margin API.
-- **Friday-only entry:** New positions open Fridays at 15:15 IST (15 min before close).
-- **Hourly exit checks:** Exits evaluated Mon-Fri 9:00-15:00 on the hour. No real-time WebSocket monitoring.
+- **₹50k capital ceiling:** `MAX_CAPITAL` / `PAPER_CAPITAL` (default 50000) in `config/settings.py`. Paper uses `PAPER_CAPITAL`; live Upstox margin is clamped to `MAX_CAPITAL`. Budget = `get_available_margin() * allocation_pct`.
+- **Friday-only entry (default):** New positions open Fridays at 15:15 IST. Optional mid-week entry via `ALLOW_MIDWEEK_ENTRY` (VIX band gated).
+- **Exit monitoring:** Hourly `check_exits` Mon–Fri 9:00–15:00 IST as backstop; WebSocket real-time exits in live and paper when market data is available (`MOCK_MARKET` skips WS).
+- **Exit rules:** TP at ≤`TP_RESIDUAL_CREDIT_FRACTION` residual credit (default 0.25); SL at ≥`SL_CREDIT_MULTIPLE`× credit (default 2.0) or spot ≤ short strike; time stop Thu ≥ 15:00 IST. VIX regimes scale OTM via `vix_regime_otm`; hard skip above `VIX_MAX_THRESHOLD` (25). Short put: target delta ≈0.18 + min credit/width; hedge width `HEDGE_WIDTH` (default 100).
+- **PCS backtest:** `uv run python backtest.py` (add `--sweep` for TP/SL grid). ₹50k capital; synthetic model documented in module docstring.
 - **Single-symbol focus:** Only Nifty 50 at 100% allocation in production.
 - **Paper trade default:** `PAPER_TRADE=True` unless explicitly overridden.
 
@@ -125,4 +130,4 @@ Tables `index_spread_state` (one row per symbol, upsert semantics) and `trade_hi
 
 ## Testing
 
-No test suite currently exists. Paper trade mode (`PAPER_TRADE=True`) and mock market mode (`MOCK_MARKET=True`) serve as manual testing mechanisms.
+Unit tests live under `tests/` (`uv run pytest`). Paper trade mode (`PAPER_TRADE=True`) and mock market mode (`MOCK_MARKET=True`) remain available for manual end-to-end checks.

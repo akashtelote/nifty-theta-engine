@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from filelock import FileLock, Timeout
 
 from core.auth import authenticate_and_save_token, get_centralized_token
+from config.settings import MAX_CAPITAL, PAPER_CAPITAL
 
 logger = logging.getLogger(__name__)
 
@@ -200,14 +201,14 @@ class UpstoxClient:
         """
         Fetches available cash/equity margin for position sizing.
 
-        Mock market returns a large simulated balance. Paper trade uses a fixed
-        INR 50,000 budget so live Upstox funds are not required. Live mode
-        queries the Upstox funds API.
+        Mock market returns a large simulated balance (tests / offline). Paper
+        trade uses PAPER_CAPITAL. Live mode queries Upstox and clamps to
+        MAX_CAPITAL so sizing never exceeds the working-capital ceiling.
         """
         if self.is_mock_market:
             return 500000.0
         if self.is_paper_trade:
-            return 50000.0
+            return min(PAPER_CAPITAL, MAX_CAPITAL)
 
         url = "https://api.upstox.com/v3/user/get-funds-and-margin"
 
@@ -225,7 +226,8 @@ class UpstoxClient:
             data = response.json()
             if not data:
                 return None
-            return float(data.get("data", {}).get("available_to_trade", {}).get("total", 0.0))
+            available = float(data.get("data", {}).get("available_to_trade", {}).get("total", 0.0))
+            return min(available, MAX_CAPITAL)
         except Exception as e:
             logger.error(f"Margin API Exception: {e}. Raw Response: {response.text}", exc_info=True)
             return None

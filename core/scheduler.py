@@ -20,6 +20,70 @@ TARGET_SYMBOLS = {
 
 _ws_wheel: WheelStateMachine | None = None
 _ws_monitor = None
+_ws_fallback_alerted = False
+
+
+def _notify_ws_fallback(reason: str, notifier: Notifier | None = None) -> None:
+    """Discord WARNING on WS fallback; one alert per failure episode."""
+    global _ws_fallback_alerted
+    logger.warning(reason)
+    if _ws_fallback_alerted:
+        return
+    _ws_fallback_alerted = True
+    n = notifier or Notifier()
+    n.send_notification(
+        title="WebSocket Monitor Offline",
+        message=f"{reason} Falling back to hourly exit polling.",
+        level="WARNING",
+    )
+
+
+def _on_ws_runtime_error(error) -> None:
+    """Callback when the live streamer errors — alert once, keep hourly poll."""
+    _notify_ws_fallback(f"WebSocket monitor error: {error}.")
+
+
+def _start_ws_monitor() -> bool:
+    """Start real-time exit monitor when market data is available.
+
+    Runs in live and paper modes. Skipped for MOCK_MARKET (no real quotes).
+    Paper orders remain PAPER_* via the client; this only enables tick-driven exits.
+    Returns True if the monitor started successfully.
+    """
+    global _ws_wheel, _ws_monitor, _ws_fallback_alerted
+
+    if settings.MOCK_MARKET:
+        logger.info("MOCK_MARKET enabled — skipping WebSocket monitor (hourly exits only).")
+        return False
+
+    try:
+        from core.ws_monitor import WebSocketMonitor
+        from core.auth import get_centralized_token
+
+        token = get_centralized_token()
+        if not token:
+            _notify_ws_fallback("No token available for WebSocket monitor.")
+            return False
+
+        _ws_wheel = WheelStateMachine()
+        _ws_wheel.refresh_exit_thresholds()
+
+        _ws_monitor = WebSocketMonitor(
+            access_token=token,
+            on_tick=_ws_wheel.on_realtime_tick,
+            on_error=_on_ws_runtime_error,
+        )
+        _ws_monitor.start()
+        _ws_monitor.update_subscriptions(_ws_wheel.active_instrument_keys())
+        _ws_fallback_alerted = False
+        logger.info(
+            "Real-time WebSocket monitor active with exit thresholds "
+            f"(paper_trade={settings.PAPER_TRADE})."
+        )
+        return True
+    except Exception as e:
+        _notify_ws_fallback(f"Could not start WebSocket monitor: {e}.")
+        return False
 
 
 def _refresh_realtime_state():
@@ -34,12 +98,13 @@ def _refresh_realtime_state():
         logger.error(f"Failed to refresh real-time state: {e}", exc_info=True)
 
 
-def _run_daily_wheel():
-    logger.info("Starting daily wheel execution.")
+def _run_daily_wheel(entry_session: str = "friday"):
+    logger.info(f"Starting daily wheel execution (entry_session={entry_session}).")
     wheel = WheelStateMachine()
     notifier = Notifier()
 
-    for symbol, symbol_config in TARGET_SYMBOLS.items():
+    for symbol, base_config in TARGET_SYMBOLS.items():
+        symbol_config = {**base_config, "entry_session": entry_session}
         try:
             logger.info(f"Processing symbol: {symbol} with config: {symbol_config}")
             wheel.execute_daily_cycle(symbol=symbol, symbol_config=symbol_config, quantity_shares=LOT_SIZES.get(symbol, 25))
@@ -60,6 +125,14 @@ def _run_daily_wheel():
         except Exception as e:
             logger.warning(f"Failed to send heartbeat ping: {e}")
 
+
+def _run_midweek_wheel():
+    """Optional mid-week entry path (PROF-011); no-op unless ALLOW_MIDWEEK_ENTRY."""
+    if not settings.ALLOW_MIDWEEK_ENTRY:
+        logger.debug("ALLOW_MIDWEEK_ENTRY=False — skipping mid-week entry job.")
+        return
+    _run_daily_wheel(entry_session="midweek")
+
 def _run_exits():
     logger.info("Starting exit evaluation.")
     wheel = WheelStateMachine()
@@ -79,18 +152,39 @@ def _run_exits():
     _refresh_realtime_state()
 
 def _check_missed_entry():
+    """Catch missed Friday (and optional mid-week) entries after restart; never double-enter."""
     tz = pytz.timezone('Asia/Kolkata')
     now = datetime.now(tz)
-    if now.weekday() != 4:
+    entry_hour = 15
+    entry_minute = 15
+
+    is_friday = now.weekday() == 4
+    midweek_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4}
+    midweek_days = {
+        midweek_map[d.strip().lower()]
+        for d in settings.MIDWEEK_ENTRY_DAYS.split(",")
+        if d.strip().lower() in midweek_map
+    }
+    is_midweek_slot = (
+        settings.ALLOW_MIDWEEK_ENTRY
+        and now.weekday() in midweek_days
+        and now.weekday() != 4
+    )
+
+    if not is_friday and not is_midweek_slot:
         return
-    if now.hour < 15 or (now.hour == 15 and now.minute < 15):
+    if now.hour < entry_hour or (now.hour == entry_hour and now.minute < entry_minute):
         return
-    logger.info("Startup detected on Friday after 15:15 IST. Checking for missed weekly entry...")
+
+    session = "friday" if is_friday else "midweek"
+    logger.info(
+        f"Startup detected after {entry_hour}:{entry_minute:02d} IST on {session} — checking missed entry..."
+    )
     wheel = WheelStateMachine()
     for symbol, data in wheel.state.items():
         if data.get("current_stage") in ("IDLE", "CLOSED"):
-            logger.info(f"Symbol {symbol} is IDLE/CLOSED on Friday — running missed entry.")
-            _run_daily_wheel()
+            logger.info(f"Symbol {symbol} is IDLE/CLOSED — running missed {session} entry.")
+            _run_daily_wheel(entry_session=session)
             return
     logger.info("No missed entries detected — all symbols have active positions.")
 
@@ -109,8 +203,27 @@ def start_scheduler():
 
     scheduler.add_job(
         _run_daily_wheel,
-        trigger=entry_trigger
+        trigger=entry_trigger,
+        kwargs={"entry_session": "friday"},
+        id="friday_entry",
     )
+
+    if settings.ALLOW_MIDWEEK_ENTRY:
+        midweek_trigger = CronTrigger(
+            day_of_week=settings.MIDWEEK_ENTRY_DAYS,
+            hour=settings.MIDWEEK_ENTRY_HOUR,
+            minute=settings.MIDWEEK_ENTRY_MINUTE,
+            timezone=tz,
+        )
+        scheduler.add_job(
+            _run_midweek_wheel,
+            trigger=midweek_trigger,
+            id="midweek_entry",
+        )
+        logger.info(
+            f"Mid-week entry enabled: {settings.MIDWEEK_ENTRY_DAYS} "
+            f"{settings.MIDWEEK_ENTRY_HOUR}:{settings.MIDWEEK_ENTRY_MINUTE:02d} IST"
+        )
 
     exit_trigger = CronTrigger(
         day_of_week='mon-fri',
@@ -121,7 +234,8 @@ def start_scheduler():
 
     scheduler.add_job(
         _run_exits,
-        trigger=exit_trigger
+        trigger=exit_trigger,
+        id="hourly_exits",
     )
 
     logger.info("Scheduler initialized. Bot is standing by for execution and exits.")
@@ -144,28 +258,8 @@ def start_scheduler():
 
     _check_missed_entry()
 
-    # Start WebSocket monitor for real-time exit checks (live mode only)
-    if not settings.PAPER_TRADE and not settings.MOCK_MARKET:
-        try:
-            from core.ws_monitor import WebSocketMonitor
-            from core.auth import get_centralized_token
-
-            token = get_centralized_token()
-            if token:
-                _ws_wheel = WheelStateMachine()
-                _ws_wheel.refresh_exit_thresholds()
-
-                _ws_monitor = WebSocketMonitor(
-                    access_token=token,
-                    on_tick=_ws_wheel.on_realtime_tick
-                )
-                _ws_monitor.start()
-                _ws_monitor.update_subscriptions(_ws_wheel.active_instrument_keys())
-                logger.info("Real-time WebSocket monitor active with exit thresholds.")
-            else:
-                logger.warning("No token available for WebSocket monitor. Falling back to hourly polling.")
-        except Exception as e:
-            logger.warning(f"Could not start WebSocket monitor: {e}. Falling back to hourly polling.")
+    # Real-time exits for live and paper (skip MOCK_MARKET); hourly poll remains backstop
+    _start_ws_monitor()
 
     try:
         while True:

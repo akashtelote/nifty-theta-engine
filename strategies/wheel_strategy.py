@@ -10,7 +10,14 @@ import polars as pl
 from core.client import UpstoxClient
 import math
 from core.notifier import Notifier
-from config.settings import LOT_SIZES, VIX_MAX_THRESHOLD, ALLOCATION_PCT_PER_TRADE, EXIT_SLIPPAGE_BUFFER_PCT
+from config.settings import (
+    LOT_SIZES,
+    ALLOCATION_PCT_PER_TRADE,
+    EXIT_SLIPPAGE_BUFFER_PCT,
+    MAX_CAPITAL,
+    settings,
+    vix_regime_otm,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -377,99 +384,209 @@ class WheelStateMachine:
 
         return df.row(0, named=True)
 
-    def _select_target_put(self, chain_df: pl.DataFrame, spot_price: float, min_days: int = 10, max_days: int = 42) -> tuple[dict | None, dict | None]:
+    @staticmethod
+    def _approx_put_delta(spot: float, strike: float, vix: float, dte: int) -> float:
+        """Black–Scholes put delta (r=0) using India VIX as σ proxy. Returns value in [-1, 0]."""
+        T = max(dte, 1) / 365.0
+        sigma = max(float(vix), 1.0) / 100.0
+        if spot <= 0 or strike <= 0:
+            return -0.5
+        d1 = (math.log(spot / strike) + 0.5 * sigma * sigma * T) / (sigma * math.sqrt(T))
+        cdf = 0.5 * (1.0 + math.erf(d1 / math.sqrt(2.0)))
+        return cdf - 1.0
+
+    @staticmethod
+    def _leg_liquid(row: dict, max_spread_pct: float) -> bool:
+        bid = row.get("bid")
+        ask = row.get("ask")
+        if bid is None or bid == 0:
+            return False
+        if ask is None:
+            return False
+        spread_pct = (ask - bid) / bid
+        return spread_pct <= max_spread_pct
+
+    def _select_target_put(
+        self,
+        chain_df: pl.DataFrame,
+        spot_price: float,
+        min_days: int | None = None,
+        max_days: int | None = None,
+        otm_pct: float | None = None,
+        vix: float | None = None,
+        lot_size: int = 25,
+    ) -> tuple[dict | None, dict | None]:
+        """Select short/long put by target-delta + min credit/width with liquidity guards.
+
+        Hedge width from settings; aborts if width × lot_size exceeds MAX_CAPITAL.
+        """
         if chain_df.is_empty():
             return None, None
 
+        min_days = settings.ENTRY_MIN_DTE if min_days is None else min_days
+        max_days = settings.ENTRY_MAX_DTE if max_days is None else max_days
+        hedge_width = settings.HEDGE_WIDTH
+        max_spread = settings.MAX_BID_ASK_SPREAD_PCT
+        target_delta = settings.SHORT_PUT_TARGET_DELTA
+        min_cw = settings.MIN_CREDIT_WIDTH_RATIO
+
+        if hedge_width * lot_size > MAX_CAPITAL:
+            logger.error(
+                f"Hedge width {hedge_width} × lot {lot_size} = {hedge_width * lot_size:.0f} "
+                f"exceeds MAX_CAPITAL {MAX_CAPITAL:.0f}. Aborting strike selection."
+            )
+            return None, None
+
+        if otm_pct is None:
+            otm_pct = settings.SHORT_PUT_BASE_OTM_PCT
+        if vix is None:
+            vix = 15.0
+
         today = date.today()
-
-        # Parse expiry dates and calculate days to expiry
-        # Assuming expiry format is 'YYYY-MM-DD'
         df = chain_df.filter(pl.col("type") == "PE")
-
         if df.is_empty():
             return None, None
 
-        # Calculate days to expiry
-        # Safely parsing the date strings, ignoring invalid ones
         df = df.with_columns([
             pl.col("expiry").str.strptime(pl.Date, "%Y-%m-%d", strict=False).alias("parsed_expiry")
         ])
-
-        # Filter out rows where parsing failed
         df = df.filter(pl.col("parsed_expiry").is_not_null())
-
         if df.is_empty():
             return None, None
 
         df = df.with_columns([
             (pl.col("parsed_expiry") - today).dt.total_days().alias("dte")
         ])
-
-        # Filter by DTE
         df = df.filter((pl.col("dte") >= min_days) & (pl.col("dte") <= max_days))
-
         if df.is_empty():
             return None, None
 
-        otm_pct = 0.01
-
-        target_strike = spot_price * (1 - otm_pct)
-
-        # Filter to ensure strikes are strictly less than or equal to target_strike
-        short_df = df.filter(pl.col("strike") <= target_strike)
-
-        if short_df.is_empty():
+        # OTM ceiling from regime; allow a band below for delta/credit search
+        otm_ceiling = spot_price * (1.0 - otm_pct)
+        otm_floor = spot_price * (1.0 - max(otm_pct * 2.5, otm_pct + 0.02))
+        short_candidates = df.filter(
+            (pl.col("strike") <= otm_ceiling) & (pl.col("strike") >= otm_floor)
+        )
+        if short_candidates.is_empty():
+            short_candidates = df.filter(pl.col("strike") <= otm_ceiling)
+        if short_candidates.is_empty():
             return None, None
 
-        # Find closest strike for Short Put
-        short_df = short_df.with_columns([
-            (pl.col("strike") - target_strike).abs().alias("strike_diff")
-        ])
+        best: tuple[float, dict, dict] | None = None  # (score, short, long)
 
-        short_df = short_df.sort("strike_diff")
+        for short_put_row in short_candidates.iter_rows(named=True):
+            if not self._leg_liquid(short_put_row, max_spread):
+                continue
 
-        if short_df.is_empty():
+            short_strike = short_put_row["strike"]
+            short_expiry = short_put_row["expiry"]
+            dte = int(short_put_row.get("dte") or min_days)
+            hedge_target = short_strike - hedge_width
+
+            hedge_df = df.filter(pl.col("expiry") == short_expiry)
+            hedge_df = hedge_df.filter(pl.col("strike") <= hedge_target)
+            if hedge_df.is_empty():
+                continue
+            hedge_df = hedge_df.with_columns(
+                (pl.col("strike") - hedge_target).abs().alias("hedge_strike_diff")
+            ).sort("hedge_strike_diff")
+            long_put_row = hedge_df.row(0, named=True)
+
+            if not self._leg_liquid(long_put_row, max_spread):
+                continue
+
+            width = short_strike - long_put_row["strike"]
+            if width <= 0:
+                continue
+            if width * lot_size > MAX_CAPITAL:
+                continue
+
+            credit = float(short_put_row["bid"]) - float(long_put_row["ask"])
+            if credit <= 0:
+                continue
+            cw_ratio = credit / width
+            if cw_ratio < min_cw:
+                continue
+
+            delta = abs(self._approx_put_delta(spot_price, short_strike, vix, dte))
+            # Lower is better: prefer near target delta, then higher credit/width
+            score = abs(delta - target_delta) - 0.05 * cw_ratio
+            if best is None or score < best[0]:
+                best = (score, short_put_row, long_put_row)
+
+        if best is None:
+            logger.warning(
+                "No liquid short/long put pair met delta/credit-width guards "
+                f"(otm={otm_pct:.3f}, min_cw={min_cw}, width={hedge_width})."
+            )
             return None, None
 
-        short_put_row = short_df.row(0, named=True)
+        return best[1], best[2]
 
-        # Calculate Hedge Width
-        short_strike = short_put_row["strike"]
-        hedge_target_strike = short_strike - 100
-        short_expiry = short_put_row["expiry"]
+    def _place_entry_leg_with_requote(
+        self,
+        instrument_key: str,
+        side: str,
+        quantity: int,
+        start_price: float,
+        market_price: float,
+        symbol: str,
+    ) -> tuple[str | None, float | None]:
+        """Place a limit entry with limited requotes toward the marketable price.
 
-        # Filter for Long Put (Hedge) with the same expiry
-        hedge_df = df.filter(pl.col("expiry") == short_expiry)
+        BUY walks start→ask; SELL walks start→bid. Returns (order_id, fill_price).
+        """
+        attempts = max(1, 1 + settings.ENTRY_REQUOTE_ATTEMPTS)
+        step = settings.ENTRY_REQUOTE_STEP_PCT
+        price = float(start_price)
 
-        # Strike must be less than or equal to hedge_target_strike
-        hedge_df = hedge_df.filter(pl.col("strike") <= hedge_target_strike)
+        for attempt in range(attempts):
+            if attempt > 0:
+                price = round(price + (market_price - price) * step, 2)
+                if side == "BUY":
+                    price = min(price, float(market_price))
+                else:
+                    price = max(price, float(market_price))
 
-        if hedge_df.is_empty():
-            return short_put_row, None
-
-        hedge_df = hedge_df.with_columns([
-            (pl.col("strike") - hedge_target_strike).abs().alias("hedge_strike_diff")
-        ])
-
-        hedge_df = hedge_df.sort("hedge_strike_diff")
-
-        long_put_row = hedge_df.row(0, named=True)
-
-        # Slippage Guardrails Check
-        for leg_name, row in [("Short PE", short_put_row), ("Long PE", long_put_row)]:
-            bid = row.get("bid")
-            ask = row.get("ask")
-            if bid is None or bid == 0:
-                logger.warning(f"Bid price is missing or 0 for {leg_name}. Aborting trade to prevent slippage.")
+            order_id = self.client.place_order_by_key(
+                instrument_key=instrument_key, side=side, quantity=quantity, price=price
+            )
+            if not order_id:
                 return None, None
 
-            spread_pct = (ask - bid) / bid
-            if spread_pct > 0.15:
-                logger.warning(f"Bid-Ask spread too wide ({spread_pct * 100:.1f}%) for {leg_name}. Aborting trade to prevent slippage.")
-                return None, None
+            filled = False
+            terminal_fail = False
+            for _ in range(3):
+                time.sleep(5)
+                status = self.client.get_order_status(order_id)
+                if status == "complete":
+                    filled = True
+                    break
+                if status in ("rejected", "cancelled"):
+                    terminal_fail = True
+                    msg = f"{side} order {order_id} was {status} for {symbol} (attempt {attempt + 1}/{attempts})."
+                    logger.warning(msg)
+                    if attempt + 1 >= attempts:
+                        self.notifier.send_notification(
+                            title=f"Order {status.capitalize()}", message=msg, level="WARNING"
+                        )
+                        return None, None
+                    break
 
-        return short_put_row, long_put_row
+            if filled:
+                fill = self.client.get_order_fill_price(order_id)
+                return order_id, fill if fill is not None else price
+
+            if not terminal_fail:
+                self.client.cancel_order(order_id)
+                if attempt + 1 >= attempts:
+                    msg = f"{side} order {order_id} timed out for {symbol}. Cancelled after {attempts} attempt(s)."
+                    logger.warning(msg)
+                    self.notifier.send_notification(title="Order Timeout", message=msg, level="WARNING")
+                    return None, None
+                logger.info(f"Requoting {side} for {symbol} toward market (attempt {attempt + 2}/{attempts}).")
+
+        return None, None
 
     def execute_daily_cycle(self, symbol: str, quantity_shares: int, symbol_config: dict):
         # Reload state from DB before proceeding
@@ -495,11 +612,36 @@ class WheelStateMachine:
                 logger.info(f"Executing daily cycle for {symbol} in IDLE state.")
 
                 current_vix = self.client.get_india_vix()
-                if current_vix is not None and current_vix > VIX_MAX_THRESHOLD:
-                    msg = f"VIX circuit breaker triggered: VIX={current_vix:.1f} exceeds threshold {VIX_MAX_THRESHOLD}. Skipping entry for {symbol}."
+                regime_action, otm_pct = vix_regime_otm(current_vix)
+                if regime_action == "skip":
+                    thr = settings.VIX_MAX_THRESHOLD
+                    msg = (
+                        f"VIX circuit breaker triggered: VIX={current_vix:.1f} exceeds "
+                        f"threshold {thr}. Skipping entry for {symbol}."
+                    )
                     logger.warning(msg)
                     self.notifier.send_notification(title="VIX Circuit Breaker", message=msg, level="WARNING")
                     return
+
+                now_ist = datetime.now(IST)
+                is_friday = now_ist.weekday() == 4
+                entry_session = symbol_config.get("entry_session", "any")
+                if entry_session == "midweek" or (entry_session == "any" and not is_friday and settings.ALLOW_MIDWEEK_ENTRY):
+                    if not settings.ALLOW_MIDWEEK_ENTRY:
+                        logger.info(f"Mid-week entry blocked for {symbol} (ALLOW_MIDWEEK_ENTRY=False).")
+                        return
+                    if current_vix is None or not (
+                        settings.MIDWEEK_VIX_MIN <= current_vix <= settings.MIDWEEK_VIX_MAX
+                    ):
+                        msg = (
+                            f"Mid-week entry skipped for {symbol}: VIX={current_vix} outside "
+                            f"[{settings.MIDWEEK_VIX_MIN}, {settings.MIDWEEK_VIX_MAX}]."
+                        )
+                        logger.info(msg)
+                        return
+                    logger.info(
+                        f"Mid-week entry allowed for {symbol}: VIX={current_vix:.1f}, OTM={otm_pct:.3f}"
+                    )
 
                 spot_price = self.client.get_market_quote_ltp(symbol)
                 if spot_price is None:
@@ -509,8 +651,11 @@ class WheelStateMachine:
                     return
 
                 chain_df = self.client.get_option_chain(symbol)
+                lot_size = LOT_SIZES.get(symbol, 25)
 
-                targets = self._select_target_put(chain_df, spot_price)
+                targets = self._select_target_put(
+                    chain_df, spot_price, otm_pct=otm_pct, vix=current_vix or 15.0, lot_size=lot_size
+                )
                 if targets is None or targets[0] is None or targets[1] is None:
                     logger.warning(f"Could not find a suitable target PUT spread for {symbol}. Aborting daily cycle.")
                     return
@@ -520,20 +665,35 @@ class WheelStateMachine:
                 short_instrument_key = short_put.get("instrument_key")
                 short_strike = short_put.get("strike")
                 short_expiry = short_put.get("expiry")
-                short_entry_price = short_put.get("bid") # using contract bid price for entry
-
                 long_instrument_key = long_put.get("instrument_key")
                 long_strike = long_put.get("strike")
                 long_expiry = long_put.get("expiry")
-                long_entry_price = long_put.get("ask") # using contract ask price for hedge entry
 
-                if short_entry_price in (None, 0, 0.0) or long_entry_price in (None, 0, 0.0):
+                short_bid, short_ask = short_put.get("bid"), short_put.get("ask")
+                long_bid, long_ask = long_put.get("bid"), long_put.get("ask")
+                if short_bid in (None, 0, 0.0) or long_ask in (None, 0, 0.0):
                     msg = f"Target puts have missing liquidity (Bid/Ask = 0) for {symbol}. Aborting."
                     logger.warning(msg)
                     self.notifier.send_notification(title="Missing Liquidity", message=msg, level="WARNING")
                     return
 
-                logger.info(f"Targets selected for {symbol}: Short {short_strike} PE (Bid: {short_entry_price}), Long {long_strike} PE (Ask: {long_entry_price}), Expiring on {short_expiry}")
+                # Theoretical credit at natural bid/ask vs mid (PROF-012)
+                theoretical_natural = float(short_bid) - float(long_ask)
+                short_mid = (float(short_bid) + float(short_ask)) / 2.0 if short_ask else float(short_bid)
+                long_mid = (float(long_bid) + float(long_ask)) / 2.0 if long_bid else float(long_ask)
+                theoretical_mid = short_mid - long_mid
+
+                if settings.ENTRY_USE_MID_PRICE:
+                    short_entry_price = round(short_mid, 2)
+                    long_entry_price = round(long_mid, 2)
+                else:
+                    short_entry_price = float(short_bid)
+                    long_entry_price = float(long_ask)
+
+                logger.info(
+                    f"Targets selected for {symbol}: Short {short_strike} PE / Long {long_strike} PE "
+                    f"exp {short_expiry}; mid credit {theoretical_mid:.2f}, natural {theoretical_natural:.2f}"
+                )
 
                 allocation_pct = symbol_config.get("allocation_pct", ALLOCATION_PCT_PER_TRADE)
                 available_margin = self.client.get_available_margin()
@@ -543,11 +703,18 @@ class WheelStateMachine:
                     self.notifier.send_notification(title="Margin Fetch Failed", message=msg, level="ERROR")
                     return
                 budget = available_margin * allocation_pct
-                lot_size = LOT_SIZES.get(symbol, 25)
 
                 required_capital_per_lot = (short_strike - long_strike) * lot_size
                 if required_capital_per_lot <= 0:
                     logger.error(f"Invalid required capital per lot ({required_capital_per_lot}) for {symbol}. Short strike: {short_strike}, Long strike: {long_strike}. Aborting.")
+                    return
+                if required_capital_per_lot > MAX_CAPITAL:
+                    msg = (
+                        f"Required capital per lot {required_capital_per_lot:.0f} exceeds "
+                        f"MAX_CAPITAL {MAX_CAPITAL:.0f} for {symbol}. Aborting."
+                    )
+                    logger.error(msg)
+                    self.notifier.send_notification(title="Capital Ceiling", message=msg, level="ERROR")
                     return
 
                 num_lots = math.floor(budget / required_capital_per_lot)
@@ -560,36 +727,28 @@ class WheelStateMachine:
 
                 final_quantity = num_lots * lot_size
 
-                # Leg 1: Execute the BUY (Hedge)
-                long_order_id = self.client.place_order_by_key(instrument_key=long_instrument_key, side="BUY", quantity=final_quantity, price=long_entry_price)
-
+                # Leg 1: BUY hedge first (never naked short), with optional mid→ask requotes
+                long_order_id, long_fill_price = self._place_entry_leg_with_requote(
+                    instrument_key=long_instrument_key,
+                    side="BUY",
+                    quantity=final_quantity,
+                    start_price=long_entry_price,
+                    market_price=float(long_ask),
+                    symbol=symbol,
+                )
                 if not long_order_id:
                     logger.error(f"Failed to place BUY hedge order for {symbol}.")
                     return
 
-                long_order_filled = False
-                for _ in range(3):
-                    time.sleep(5)
-                    status = self.client.get_order_status(long_order_id)
-                    if status == "complete":
-                        long_order_filled = True
-                        break
-                    elif status in ("rejected", "cancelled"):
-                        msg = f"Hedge order {long_order_id} was {status} for {symbol}. Aborting STAGE_1_CSP transition."
-                        logger.warning(msg)
-                        self.notifier.send_notification(title=f"Order {status.capitalize()}", message=msg, level="WARNING")
-                        return
-
-                if not long_order_filled:
-                    self.client.cancel_order(long_order_id)
-                    msg = f"Hedge order {long_order_id} timed out as pending limit order for {symbol}. Order cancelled. Aborting STAGE_1_CSP transition."
-                    logger.warning(msg)
-                    self.notifier.send_notification(title="Order Timeout", message=msg, level="WARNING")
-                    return
-
-                # Leg 2: Execute the SELL (Short) ONLY if the BUY order is completed
-                short_order_id = self.client.place_order_by_key(instrument_key=short_instrument_key, side="SELL", quantity=final_quantity, price=short_entry_price)
-
+                # Leg 2: SELL short only after hedge fill
+                short_order_id, short_fill_price = self._place_entry_leg_with_requote(
+                    instrument_key=short_instrument_key,
+                    side="SELL",
+                    quantity=final_quantity,
+                    start_price=short_entry_price,
+                    market_price=float(short_bid),
+                    symbol=symbol,
+                )
                 if not short_order_id:
                     msg = f"CRITICAL: Failed to place SELL short order for {symbol} after filling hedge. Attempting automated unwind."
                     logger.critical(msg)
@@ -597,30 +756,21 @@ class WheelStateMachine:
                     self._unwind_hedge(symbol, long_instrument_key, final_quantity, long_order_id)
                     return
 
-                short_order_filled = False
-                for _ in range(3):
-                    time.sleep(5)
-                    status = self.client.get_order_status(short_order_id)
-                    if status == "complete":
-                        short_order_filled = True
-                        break
-                    elif status in ("rejected", "cancelled"):
-                        self.client.cancel_order(short_order_id)
-                        msg = f"CRITICAL: Short order {short_order_id} was {status} for {symbol}. Attempting automated unwind."
-                        logger.critical(msg)
-                        self.notifier.send_notification(title="CRITICAL: Short Order Failed", message=msg, level="ERROR")
-                        self._unwind_hedge(symbol, long_instrument_key, final_quantity, long_order_id)
-                        return
+                achieved_short = short_fill_price if short_fill_price is not None else short_entry_price
+                achieved_long = long_fill_price if long_fill_price is not None else long_entry_price
+                achieved_credit_per = achieved_short - achieved_long
 
-                if not short_order_filled:
-                    self.client.cancel_order(short_order_id)
-                    msg = f"CRITICAL: Short order {short_order_id} timed out for {symbol}. Order cancelled. Attempting automated unwind."
-                    logger.critical(msg)
-                    self.notifier.send_notification(title="CRITICAL: Order Timeout", message=msg, level="ERROR")
-                    self._unwind_hedge(symbol, long_instrument_key, final_quantity, long_order_id)
-                    return
+                if self.client.is_paper_trade:
+                    logger.info(
+                        f"PAPER fill quality {symbol}: theoretical_mid={theoretical_mid:.2f}, "
+                        f"theoretical_natural={theoretical_natural:.2f}, "
+                        f"achieved={achieved_credit_per:.2f}"
+                    )
 
-                msg = f"Credit Spread placed successfully for {symbol}. STAGE_1_CSP entry: Short {short_strike} PE / Long {long_strike} PE expiring on {short_expiry}."
+                msg = (
+                    f"Credit Spread placed successfully for {symbol}. STAGE_1_CSP entry: "
+                    f"Short {short_strike} PE / Long {long_strike} PE expiring on {short_expiry}."
+                )
                 logger.info(msg)
                 self.notifier.send_notification(title="Order Placed", message=msg, level="INFO")
 
@@ -629,7 +779,7 @@ class WheelStateMachine:
                     "strike": short_strike,
                     "expiry": short_expiry,
                     "instrument_key": short_instrument_key,
-                    "entry_price": short_entry_price,
+                    "entry_price": achieved_short,
                     "order_id": short_order_id,
                     "quantity": final_quantity
                 }
@@ -637,11 +787,11 @@ class WheelStateMachine:
                     "strike": long_strike,
                     "expiry": long_expiry,
                     "instrument_key": long_instrument_key,
-                    "entry_price": long_entry_price,
+                    "entry_price": achieved_long,
                     "order_id": long_order_id,
                     "quantity": final_quantity
                 }
-                self.state[symbol]["net_credit_received"] = (short_entry_price - long_entry_price) * final_quantity
+                self.state[symbol]["net_credit_received"] = achieved_credit_per * final_quantity
                 self._save_state(symbol)
         finally:
             if lock_conn:
@@ -938,17 +1088,35 @@ class WheelStateMachine:
             current_cost_to_close = short_live_ask - long_live_bid
             short_strike = active_position.get("strike")
 
-            take_profit = current_cost_to_close <= 0.20 * initial_credit
-            stop_loss = current_cost_to_close >= 2.0 * initial_credit or spot_price <= short_strike
+            tp_frac = settings.TP_RESIDUAL_CREDIT_FRACTION
+            sl_mult = settings.SL_CREDIT_MULTIPLE
+            take_profit = current_cost_to_close <= tp_frac * initial_credit
+            stop_loss = current_cost_to_close >= sl_mult * initial_credit or spot_price <= short_strike
 
             now = datetime.now(IST)
-            time_stop = now.weekday() == 3 and now.hour >= 15
+            time_stop = now.weekday() == settings.TIME_STOP_WEEKDAY and now.hour >= settings.TIME_STOP_HOUR
 
-            if take_profit or stop_loss or time_stop:
-                reason = "Take Profit" if take_profit else ("Stop Loss" if stop_loss else "Time Stop")
+            dte_manage = False
+            if settings.DTE_MANAGE_THRESHOLD >= 0 and expiry_str:
+                try:
+                    exp_d = datetime.strptime(str(expiry_str), "%Y-%m-%d").date()
+                    dte = (exp_d - date.today()).days
+                    dte_manage = dte <= settings.DTE_MANAGE_THRESHOLD
+                except (ValueError, TypeError):
+                    dte_manage = False
+
+            if take_profit or stop_loss or time_stop or dte_manage:
+                if take_profit:
+                    reason = "Take Profit"
+                elif stop_loss:
+                    reason = "Stop Loss"
+                elif dte_manage:
+                    reason = "DTE Manage"
+                else:
+                    reason = "Time Stop"
                 msg = f"[{reason}] Exit triggered for {symbol}. Initial Credit: {initial_credit:.2f}, Cost to Close: {current_cost_to_close:.2f}, Spot: {spot_price:.2f}. Initiating closing orders..."
                 logger.info(msg)
-                self.notifier.send_notification(title=f"{reason} Triggered", message=msg, level="INFO" if take_profit or time_stop else "WARNING")
+                self.notifier.send_notification(title=f"{reason} Triggered", message=msg, level="INFO" if take_profit or time_stop or dte_manage else "WARNING")
 
                 self._execute_exit(symbol, reason, {
                     "short_instrument_key": short_instrument_key,

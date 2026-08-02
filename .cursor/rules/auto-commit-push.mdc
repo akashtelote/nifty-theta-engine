@@ -1,0 +1,15 @@
+---
+description: Auto commit and push completed work without asking for approval
+alwaysApply: true
+---
+
+# Auto commit and push
+
+When a task or stage of work is finished and there are relevant local changes:
+
+1. **Commit** using the repo's commit protocol (status, diff, log; stage relevant files; concise message focused on why). Never commit secrets (`.env`, credentials, tokens).
+2. **Push** to the tracked remote branch (`git push -u` if needed) without waiting for extra user approval.
+3. Do this as part of finishing the work — do not leave completed work uncommitted/unpushed unless the change set is empty or only contains files that must not be committed.
+4. After a successful push, if the user has an Oracle (or other) deploy path in use for this project, deploy/restart as appropriate when the finished work is meant to run there; otherwise push alone is enough.
+
+This overrides the default "only commit/push when asked" preference for this workspace.

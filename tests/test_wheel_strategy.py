@@ -82,12 +82,13 @@ class TestPositionSizing:
 
 class TestExitVerification:
     def _setup_active_position(self, wheel):
+        expiry = (date.today() + timedelta(days=30)).isoformat()
         wheel.state["Nifty 50"] = {
             "current_stage": "STAGE_1_CSP",
             "active_position": {
                 "instrument_key": "NSE_FO|NIFTY22000PE",
                 "strike": 22000.0,
-                "expiry": "2026-07-10",
+                "expiry": expiry,
                 "entry_price": 50.0,
                 "order_id": "ORD1",
                 "quantity": 25,
@@ -95,7 +96,7 @@ class TestExitVerification:
             "hedge_position": {
                 "instrument_key": "NSE_FO|NIFTY21900PE",
                 "strike": 21900.0,
-                "expiry": "2026-07-10",
+                "expiry": expiry,
                 "entry_price": 30.0,
                 "order_id": "ORD2",
                 "quantity": 25,
@@ -108,13 +109,14 @@ class TestExitVerification:
     def test_closes_on_take_profit(self, mock_sleep, wheel, mock_client):
         self._setup_active_position(wheel)
         mock_client.get_market_quote_ltp.return_value = 23000.0
+        expiry = wheel.state["Nifty 50"]["active_position"]["expiry"]
 
         # Build an option chain DataFrame that contains both instrument keys
         chain = pl.DataFrame([
             {"instrument_key": "NSE_FO|NIFTY22000PE", "type": "PE", "strike": 22000.0,
-             "expiry": "2026-07-10", "bid": 1.5, "ask": 2.0, "last_price": 1.75},
+             "expiry": expiry, "bid": 1.5, "ask": 2.0, "last_price": 1.75},
             {"instrument_key": "NSE_FO|NIFTY21900PE", "type": "PE", "strike": 21900.0,
-             "expiry": "2026-07-10", "bid": 1.0, "ask": 1.5, "last_price": 1.25},
+             "expiry": expiry, "bid": 1.0, "ask": 1.5, "last_price": 1.25},
         ])
         mock_client.get_option_chain.return_value = chain
         mock_client.get_order_status.return_value = "complete"
@@ -127,12 +129,13 @@ class TestExitVerification:
     def test_does_not_close_on_partial_fill(self, mock_sleep, wheel, mock_client):
         self._setup_active_position(wheel)
         mock_client.get_market_quote_ltp.return_value = 23000.0
+        expiry = wheel.state["Nifty 50"]["active_position"]["expiry"]
 
         chain = pl.DataFrame([
             {"instrument_key": "NSE_FO|NIFTY22000PE", "type": "PE", "strike": 22000.0,
-             "expiry": "2026-07-10", "bid": 1.5, "ask": 2.0, "last_price": 1.75},
+             "expiry": expiry, "bid": 1.5, "ask": 2.0, "last_price": 1.75},
             {"instrument_key": "NSE_FO|NIFTY21900PE", "type": "PE", "strike": 21900.0,
-             "expiry": "2026-07-10", "bid": 1.0, "ask": 1.5, "last_price": 1.25},
+             "expiry": expiry, "bid": 1.0, "ask": 1.5, "last_price": 1.25},
         ])
         mock_client.get_option_chain.return_value = chain
         mock_client.get_order_status.return_value = "pending"

@@ -13,7 +13,12 @@ class WebSocketMonitor:
     and auto-reconnect internally.
     """
 
-    def __init__(self, access_token: str, on_tick: Callable[[str, float], None]):
+    def __init__(
+        self,
+        access_token: str,
+        on_tick: Callable[[str, float], None],
+        on_error: Callable[[object], None] | None = None,
+    ):
         cfg = upstox_client.Configuration()
         cfg.access_token = access_token
         api_client = upstox_client.ApiClient(cfg)
@@ -23,6 +28,7 @@ class WebSocketMonitor:
         self._streamer.on("message", self._on_message)
         self._streamer.on("error", self._on_error)
         self._on_tick = on_tick
+        self._on_error_cb = on_error
         self._subscribed_keys: set[str] = set()
         self._connected = False
 
@@ -64,3 +70,8 @@ class WebSocketMonitor:
 
     def _on_error(self, error):
         logger.warning(f"WebSocket error: {error}")
+        if self._on_error_cb is not None:
+            try:
+                self._on_error_cb(error)
+            except Exception as e:
+                logger.error(f"WebSocket on_error callback failed: {e}")

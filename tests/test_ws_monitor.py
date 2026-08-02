@@ -1,6 +1,9 @@
 """Tests for the real-time WebSocket exit monitor and debounced tick handler."""
 
+from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
+
+_FUTURE_EXPIRY = (date.today() + timedelta(days=30)).isoformat()
 
 
 class TestWebSocketMonitor:
@@ -132,14 +135,14 @@ class TestExitThresholdCache:
                     "instrument_key": "NSE_FO|NIFTY22000PE",
                     "strike": 22000.0,
                     "entry_price": 50.0,
-                    "expiry": "2026-07-10",
+                    "expiry": _FUTURE_EXPIRY,
                     "quantity": 25,
                 },
                 "hedge_position": {
                     "instrument_key": "NSE_FO|NIFTY21900PE",
                     "strike": 21900.0,
                     "entry_price": 30.0,
-                    "expiry": "2026-07-10",
+                    "expiry": _FUTURE_EXPIRY,
                     "quantity": 25,
                 },
                 "net_credit_received": 500.0,
@@ -177,7 +180,7 @@ class TestDebouncedRealtimeTick:
                     "instrument_key": "NSE_FO|NIFTY22000PE",
                     "strike": 22000.0,
                     "entry_price": 50.0,
-                    "expiry": "2026-07-10",
+                    "expiry": _FUTURE_EXPIRY,
                     "quantity": 25,
                     "order_id": "ORD1",
                 },
@@ -185,7 +188,7 @@ class TestDebouncedRealtimeTick:
                     "instrument_key": "NSE_FO|NIFTY21900PE",
                     "strike": 21900.0,
                     "entry_price": 30.0,
-                    "expiry": "2026-07-10",
+                    "expiry": _FUTURE_EXPIRY,
                     "quantity": 25,
                     "order_id": "ORD2",
                 },
@@ -206,7 +209,7 @@ class TestDebouncedRealtimeTick:
                     "instrument_key": "NSE_FO|NIFTY22000PE",
                     "strike": 22000.0,
                     "entry_price": 50.0,
-                    "expiry": "2026-07-10",
+                    "expiry": _FUTURE_EXPIRY,
                     "quantity": 25,
                     "order_id": "ORD1",
                 },
@@ -214,7 +217,7 @@ class TestDebouncedRealtimeTick:
                     "instrument_key": "NSE_FO|NIFTY21900PE",
                     "strike": 21900.0,
                     "entry_price": 30.0,
-                    "expiry": "2026-07-10",
+                    "expiry": _FUTURE_EXPIRY,
                     "quantity": 25,
                     "order_id": "ORD2",
                 },
@@ -241,7 +244,7 @@ class TestDebouncedRealtimeTick:
                     "instrument_key": "NSE_FO|NIFTY22000PE",
                     "strike": 22000.0,
                     "entry_price": 50.0,
-                    "expiry": "2026-07-10",
+                    "expiry": _FUTURE_EXPIRY,
                     "quantity": 25,
                     "order_id": "ORD1",
                 },
@@ -249,7 +252,7 @@ class TestDebouncedRealtimeTick:
                     "instrument_key": "NSE_FO|NIFTY21900PE",
                     "strike": 21900.0,
                     "entry_price": 30.0,
-                    "expiry": "2026-07-10",
+                    "expiry": _FUTURE_EXPIRY,
                     "quantity": 25,
                     "order_id": "ORD2",
                 },

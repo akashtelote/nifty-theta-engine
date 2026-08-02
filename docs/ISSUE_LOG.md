@@ -2,7 +2,9 @@
 
 Known issues, bugs, technical debt, and planned enhancements in the Nifty Theta Engine.
 
-Last updated: 2026-06-19
+Last updated: 2026-08-02
+
+Profitability / expectancy work is tracked separately in [`PROFITABILITY_ROADMAP.md`](PROFITABILITY_ROADMAP.md) (`PROF-*` stages under a ₹50,000 capital constraint).
 
 ---
 
@@ -223,3 +225,5 @@ These are not bugs but missing capabilities worth tracking:
 | No automated rollover after exit | Manual re-entry needed after defensive close | Medium |
 | No Greeks-based exit logic | Exits purely price-based, ignoring delta/gamma | Medium |
 | No multi-expiry support | One position per symbol at a time | Low |
+
+Profitability-oriented gaps (real-time paper exits, PCS backtest, strike selection, exit param sweeps, entry timing, dashboard MTM/telemetry) are staged in [`PROFITABILITY_ROADMAP.md`](PROFITABILITY_ROADMAP.md).

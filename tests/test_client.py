@@ -70,13 +70,31 @@ class TestAvailableMargin:
             client.access_token = "test"
             return client
 
-    def test_paper_trade_uses_fixed_budget(self):
-        assert self._client(paper=True, mock=False).get_available_margin() == 50000.0
+    def test_paper_trade_uses_paper_capital(self):
+        from config.settings import PAPER_CAPITAL, MAX_CAPITAL
+
+        assert self._client(paper=True, mock=False).get_available_margin() == min(
+            PAPER_CAPITAL, MAX_CAPITAL
+        )
 
     def test_mock_market_uses_simulated_balance(self):
         assert self._client(paper=True, mock=True).get_available_margin() == 500000.0
 
-    def test_live_mode_calls_upstox_api(self):
+    def test_live_mode_clamps_to_max_capital(self):
+        from config.settings import MAX_CAPITAL
+
+        client = self._client(paper=False, mock=False)
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = {
+            "status": "success",
+            "data": {"available_to_trade": {"total": MAX_CAPITAL + 25000.0}},
+        }
+        with patch.object(client, "_make_authenticated_request", return_value=mock_resp) as req:
+            assert client.get_available_margin() == MAX_CAPITAL
+            req.assert_called_once()
+
+    def test_live_mode_below_ceiling_passthrough(self):
         client = self._client(paper=False, mock=False)
         mock_resp = MagicMock()
         mock_resp.status_code = 200
