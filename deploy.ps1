@@ -1,5 +1,7 @@
 # =========================================================
 # Nifty Theta Engine - Oracle Cloud Deployment Pipeline
+# Prefer: git pull on the server (repo is a clone via GitHub SSH).
+# Fallback: scp sync if remote is not a git checkout.
 # =========================================================
 
 $ErrorActionPreference = "Stop"
@@ -27,37 +29,41 @@ if (-not (Test-Path $SSH_KEY)) {
 
 Write-Host "Initiating deployment to ${SERVER_USER}@${SERVER_IP}..." -ForegroundColor Cyan
 
-# Step 1: Create remote directories
-Write-Host "Creating remote directories..." -ForegroundColor Yellow
-Invoke-Remote "mkdir -p ${TARGET_DIR}/data ${TARGET_DIR}/config ${TARGET_DIR}/core ${TARGET_DIR}/strategies ${TARGET_DIR}/execution"
-
-# Step 2: Sync application files
-Write-Host "Transferring application files..." -ForegroundColor Yellow
 $remote = "${SERVER_USER}@${SERVER_IP}:${TARGET_DIR}"
+$isGit = Invoke-Remote "test -d ${TARGET_DIR}/.git && echo YES || echo NO"
+$isGit = ($isGit | Out-String).Trim()
 
-scp @SSH_OPTS `
-    ./main.py `
-    ./dashboard.py `
-    ./backtest.py `
-    ./Dockerfile `
-    ./docker-compose.yml `
-    ./pyproject.toml `
-    ./uv.lock `
-    ./init_nifty_schema.sql `
-    ./.env `
-    "${remote}/"
+if ($isGit -eq "YES") {
+    Write-Host "Remote is a git repo — pulling origin/main..." -ForegroundColor Yellow
+    Invoke-Remote "cd ${TARGET_DIR} && git fetch origin && git reset --hard origin/main && git log -1 --oneline"
+} else {
+    Write-Host "Remote is not a git repo — falling back to scp sync..." -ForegroundColor Yellow
+    Invoke-Remote "mkdir -p ${TARGET_DIR}/data ${TARGET_DIR}/config ${TARGET_DIR}/core ${TARGET_DIR}/strategies ${TARGET_DIR}/execution"
 
-scp @SSH_OPTS -r `
-    ./core `
-    ./strategies `
-    ./config `
-    "${remote}/"
+    scp @SSH_OPTS `
+        ./main.py `
+        ./dashboard.py `
+        ./backtest.py `
+        ./Dockerfile `
+        ./docker-compose.yml `
+        ./pyproject.toml `
+        ./uv.lock `
+        ./init_nifty_schema.sql `
+        ./.env `
+        "${remote}/"
 
-if (Test-Path "./execution") {
-    scp @SSH_OPTS -r ./execution "${remote}/"
+    scp @SSH_OPTS -r `
+        ./core `
+        ./strategies `
+        ./config `
+        "${remote}/"
+
+    if (Test-Path "./execution") {
+        scp @SSH_OPTS -r ./execution "${remote}/"
+    }
 }
 
-# Step 3: Enforce paper mode + Redis/Postgres wiring on the server .env
+# Enforce paper mode + Redis/Postgres wiring on the server .env
 Write-Host "Enforcing paper-trade env on server..." -ForegroundColor Yellow
 $patchScript = @'
 from pathlib import Path
@@ -103,9 +109,8 @@ scp @SSH_OPTS $patchLocal "${remote}/patch_env.py"
 Invoke-Remote "cd ${TARGET_DIR} && python3 patch_env.py && rm -f patch_env.py"
 Remove-Item $patchLocal -ErrorAction SilentlyContinue
 
-# Step 4: Rebuild and restart Docker Compose stack
 Write-Host "Rebuilding Docker containers on the remote server..." -ForegroundColor Yellow
-Invoke-Remote "cd ${TARGET_DIR} && docker compose down && docker compose up -d --build"
+Invoke-Remote "cd ${TARGET_DIR} && docker compose up -d --build"
 
 Write-Host "==================================================" -ForegroundColor Green
 Write-Host "DEPLOYMENT SUCCESSFUL! The Engine is Online." -ForegroundColor Green
