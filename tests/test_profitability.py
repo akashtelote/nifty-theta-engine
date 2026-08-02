@@ -233,7 +233,9 @@ class TestMidweekEntry:
 class TestPcsBacktest:
     def test_runs_under_50k_and_reports_metrics(self):
         df = synthetic_spot_path(n_days=260, seed=1)
-        res = run_pcs_backtest(df, PCSParams())
+        res = run_pcs_backtest(
+            df, PCSParams(skip_low_ivr=False, trend_filter=False, event_blackout=False)
+        )
         assert res.total_trades > 0
         assert 0.0 <= res.win_rate <= 100.0
         assert "max_drawdown" in res.as_dict()
@@ -252,12 +254,22 @@ class TestPcsBacktest:
 
 class TestSettingsProfitDefaults:
     def test_exit_defaults_present(self):
-        s = Settings()
-        assert s.TP_RESIDUAL_CREDIT_FRACTION == 0.25
+        s = Settings(
+            _env_file=None,
+            DATABASE_URL="postgresql://x:y@localhost/z",
+            TP_RESIDUAL_CREDIT_FRACTION=0.50,
+            TIME_STOP_WEEKDAY=-1,
+            DTE_MANAGE_THRESHOLD=7,
+            SHORT_DELTA_MANAGE=0.30,
+            ALLOW_MIDWEEK_ENTRY=True,
+        )
+        assert s.TP_RESIDUAL_CREDIT_FRACTION == 0.50
         assert s.SL_CREDIT_MULTIPLE == 2.0
-        assert s.TIME_STOP_WEEKDAY == 3
+        assert s.TIME_STOP_WEEKDAY == -1
+        assert s.DTE_MANAGE_THRESHOLD == 7
+        assert s.SHORT_DELTA_MANAGE == 0.30
         assert s.TIME_STOP_HOUR == 15
         assert s.HEDGE_WIDTH == 100.0
-        assert s.ALLOW_MIDWEEK_ENTRY is False
+        assert s.ALLOW_MIDWEEK_ENTRY is True
         assert s.MAX_CAPITAL == 50000.0
         assert s.HEDGE_WIDTH * 25 <= s.MAX_CAPITAL

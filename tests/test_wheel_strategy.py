@@ -20,7 +20,7 @@ class TestEnsureSymbolState:
 class TestVixCircuitBreaker:
     def test_blocks_entry_when_vix_high(self, wheel, mock_client):
         mock_client.get_india_vix.return_value = 30.0
-        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0})
+        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0, "entry_session": "friday"})
         mock_client.get_market_quote_ltp.assert_not_called()
 
     def test_allows_entry_when_vix_safe(self, wheel, mock_client):
@@ -29,7 +29,7 @@ class TestVixCircuitBreaker:
             "instrument_key": pl.Utf8, "type": pl.Utf8, "strike": pl.Float64,
             "expiry": pl.Utf8, "bid": pl.Float64, "ask": pl.Float64, "last_price": pl.Float64
         })
-        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0})
+        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0, "entry_session": "friday"})
         mock_client.get_market_quote_ltp.assert_called_once()
 
     def test_allows_entry_when_vix_none(self, wheel, mock_client):
@@ -38,7 +38,7 @@ class TestVixCircuitBreaker:
             "instrument_key": pl.Utf8, "type": pl.Utf8, "strike": pl.Float64,
             "expiry": pl.Utf8, "bid": pl.Float64, "ask": pl.Float64, "last_price": pl.Float64
         })
-        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0})
+        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0, "entry_session": "friday"})
         mock_client.get_market_quote_ltp.assert_called_once()
 
 
@@ -60,7 +60,7 @@ class TestPositionSizing:
              "expiry": expiry, "bid": 30.0, "ask": 31.0, "last_price": 30.5},
         ])
         mock_client.get_option_chain.return_value = chain
-        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 0.5})
+        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 0.5, "entry_session": "friday"})
         mock_client.get_available_margin.assert_called_once()
 
     def test_aborts_on_margin_failure(self, wheel, mock_client):
@@ -76,7 +76,7 @@ class TestPositionSizing:
              "expiry": expiry, "bid": 30.0, "ask": 31.0, "last_price": 30.5},
         ])
         mock_client.get_option_chain.return_value = chain
-        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0})
+        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0, "entry_session": "friday"})
         mock_client.place_order_by_key.assert_not_called()
 
 

@@ -28,6 +28,7 @@ Related: bug/enhancement debt lives in [`ISSUE_LOG.md`](ISSUE_LOG.md). This file
 | 3 | Higher quality premium | PROF-008, PROF-009 | DONE |
 | 4 | Entry timing and regime | PROF-010, PROF-011 | DONE |
 | 5 | Execution polish | PROF-012, PROF-013, PROF-014 | DONE |
+| 6 | Expectancy levers | PROF-015 … PROF-019 | DONE |
 
 ```mermaid
 flowchart LR
@@ -36,6 +37,7 @@ flowchart LR
   S2 --> S3[Stage3_StrikeSelection]
   S3 --> S4[Stage4_EntryTimingVIX]
   S4 --> S5[Stage5_FillsAndPolish]
+  S5 --> S6[Stage6_ExpectancyLevers]
 ```
 
 ---
@@ -320,13 +322,59 @@ flowchart LR
 
 ---
 
-## Chosen defaults (after PROF-007)
+## Stage 6 — Expectancy levers
 
-| Parameter | Pre-sweep code | Post-sweep default | Notes |
-|-----------|----------------|--------------------|-------|
-| Capital ceiling | Paper ₹50k hardcoded | ₹50,000 (`MAX_CAPITAL`/`PAPER_CAPITAL`) | Hard constraint — DONE (PROF-001) |
-| TP residual credit | `0.20` | **`0.25`** | Earlier lock-in vs legacy; synthetic favored 0.30 |
-| SL multiple | `2.0` | **`2.0`** | Unchanged — compromise vs synthetic 1.5/2.5 |
-| Time stop | Thu ≥ 15:00 IST | **Thu ≥ 15:00 IST** | Unchanged |
-| Short OTM / delta | `1%` OTM nearest | **Target δ≈0.18 + regime OTM + min credit/width** | PROF-008/010 |
-| Hedge width | 100 pts | **100 pts** (`HEDGE_WIDTH`) | 100×25=₹2,500 ≤ ₹50k |
+### PROF-015: Walk-forward measurement
+
+**Status:** DONE
+
+yfinance `^NSEI`/`^INDIAVIX` paths + VIX-calibrated BS; optional `data/option_chains/` parquet/CSV loader; CLI `--walk-forward` / `--sweep` / `--from-yahoo`. Metrics include profit factor and ruin_proxy.
+
+### PROF-016: IVR entry gate
+
+**Status:** DONE
+
+`SKIP_LOW_IVR`, `IVR_LOOKBACK_DAYS`, `IVR_MIN_PERCENTILE` (default 50). Cached VIX history in `data/india_vix_history.json`. Discord INFO on skip.
+
+### PROF-017: Exit policy retune
+
+**Status:** DONE
+
+| Param | Default |
+|-------|---------|
+| TP residual | **0.50** |
+| Time stop | **disabled** (`TIME_STOP_WEEKDAY=-1`) |
+| DTE manage | **7** |
+| SL multiple | **2.0** |
+| Short delta manage | **0.30** |
+
+### PROF-018: Left-tail controls
+
+**Status:** DONE
+
+Event blackout (`config/event_calendar.py`), SMA50 trend filter, `VIX_MAX_THRESHOLD=22`, `MIN_CREDIT_WIDTH_RATIO=0.15`.
+
+### PROF-019: Same-week re-entry + midweek
+
+**Status:** DONE
+
+`ALLOW_SAME_WEEK_REENTRY=True` (cap 1/week via Redis after Take Profit). `ALLOW_MIDWEEK_ENTRY=True` still gated by IVR + event + trend + midweek VIX band.
+
+---
+
+## Chosen defaults (after Stage 6)
+
+| Parameter | Pre-sweep code | Stage 6 default | Notes |
+|-----------|----------------|-----------------|-------|
+| Capital ceiling | Paper ₹50k hardcoded | ₹50,000 (`MAX_CAPITAL`/`PAPER_CAPITAL`) | Hard constraint |
+| TP residual credit | `0.25` | **`0.50`** | ~50% of credit — higher hit rate |
+| SL multiple | `2.0` | **`2.0`** | Unchanged |
+| Time stop | Thu ≥ 15:00 IST | **disabled** | DTE/delta manage instead |
+| DTE manage | off (−1) | **7** | Last week manage |
+| Short delta manage | n/a | **0.30** | PROF-017 |
+| Short OTM / delta | Target δ≈0.18 | **δ≈0.18 + regime OTM** | + IVR / trend / events |
+| Hedge width | 100 pts | **100** | 100×25 ≤ ₹50k |
+| Min credit/width | 0.12 | **0.15** | Reject thin credits |
+| VIX crisis skip | 25 | **22** | Tighter left-tail |
+| IVR min percentile | n/a | **50** | Sell rich vol only |
+| Midweek / re-entry | off | **on (gated)** | IVR+filters required |

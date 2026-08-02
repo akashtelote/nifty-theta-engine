@@ -45,12 +45,13 @@ Detailed system architecture, data flow, and component documentation:
 
 ```
 IDLE ──[Fri 15:15, VIX safe]──> STAGE_1_CSP (Credit Spread active)
-STAGE_1_CSP ──[Take Profit / Stop Loss / Time Stop]──> CLOSED
+STAGE_1_CSP ──[Take Profit / Stop Loss / DTE|Delta Manage]──> CLOSED
 STAGE_1_CSP ──[Assignment]──> STAGE_2_CC (Covered Call)
 STAGE_2_CC ──[Called Away]──> IDLE
-CLOSED ──[Next cycle]──> IDLE
+CLOSED ──[Next cycle / same-week re-entry if TP]──> IDLE
 ```
 
+Entry gates (Stage 6): VIX≤22, IVR≥50th pct, event blackout clear, spot≥SMA50, min credit/width 0.15.
 ## Commands
 
 ```bash

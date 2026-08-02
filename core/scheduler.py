@@ -148,6 +148,11 @@ def _run_exits():
             level="ERROR"
         )
 
+    try:
+        wheel.try_same_week_reentry()
+    except Exception as e:
+        logger.error(f"Same-week re-entry failed: {e}", exc_info=True)
+
     logger.info("Exit evaluation completed.")
     _refresh_realtime_state()
 

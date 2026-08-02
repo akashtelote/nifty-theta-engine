@@ -17,7 +17,11 @@ from config.settings import (
     MAX_CAPITAL,
     settings,
     vix_regime_otm,
+    get_redis_client,
 )
+from config.event_calendar import in_event_blackout
+from core.ivr import ivr_allows_entry
+from core.trend_filter import trend_allows_entry
 
 logger = logging.getLogger(__name__)
 
@@ -588,6 +592,73 @@ class WheelStateMachine:
 
         return None, None
 
+    def _iso_week_key(self, on: date | None = None) -> str:
+        d = on or date.today()
+        iso = d.isocalendar()
+        return f"{iso.year}-W{iso.week:02d}"
+
+    def _reentry_redis_key(self, symbol: str, week: str | None = None) -> str:
+        return f"pcs:reentry_used:{symbol}:{week or self._iso_week_key()}"
+
+    def _same_week_reentry_allowed(self, symbol: str) -> bool:
+        """Allow at most one same-week re-entry after Take Profit."""
+        if not settings.ALLOW_SAME_WEEK_REENTRY:
+            return False
+        data = self.state.get(symbol) or {}
+        if data.get("current_stage") not in ("IDLE", "CLOSED"):
+            return False
+        week = self._iso_week_key()
+        try:
+            r = get_redis_client()
+            if r.get(self._reentry_redis_key(symbol, week)):
+                return False
+            tp_ready = r.get(f"pcs:tp_ready:{symbol}:{week}")
+            if tp_ready:
+                return True
+        except Exception as e:
+            logger.warning(f"Redis re-entry check failed ({e}); falling back to in-memory.")
+        return data.get("last_exit_reason") == "Take Profit"
+
+    def _mark_tp_ready_for_reentry(self, symbol: str) -> None:
+        try:
+            r = get_redis_client()
+            week = self._iso_week_key()
+            r.set(f"pcs:tp_ready:{symbol}:{week}", "1", ex=10 * 24 * 3600)
+        except Exception as e:
+            logger.warning(f"Could not mark TP re-entry ready for {symbol}: {e}")
+
+    def _consume_same_week_reentry(self, symbol: str) -> None:
+        try:
+            r = get_redis_client()
+            week = self._iso_week_key()
+            r.set(self._reentry_redis_key(symbol, week), "1", ex=10 * 24 * 3600)
+            r.delete(f"pcs:tp_ready:{symbol}:{week}")
+        except Exception as e:
+            logger.warning(f"Could not persist re-entry consumption for {symbol}: {e}")
+
+    def try_same_week_reentry(self) -> None:
+        """After exits, attempt one same-week re-entry when IDLE after Take Profit (PROF-019)."""
+        if not settings.ALLOW_SAME_WEEK_REENTRY:
+            return
+        now = datetime.now(IST)
+        # Re-entry window Mon–Thu (and Friday morning before weekly entry)
+        if now.weekday() > 4:
+            return
+        self.state = self._load_state()
+        for symbol, data in self.state.items():
+            if data.get("current_stage") not in ("IDLE", "CLOSED"):
+                continue
+            if data.get("last_exit_reason") != "Take Profit":
+                continue
+            if not self._same_week_reentry_allowed(symbol):
+                continue
+            logger.info(f"Attempting same-week re-entry for {symbol} after Take Profit.")
+            self.execute_daily_cycle(
+                symbol=symbol,
+                quantity_shares=LOT_SIZES.get(symbol, 25),
+                symbol_config={"allocation_pct": 1.0, "entry_session": "midweek", "same_week_reentry": True},
+            )
+
     def execute_daily_cycle(self, symbol: str, quantity_shares: int, symbol_config: dict):
         # Reload state from DB before proceeding
         self.state = self._load_state()
@@ -611,6 +682,12 @@ class WheelStateMachine:
             if current_stage in ("IDLE", "CLOSED"):
                 logger.info(f"Executing daily cycle for {symbol} in IDLE state.")
 
+                now_ist = datetime.now(IST)
+                is_reentry = bool(symbol_config.get("same_week_reentry"))
+                if is_reentry and not self._same_week_reentry_allowed(symbol):
+                    logger.info(f"Same-week re-entry blocked for {symbol}.")
+                    return
+
                 current_vix = self.client.get_india_vix()
                 regime_action, otm_pct = vix_regime_otm(current_vix)
                 if regime_action == "skip":
@@ -623,10 +700,49 @@ class WheelStateMachine:
                     self.notifier.send_notification(title="VIX Circuit Breaker", message=msg, level="WARNING")
                     return
 
-                now_ist = datetime.now(IST)
+                # PROF-016 IVR gate
+                ivr_ok, ivr, ivr_reason = ivr_allows_entry(
+                    current_vix,
+                    lookback_days=settings.IVR_LOOKBACK_DAYS,
+                    min_percentile=settings.IVR_MIN_PERCENTILE,
+                    skip_low_ivr=settings.SKIP_LOW_IVR,
+                )
+                if not ivr_ok:
+                    msg = f"IVR entry skip for {symbol}: {ivr_reason}"
+                    logger.info(msg)
+                    self.notifier.send_notification(title="IVR Entry Skip", message=msg, level="INFO")
+                    return
+                if ivr is not None:
+                    logger.info(f"IVR gate passed for {symbol}: {ivr_reason}")
+
+                # PROF-018 event blackout
+                if settings.EVENT_BLACKOUT_ENABLED:
+                    blocked, ev = in_event_blackout(
+                        now_ist.date(),
+                        days_before=settings.EVENT_BLACKOUT_DAYS_BEFORE,
+                        days_after=settings.EVENT_BLACKOUT_DAYS_AFTER,
+                    )
+                    if blocked:
+                        msg = f"Event blackout skip for {symbol}: near event {ev}"
+                        logger.info(msg)
+                        self.notifier.send_notification(title="Event Blackout", message=msg, level="INFO")
+                        return
+
                 is_friday = now_ist.weekday() == 4
                 entry_session = symbol_config.get("entry_session", "any")
-                if entry_session == "midweek" or (entry_session == "any" and not is_friday and settings.ALLOW_MIDWEEK_ENTRY):
+                midweek_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4}
+                midweek_days = {
+                    midweek_map[d.strip().lower()]
+                    for d in settings.MIDWEEK_ENTRY_DAYS.split(",")
+                    if d.strip().lower() in midweek_map
+                }
+                is_midweek_day = now_ist.weekday() in midweek_days and not is_friday
+
+                if entry_session == "friday":
+                    if not is_friday:
+                        # Explicit Friday session invoked off-Friday (tests / manual) — allow proceed
+                        pass
+                elif entry_session == "midweek" or (entry_session == "any" and is_midweek_day):
                     if not settings.ALLOW_MIDWEEK_ENTRY:
                         logger.info(f"Mid-week entry blocked for {symbol} (ALLOW_MIDWEEK_ENTRY=False).")
                         return
@@ -642,12 +758,29 @@ class WheelStateMachine:
                     logger.info(
                         f"Mid-week entry allowed for {symbol}: VIX={current_vix:.1f}, OTM={otm_pct:.3f}"
                     )
+                elif entry_session == "any" and not is_friday and not is_midweek_day:
+                    logger.info(
+                        f"Skipping entry for {symbol}: today is not Friday/mid-week session day."
+                    )
+                    return
 
                 spot_price = self.client.get_market_quote_ltp(symbol)
                 if spot_price is None:
                     msg = f"Failed to fetch LTP for {symbol}. Aborting daily cycle."
                     logger.warning(msg)
                     self.notifier.send_notification(title="LTP Fetch Failed", message=msg, level="WARNING")
+                    return
+
+                # PROF-018 trend filter
+                trend_ok, sma_val, trend_reason = trend_allows_entry(
+                    spot_price,
+                    sma_days=settings.TREND_SMA_DAYS,
+                    enabled=settings.TREND_FILTER_ENABLED,
+                )
+                if not trend_ok:
+                    msg = f"Trend filter skip for {symbol}: {trend_reason}"
+                    logger.info(msg)
+                    self.notifier.send_notification(title="Trend Filter Skip", message=msg, level="INFO")
                     return
 
                 chain_df = self.client.get_option_chain(symbol)
@@ -775,6 +908,9 @@ class WheelStateMachine:
                 self.notifier.send_notification(title="Order Placed", message=msg, level="INFO")
 
                 self.state[symbol]["current_stage"] = "STAGE_1_CSP"
+                if is_reentry:
+                    self._consume_same_week_reentry(symbol)
+                self.state[symbol]["last_exit_reason"] = None
                 self.state[symbol]["active_position"] = {
                     "strike": short_strike,
                     "expiry": short_expiry,
@@ -1005,9 +1141,12 @@ class WheelStateMachine:
         self._archive_trade(symbol, reason, pnl)
         self.state[symbol]["realized_pnl"] += pnl
         self.state[symbol]["current_stage"] = "CLOSED"
+        self.state[symbol]["last_exit_reason"] = reason
         self.state[symbol]["active_position"] = None
         self.state[symbol]["hedge_position"] = None
         self._save_state(symbol)
+        if reason == "Take Profit":
+            self._mark_tp_ready_for_reentry(symbol)
 
         if not stc_order_id or not stc_filled:
             residual_msg = f"Exit for {symbol}: short covered (BTC filled), but residual hedge {long_instrument_key} not closed. Manual close required."
@@ -1094,9 +1233,14 @@ class WheelStateMachine:
             stop_loss = current_cost_to_close >= sl_mult * initial_credit or spot_price <= short_strike
 
             now = datetime.now(IST)
-            time_stop = now.weekday() == settings.TIME_STOP_WEEKDAY and now.hour >= settings.TIME_STOP_HOUR
+            time_stop = (
+                settings.TIME_STOP_WEEKDAY >= 0
+                and now.weekday() == settings.TIME_STOP_WEEKDAY
+                and now.hour >= settings.TIME_STOP_HOUR
+            )
 
             dte_manage = False
+            dte = None
             if settings.DTE_MANAGE_THRESHOLD >= 0 and expiry_str:
                 try:
                     exp_d = datetime.strptime(str(expiry_str), "%Y-%m-%d").date()
@@ -1105,18 +1249,30 @@ class WheelStateMachine:
                 except (ValueError, TypeError):
                     dte_manage = False
 
-            if take_profit or stop_loss or time_stop or dte_manage:
+            delta_manage = False
+            if settings.SHORT_DELTA_MANAGE > 0 and dte is not None:
+                vix_now = self.client.get_india_vix() or 15.0
+                abs_delta = abs(self._approx_put_delta(spot_price, float(short_strike), vix_now, max(dte, 0)))
+                delta_manage = abs_delta >= settings.SHORT_DELTA_MANAGE
+
+            if take_profit or stop_loss or time_stop or dte_manage or delta_manage:
                 if take_profit:
                     reason = "Take Profit"
                 elif stop_loss:
                     reason = "Stop Loss"
+                elif delta_manage:
+                    reason = "Delta Manage"
                 elif dte_manage:
                     reason = "DTE Manage"
                 else:
                     reason = "Time Stop"
                 msg = f"[{reason}] Exit triggered for {symbol}. Initial Credit: {initial_credit:.2f}, Cost to Close: {current_cost_to_close:.2f}, Spot: {spot_price:.2f}. Initiating closing orders..."
                 logger.info(msg)
-                self.notifier.send_notification(title=f"{reason} Triggered", message=msg, level="INFO" if take_profit or time_stop or dte_manage else "WARNING")
+                self.notifier.send_notification(
+                    title=f"{reason} Triggered",
+                    message=msg,
+                    level="INFO" if take_profit or time_stop or dte_manage or delta_manage else "WARNING",
+                )
 
                 self._execute_exit(symbol, reason, {
                     "short_instrument_key": short_instrument_key,

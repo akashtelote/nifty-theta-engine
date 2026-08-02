@@ -8,6 +8,16 @@ os.environ.setdefault("DATABASE_URL", "postgresql://wheelbot:securepassword@loca
 os.environ.setdefault("REDIS_URL", "redis://localhost:6379/1")
 
 
+@pytest.fixture(autouse=True)
+def _stage6_entry_gates_open(monkeypatch):
+    """Keep Stage-6 entry filters from blocking unit tests (unless a test overrides)."""
+    from config import settings as settings_mod
+    monkeypatch.setattr(settings_mod.settings, "SKIP_LOW_IVR", False)
+    monkeypatch.setattr(settings_mod.settings, "EVENT_BLACKOUT_ENABLED", False)
+    monkeypatch.setattr(settings_mod.settings, "TREND_FILTER_ENABLED", False)
+    monkeypatch.setattr(settings_mod.settings, "ALLOW_SAME_WEEK_REENTRY", False)
+
+
 @pytest.fixture
 def mock_client(monkeypatch):
     """Provides a mock UpstoxClient that returns controllable values."""

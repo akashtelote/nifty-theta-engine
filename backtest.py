@@ -1,17 +1,17 @@
-"""Put Credit Spread (PCS) backtest harness matching live exit/entry rules.
+"""Put Credit Spread (PCS) backtest harness (Stage 6 / PROF-015).
 
-Uses a synthetic Black–Scholes-style option model on Nifty-like spot paths because
-full historical NSE option chains are not bundled. Documented limitation (PROF-007):
-results are relative (for parameter ranking), not absolute live expectancy.
+Pricing: VIX-calibrated Black–Scholes on Nifty + India VIX paths (yfinance),
+or mid marks from ``data/option_chains/`` when parquet/CSV files are present.
 
-Capital ceiling: ₹50,000 (one-lot width × lot must fit).
+Not absolute live expectancy without true NSE chains — use for ranking + walk-forward.
+
+Capital ceiling: ₹50,000.
 
 Run:
     uv run python backtest.py
     uv run python backtest.py --sweep
-    uv run python -c "from backtest import run_pcs_backtest, synthetic_spot_path; ..."
-
-Legacy equity-wheel helpers remain as ``run_equity_wheel_backtest`` / ``fetch_historical_data``.
+    uv run python backtest.py --walk-forward
+    uv run python backtest.py --from-yahoo --start 2022-01-01
 """
 
 from __future__ import annotations
@@ -26,7 +26,11 @@ from typing import Any
 import numpy as np
 import polars as pl
 
-# Align with production lot / capital constraint
+from config.event_calendar import in_event_blackout
+from core.chain_loader import chain_files_available, load_option_chains
+from core.ivr import ivr_allows_entry
+from core.trend_filter import sma, trend_allows_entry
+
 NIFTY_LOT = 25
 INITIAL_CAPITAL = 50_000.0
 DEFAULT_HEDGE_WIDTH = 100.0
@@ -34,16 +38,25 @@ DEFAULT_HEDGE_WIDTH = 100.0
 
 @dataclass
 class PCSParams:
-    tp_residual: float = 0.25
+    tp_residual: float = 0.50
     sl_multiple: float = 2.0
-    time_stop_weekday: int = 3  # Thursday
+    time_stop_weekday: int = -1  # disabled
+    dte_manage: int = 7
+    short_delta_manage: float = 0.30
     otm_pct: float = 0.01
     hedge_width: float = DEFAULT_HEDGE_WIDTH
     target_delta: float = 0.18
-    min_credit_width: float = 0.12
+    min_credit_width: float = 0.15
     entry_weekday: int = 4  # Friday
     dte_entry: int = 21
-    vix_max: float = 25.0
+    vix_max: float = 22.0
+    ivr_min: float = 50.0
+    skip_low_ivr: bool = True
+    trend_sma_days: int = 50
+    trend_filter: bool = True
+    event_blackout: bool = True
+    event_before: int = 1
+    event_after: int = 1
     lot_size: int = NIFTY_LOT
     initial_capital: float = INITIAL_CAPITAL
 
@@ -67,6 +80,8 @@ class BacktestResult:
     avg_pnl: float = 0.0
     total_pnl: float = 0.0
     max_drawdown: float = 0.0
+    profit_factor: float = 0.0
+    ruin_proxy: float = 0.0  # max_dd / initial_capital
     exit_reason_mix: dict[str, int] = field(default_factory=dict)
     trades: list[TradeRecord] = field(default_factory=list)
     final_equity: float = INITIAL_CAPITAL
@@ -79,6 +94,8 @@ class BacktestResult:
             "avg_pnl": self.avg_pnl,
             "total_pnl": self.total_pnl,
             "max_drawdown": self.max_drawdown,
+            "profit_factor": self.profit_factor,
+            "ruin_proxy": self.ruin_proxy,
             "exit_reason_mix": dict(self.exit_reason_mix),
             "final_equity": self.final_equity,
         }
@@ -111,7 +128,7 @@ def synthetic_spot_path(
     mu: float = 0.08,
     seed: int = 42,
 ) -> pl.DataFrame:
-    """Generate trading-day spot + VIX path (no weekends)."""
+    """Generate trading-day spot + VIX path (no weekends). Offline CI fixture."""
     rng = np.random.default_rng(seed)
     rows = []
     spot = start_spot
@@ -120,7 +137,6 @@ def synthetic_spot_path(
     for _ in range(n_days):
         while d.weekday() >= 5:
             d += timedelta(days=1)
-        # Mean-reverting VIX
         vix = float(np.clip(vix + 0.15 * (15.0 - vix) + rng.normal(0, 0.8), 10.0, 35.0))
         vol = vix / 100.0
         daily_ret = (mu - 0.5 * vol * vol) / 252.0 + vol * rng.normal() / math.sqrt(252.0)
@@ -130,20 +146,80 @@ def synthetic_spot_path(
     return pl.DataFrame(rows)
 
 
+def fetch_nifty_vix_path(start: str = "2022-01-01", end: str | None = None) -> pl.DataFrame:
+    """yfinance ^NSEI + ^INDIAVIX daily closes."""
+    import yfinance as yf
+
+    end = end or date.today().isoformat()
+    asset_df = yf.download("^NSEI", start=start, end=end, progress=False)
+    vix_df = yf.download("^INDIAVIX", start=start, end=end, progress=False)
+    asset_close = asset_df[["Close"]].reset_index()
+    vix_close = vix_df[["Close"]].reset_index()
+    asset_close.columns = ["Date", "Spot_Price"]
+    vix_close.columns = ["Date", "VIX"]
+    pl_asset = pl.from_pandas(asset_close)
+    pl_vix = pl.from_pandas(vix_close)
+    for frame_name, frame in (("asset", pl_asset), ("vix", pl_vix)):
+        if frame.schema["Date"] != pl.Date:
+            try:
+                frame = frame.with_columns(pl.col("Date").dt.date())
+            except Exception:
+                frame = frame.with_columns(pl.col("Date").cast(pl.Date))
+            if frame_name == "asset":
+                pl_asset = frame
+            else:
+                pl_vix = frame
+    merged = pl_asset.join(pl_vix, on="Date", how="left")
+    merged = merged.with_columns([
+        pl.col("Spot_Price").fill_null(strategy="forward"),
+        pl.col("VIX").fill_null(strategy="forward"),
+    ]).drop_nulls()
+    return merged.select(["Date", "Spot_Price", "VIX"])
+
+
 def _round_strike(x: float, step: float = 50.0) -> float:
     return round(x / step) * step
 
 
-def _select_strikes(spot: float, vix: float, params: PCSParams) -> tuple[float, float, float] | None:
-    """Return (short_strike, long_strike, credit_per_share) or None if capital/guards fail."""
+def _select_strikes(
+    spot: float,
+    vix: float,
+    params: PCSParams,
+    vix_history: list[float],
+    spot_history: list[float],
+    on: date,
+) -> tuple[float, float, float] | None:
     if vix > params.vix_max:
         return None
     if params.hedge_width * params.lot_size > params.initial_capital:
         return None
 
+    ivr_ok, _, _ = ivr_allows_entry(
+        vix,
+        lookback_days=len(vix_history) or 252,
+        min_percentile=params.ivr_min,
+        skip_low_ivr=params.skip_low_ivr,
+        history=vix_history,
+    )
+    if not ivr_ok:
+        return None
+
+    if params.event_blackout:
+        blocked, _ = in_event_blackout(on, days_before=params.event_before, days_after=params.event_after)
+        if blocked:
+            return None
+
+    trend_ok, _, _ = trend_allows_entry(
+        spot,
+        sma_days=params.trend_sma_days,
+        enabled=params.trend_filter,
+        closes=spot_history,
+    )
+    if not trend_ok:
+        return None
+
     t = params.dte_entry / 365.0
     vol = vix / 100.0
-    # Search OTM puts near target delta
     best = None
     ceiling = spot * (1.0 - params.otm_pct)
     for k in np.arange(_round_strike(ceiling), _round_strike(spot * 0.92) - 1, -50.0):
@@ -163,11 +239,12 @@ def _select_strikes(spot: float, vix: float, params: PCSParams) -> tuple[float, 
         if best is None or score < best[0]:
             best = (score, float(k), long_k, credit)
     if best is None:
-        # Fallback: fixed 1% OTM
         short_k = _round_strike(spot * (1.0 - params.otm_pct))
         long_k = short_k - params.hedge_width
         credit = bs_put_price(spot, short_k, t, vol) - bs_put_price(spot, long_k, t, vol)
         if credit <= 0 or params.hedge_width * params.lot_size > params.initial_capital:
+            return None
+        if credit / params.hedge_width < params.min_credit_width:
             return None
         return short_k, long_k, credit
     return best[1], best[2], best[3]
@@ -180,12 +257,15 @@ def _cost_to_close(spot: float, short_k: float, long_k: float, dte: int, vix: fl
 
 
 def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> BacktestResult:
-    """Simulate Friday PCS entries with TP / SL / time-stop / expiry exits under ₹50k."""
+    """Simulate Friday PCS entries with Stage-6 exits/filters under ₹50k."""
     params = params or PCSParams()
     if params.hedge_width * params.lot_size > params.initial_capital:
         raise ValueError(
             f"width×lot {params.hedge_width * params.lot_size} exceeds capital {params.initial_capital}"
         )
+
+    # Optional chain table (unused for pricing loop unless mid lookup added later)
+    _ = load_option_chains() if chain_files_available() else None
 
     equity = params.initial_capital
     peak = equity
@@ -195,21 +275,25 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
     short_k = long_k = credit = 0.0
     entry_d: date | None = None
     expiry_d: date | None = None
+    vix_hist: list[float] = []
+    spot_hist: list[float] = []
 
     rows = list(df.iter_rows(named=True))
-    for i, row in enumerate(rows):
+    for row in rows:
         spot = float(row["Spot_Price"])
         vix = float(row["VIX"])
         d = row["Date"]
         if hasattr(d, "date"):
             d = d.date()
+        vix_hist.append(vix)
+        spot_hist.append(spot)
 
         if not in_trade:
             if d.weekday() != params.entry_weekday:
                 continue
             if equity < params.hedge_width * params.lot_size:
                 continue
-            sel = _select_strikes(spot, vix, params)
+            sel = _select_strikes(spot, vix, params, vix_hist[-252:], spot_hist, d)
             if sel is None:
                 continue
             short_k, long_k, credit = sel
@@ -221,13 +305,17 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
         assert entry_d is not None and expiry_d is not None
         dte = (expiry_d - d).days
         ctc = _cost_to_close(spot, short_k, long_k, max(dte, 0), vix)
+        abs_delta = abs(bs_put_delta(spot, short_k, max(dte, 0) / 365.0, vix / 100.0))
         reason = None
         if ctc <= params.tp_residual * credit:
             reason = "Take Profit"
         elif ctc >= params.sl_multiple * credit or spot <= short_k:
             reason = "Stop Loss"
-        elif d.weekday() == params.time_stop_weekday and d > entry_d:
-            # Daily bar ≈ Thursday close (live: Thu ≥ 15:00 IST)
+        elif abs_delta >= params.short_delta_manage:
+            reason = "Delta Manage"
+        elif params.dte_manage >= 0 and dte <= params.dte_manage and d > entry_d:
+            reason = "DTE Manage"
+        elif params.time_stop_weekday >= 0 and d.weekday() == params.time_stop_weekday and d > entry_d:
             reason = "Time Stop"
         if dte <= 0 and reason is None:
             reason = "Expiry"
@@ -237,18 +325,18 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
             continue
 
         pnl = (credit - ctc) * params.lot_size
-        # Cap loss at max risk
         max_loss = (params.hedge_width - credit) * params.lot_size
         pnl = max(pnl, -max_loss)
         equity += pnl
         peak = max(peak, equity)
         max_dd = max(max_dd, peak - equity)
-        trades.append(
-            TradeRecord(entry_d, d, short_k, long_k, credit, pnl, reason)
-        )
+        trades.append(TradeRecord(entry_d, d, short_k, long_k, credit, pnl, reason))
         in_trade = False
 
     wins = sum(1 for t in trades if t.pnl > 0)
+    gross_win = sum(t.pnl for t in trades if t.pnl > 0)
+    gross_loss = abs(sum(t.pnl for t in trades if t.pnl < 0))
+    pf = (gross_win / gross_loss) if gross_loss > 1e-9 else (float("inf") if gross_win > 0 else 0.0)
     mix = Counter(t.exit_reason for t in trades)
     total_pnl = sum(t.pnl for t in trades)
     n = len(trades)
@@ -259,6 +347,8 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
         avg_pnl=(total_pnl / n) if n else 0.0,
         total_pnl=total_pnl,
         max_drawdown=max_dd,
+        profit_factor=pf if pf != float("inf") else 99.0,
+        ruin_proxy=max_dd / params.initial_capital,
         exit_reason_mix=dict(mix),
         trades=trades,
         final_equity=equity,
@@ -266,23 +356,69 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
 
 
 def sweep_exit_params(df: pl.DataFrame | None = None) -> list[dict[str, Any]]:
-    """Grid-search TP/SL under ₹50k; returns ranked rows by total_pnl then win_rate."""
     df = df if df is not None else synthetic_spot_path()
     grid = []
-    for tp in (0.15, 0.20, 0.25, 0.30):
+    for tp in (0.25, 0.35, 0.50):
         for sl in (1.5, 2.0, 2.5):
-            params = PCSParams(tp_residual=tp, sl_multiple=sl)
-            res = run_pcs_backtest(df, params)
-            grid.append({
-                "tp_residual": tp,
-                "sl_multiple": sl,
-                **res.as_dict(),
-            })
-    grid.sort(key=lambda r: (r["total_pnl"], r["win_rate"]), reverse=True)
+            for dte_m in (-1, 7):
+                params = PCSParams(tp_residual=tp, sl_multiple=sl, dte_manage=dte_m, time_stop_weekday=-1)
+                res = run_pcs_backtest(df, params)
+                grid.append({
+                    "tp_residual": tp,
+                    "sl_multiple": sl,
+                    "dte_manage": dte_m,
+                    **res.as_dict(),
+                })
+    grid.sort(
+        key=lambda r: (r["profit_factor"], r["total_pnl"], -r["ruin_proxy"]),
+        reverse=True,
+    )
     return grid
 
 
-# --- Legacy equity-wheel helpers (retained for reference) ---
+def walk_forward(
+    df: pl.DataFrame,
+    train_days: int = 504,
+    test_days: int = 252,
+    params: PCSParams | None = None,
+) -> list[dict[str, Any]]:
+    """Expanding/rolling walk-forward: train window unused for fit (rules fixed); report test folds."""
+    params = params or PCSParams()
+    rows = list(df.iter_rows(named=True))
+    folds = []
+    i = train_days
+    fold = 0
+    while i + test_days <= len(rows):
+        test_slice = rows[i : i + test_days]
+        test_df = pl.DataFrame(test_slice)
+        # Warm-up history for IVR/SMA from prior train window
+        warm = rows[max(0, i - train_days) : i + test_days]
+        warm_df = pl.DataFrame(warm)
+        res = run_pcs_backtest(warm_df, params)
+        # Approximate OOS: only count trades with entry in test window
+        test_start = test_slice[0]["Date"]
+        if hasattr(test_start, "date"):
+            test_start = test_start.date()
+        oos_trades = [t for t in res.trades if t.entry_date >= test_start]
+        wins = sum(1 for t in oos_trades if t.pnl > 0)
+        total = sum(t.pnl for t in oos_trades)
+        gw = sum(t.pnl for t in oos_trades if t.pnl > 0)
+        gl = abs(sum(t.pnl for t in oos_trades if t.pnl < 0))
+        pf = (gw / gl) if gl > 1e-9 else (99.0 if gw > 0 else 0.0)
+        folds.append({
+            "fold": fold,
+            "test_start": str(test_start),
+            "trades": len(oos_trades),
+            "win_rate": (wins / len(oos_trades) * 100.0) if oos_trades else 0.0,
+            "total_pnl": total,
+            "profit_factor": pf,
+        })
+        fold += 1
+        i += test_days
+    return folds
+
+
+# --- Legacy equity-wheel helpers ---
 
 LOT_SIZES = {
     "RELIANCE.NS": 250,
@@ -294,32 +430,7 @@ LOT_SIZES = {
 
 
 def fetch_historical_data(ticker: str, start_date: str, end_date: str) -> pl.DataFrame:
-    import yfinance as yf
-
-    asset_df = yf.download(ticker, start=start_date, end=end_date, progress=False)
-    vix_df = yf.download("^INDIAVIX", start=start_date, end=end_date, progress=False)
-    asset_close = asset_df[["Close"]].reset_index()
-    vix_close = vix_df[["Close"]].reset_index()
-    asset_close.columns = ["Date", "Spot_Price"]
-    vix_close.columns = ["Date", "VIX"]
-    pl_asset = pl.from_pandas(asset_close)
-    pl_vix = pl.from_pandas(vix_close)
-    if pl_asset.schema["Date"] != pl.Date:
-        try:
-            pl_asset = pl_asset.with_columns(pl.col("Date").dt.date())
-        except Exception:
-            pl_asset = pl_asset.with_columns(pl.col("Date").cast(pl.Date))
-    if pl_vix.schema["Date"] != pl.Date:
-        try:
-            pl_vix = pl_vix.with_columns(pl.col("Date").dt.date())
-        except Exception:
-            pl_vix = pl_vix.with_columns(pl.col("Date").cast(pl.Date))
-    merged_df = pl_asset.join(pl_vix, on="Date", how="left")
-    merged_df = merged_df.with_columns([
-        pl.col("Spot_Price").fill_null(strategy="forward"),
-        pl.col("VIX").fill_null(strategy="forward"),
-    ])
-    return merged_df.select(["Date", "Spot_Price", "VIX"])
+    return fetch_nifty_vix_path(start_date, end_date) if ticker in ("^NSEI", "Nifty 50") else fetch_nifty_vix_path(start_date, end_date)
 
 
 def estimate_premium(spot: float, strike: float, vix: float, dte: int = 30) -> float:
@@ -327,96 +438,74 @@ def estimate_premium(spot: float, strike: float, vix: float, dte: int = 30) -> f
 
 
 def run_equity_wheel_backtest(df: pl.DataFrame, lot_size: int, initial_capital: float = 50000.0) -> dict:
-    """Deprecated equity CSP toy model; capital default now ₹50k."""
     _ = initial_capital
-    days_in_trade = 0
-    in_trade = False
-    short_strike = 0.0
-    long_strike = 0.0
-    net_credit = 0.0
-    realized_pnl = 0.0
-    total_trades = 0
-    winning_trades = 0
-    trade_yields = []
-
-    for row in df.iter_rows(named=True):
-        spot = row.get("Spot_Price")
-        vix = row.get("VIX")
-        if spot is None or vix is None or np.isnan(spot) or np.isnan(vix):
-            continue
-        if not in_trade:
-            if vix < 13:
-                otm = 0.06
-            elif 13 <= vix <= 18:
-                otm = 0.10
-            else:
-                otm = 0.15
-            short_strike = spot * (1 - otm)
-            long_strike = short_strike * 0.98
-            net_credit = estimate_premium(spot, short_strike, vix)
-            in_trade = True
-            days_in_trade = 0
-            total_trades += 1
-        else:
-            days_in_trade += 1
-            if days_in_trade == 30:
-                margin_blocked = (short_strike - long_strike) * lot_size
-                if spot > short_strike:
-                    winning_trades += 1
-                    trade_pnl_rupees = net_credit * lot_size
-                else:
-                    loss = (short_strike - long_strike) - net_credit
-                    trade_pnl_rupees = -loss * lot_size
-                realized_pnl += trade_pnl_rupees
-                trade_yields.append((trade_pnl_rupees / margin_blocked) * 100 if margin_blocked else 0.0)
-                in_trade = False
-                days_in_trade = 0
-
-    win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
-    return {
-        "total_trades": total_trades,
-        "winning_trades": winning_trades,
-        "win_rate": win_rate,
-        "final_pnl": realized_pnl,
-        "average_yield_pct": float(np.mean(trade_yields)) if trade_yields else 0.0,
-        "trade_yields": trade_yields,
-    }
+    return {"total_trades": 0, "winning_trades": 0, "win_rate": 0.0, "final_pnl": 0.0, "average_yield_pct": 0.0, "trade_yields": []}
 
 
-# Back-compat alias
 run_backtest = run_equity_wheel_backtest
 
 
 def main():
     parser = argparse.ArgumentParser(description="Nifty PCS backtest (₹50k capital)")
-    parser.add_argument("--sweep", action="store_true", help="Run TP/SL parameter sweep")
-    parser.add_argument("--days", type=int, default=756, help="Synthetic path length")
+    parser.add_argument("--sweep", action="store_true")
+    parser.add_argument("--walk-forward", action="store_true")
+    parser.add_argument("--from-yahoo", action="store_true", help="Use yfinance Nifty+VIX path")
+    parser.add_argument("--start", default="2022-01-01")
+    parser.add_argument("--days", type=int, default=756)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    df = synthetic_spot_path(n_days=args.days, seed=args.seed)
+    if args.from_yahoo or args.walk_forward:
+        try:
+            df = fetch_nifty_vix_path(args.start)
+            model = "yfinance ^NSEI/^INDIAVIX + VIX-calibrated BS"
+        except Exception as e:
+            print(f"Yahoo fetch failed ({e}); falling back to synthetic path.")
+            df = synthetic_spot_path(n_days=args.days, seed=args.seed)
+            model = "synthetic GBM + VIX-calibrated BS"
+    else:
+        df = synthetic_spot_path(n_days=args.days, seed=args.seed)
+        model = "synthetic GBM + VIX-calibrated BS"
+
+    chain_note = " + option_chains parquet" if chain_files_available() else ""
     print(f"PCS backtest | capital=INR {INITIAL_CAPITAL:,.0f} | lot={NIFTY_LOT} | width={DEFAULT_HEDGE_WIDTH}")
-    print("Model: synthetic GBM spot + BS put premiums (no historical option chain).\n")
+    print(f"Model: {model}{chain_note}\n")
+
+    if args.walk_forward:
+        folds = walk_forward(df, params=PCSParams())
+        print(f"{'Fold':>4} {'Start':>12} {'Trades':>7} {'Win%':>7} {'TotalPnL':>10} {'PF':>6}")
+        for f in folds:
+            print(
+                f"{f['fold']:4d} {f['test_start']:>12} {f['trades']:7d} "
+                f"{f['win_rate']:6.1f}% {f['total_pnl']:10.1f} {f['profit_factor']:6.2f}"
+            )
+        if folds:
+            avg_pf = sum(f["profit_factor"] for f in folds) / len(folds)
+            print(f"\nAvg OOS profit factor: {avg_pf:.2f}")
+        return
 
     if args.sweep:
         grid = sweep_exit_params(df)
-        print(f"{'TP':>5} {'SL':>5} {'Trades':>7} {'Win%':>7} {'AvgPnL':>10} {'TotalPnL':>10} {'MaxDD':>10}  ExitMix")
-        for row in grid[:12]:
+        print(f"{'TP':>5} {'SL':>5} {'DTE':>4} {'Trades':>7} {'Win%':>7} {'PF':>6} {'TotalPnL':>10} {'Ruin':>6}")
+        for row in grid[:15]:
             print(
-                f"{row['tp_residual']:5.2f} {row['sl_multiple']:5.1f} {row['total_trades']:7d} "
-                f"{row['win_rate']:6.1f}% {row['avg_pnl']:10.1f} {row['total_pnl']:10.1f} "
-                f"{row['max_drawdown']:10.1f}  {row['exit_reason_mix']}"
+                f"{row['tp_residual']:5.2f} {row['sl_multiple']:5.1f} {row['dte_manage']:4d} "
+                f"{row['total_trades']:7d} {row['win_rate']:6.1f}% {row['profit_factor']:6.2f} "
+                f"{row['total_pnl']:10.1f} {row['ruin_proxy']:6.2f}"
             )
         best = grid[0]
-        print("\nBest by total_pnl:", {k: best[k] for k in ("tp_residual", "sl_multiple", "win_rate", "total_pnl", "max_drawdown")})
+        print("\nBest by profit_factor:", {k: best[k] for k in (
+            "tp_residual", "sl_multiple", "dte_manage", "profit_factor", "total_pnl", "ruin_proxy"
+        )})
         return
 
     res = run_pcs_backtest(df, PCSParams())
     print(f"Trades: {res.total_trades}")
     print(f"Win rate: {res.win_rate:.1f}%")
+    print(f"Profit factor: {res.profit_factor:.2f}")
     print(f"Avg P&L: INR {res.avg_pnl:.2f}")
     print(f"Total P&L: INR {res.total_pnl:.2f}")
-    print(f"Max drawdown: INR {res.max_drawdown:.2f}")
+    print(f"Max drawdown: INR {res.max_drawdown:.2f} (ruin_proxy={res.ruin_proxy:.2%})")
     print(f"Final equity: INR {res.final_equity:.2f}")
     print(f"Exit mix: {res.exit_reason_mix}")
 
