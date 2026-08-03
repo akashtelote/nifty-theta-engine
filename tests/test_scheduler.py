@@ -89,3 +89,64 @@ class TestStartWsMonitor:
             scheduler._on_ws_runtime_error("disconnect again")
             mock_notifier.send_notification.assert_called_once()
             assert mock_notifier.send_notification.call_args.kwargs["level"] == "WARNING"
+
+
+class TestRestartWsMonitor:
+    def setup_method(self):
+        _reset_ws_state()
+
+    def teardown_method(self):
+        _reset_ws_state()
+
+    def test_stop_clears_monitor_and_wheel(self):
+        mock_monitor = MagicMock()
+        scheduler._ws_monitor = mock_monitor
+        scheduler._ws_wheel = MagicMock()
+
+        scheduler._stop_ws_monitor()
+
+        mock_monitor.stop.assert_called_once()
+        assert scheduler._ws_monitor is None
+        assert scheduler._ws_wheel is None
+
+    def test_restart_stops_old_clears_fallback_and_starts(self):
+        old_monitor = MagicMock()
+        new_monitor = MagicMock()
+        mock_wheel = MagicMock()
+        mock_wheel.active_instrument_keys.return_value = {"NSE_INDEX|Nifty 50"}
+        scheduler._ws_monitor = old_monitor
+        scheduler._ws_wheel = MagicMock()
+        scheduler._ws_fallback_alerted = True
+
+        with (
+            patch.object(scheduler.settings, "MOCK_MARKET", False),
+            patch.object(scheduler.settings, "PAPER_TRADE", True),
+            patch("core.auth.get_centralized_token", return_value="fresh-tok"),
+            patch("core.ws_monitor.WebSocketMonitor", return_value=new_monitor) as mon_cls,
+            patch("core.scheduler.WheelStateMachine", return_value=mock_wheel),
+        ):
+            assert scheduler._restart_ws_monitor() is True
+
+        old_monitor.stop.assert_called_once()
+        mon_cls.assert_called_once()
+        assert mon_cls.call_args.kwargs["access_token"] == "fresh-tok"
+        new_monitor.start.assert_called_once()
+        new_monitor.update_subscriptions.assert_called_once_with({"NSE_INDEX|Nifty 50"})
+        assert scheduler._ws_fallback_alerted is False
+        assert scheduler._ws_monitor is new_monitor
+
+    def test_restart_after_overnight_error_allows_new_alert_on_failure(self):
+        """Fallback flag must clear so a failed morning restart can alert again."""
+        mock_notifier = MagicMock()
+        scheduler._ws_fallback_alerted = True
+        scheduler._ws_monitor = MagicMock()
+
+        with (
+            patch.object(scheduler.settings, "MOCK_MARKET", False),
+            patch("core.auth.get_centralized_token", return_value=None),
+            patch("core.scheduler.Notifier", return_value=mock_notifier),
+        ):
+            assert scheduler._restart_ws_monitor() is False
+
+        mock_notifier.send_notification.assert_called_once()
+        assert scheduler._ws_fallback_alerted is True

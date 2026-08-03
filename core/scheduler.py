@@ -43,6 +43,18 @@ def _on_ws_runtime_error(error) -> None:
     _notify_ws_fallback(f"WebSocket monitor error: {error}.")
 
 
+def _stop_ws_monitor() -> None:
+    """Tear down the live streamer and clear long-lived WS state."""
+    global _ws_wheel, _ws_monitor
+    if _ws_monitor is not None:
+        try:
+            _ws_monitor.stop()
+        except Exception as e:
+            logger.warning(f"Error stopping WebSocket monitor: {e}")
+    _ws_monitor = None
+    _ws_wheel = None
+
+
 def _start_ws_monitor() -> bool:
     """Start real-time exit monitor when market data is available.
 
@@ -84,6 +96,18 @@ def _start_ws_monitor() -> bool:
     except Exception as e:
         _notify_ws_fallback(f"Could not start WebSocket monitor: {e}.")
         return False
+
+
+def _restart_ws_monitor() -> bool:
+    """Morning reconnect before the open — fresh token + clear overnight fallback lock-in.
+
+    Scheduled Mon–Fri 08:55 IST so real-time exits are restored before the 09:00 poll.
+    """
+    logger.info("Morning WebSocket restart — reconnecting market data stream.")
+    global _ws_fallback_alerted
+    _stop_ws_monitor()
+    _ws_fallback_alerted = False
+    return _start_ws_monitor()
 
 
 def _refresh_realtime_state():
@@ -243,6 +267,20 @@ def start_scheduler():
         id="hourly_exits",
     )
 
+    # Reconnect market data before the open (overnight drops leave WS on hourly fallback)
+    ws_restart_trigger = CronTrigger(
+        day_of_week="mon-fri",
+        hour=8,
+        minute=55,
+        timezone=tz,
+    )
+    scheduler.add_job(
+        _restart_ws_monitor,
+        trigger=ws_restart_trigger,
+        id="ws_morning_restart",
+    )
+    logger.info("WebSocket morning restart scheduled: Mon-Fri 08:55 IST")
+
     logger.info("Scheduler initialized. Bot is standing by for execution and exits.")
     scheduler.start()
 
@@ -271,6 +309,5 @@ def start_scheduler():
             time.sleep(60)
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received. Shutting down scheduler.")
-        if _ws_monitor:
-            _ws_monitor.stop()
+        _stop_ws_monitor()
         scheduler.shutdown()
