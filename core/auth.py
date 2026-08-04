@@ -1,5 +1,6 @@
 import os
 import json
+import time
 import logging
 from datetime import datetime, timezone
 from filelock import FileLock
@@ -21,6 +22,13 @@ REDIS_TOKEN_TTL_SECONDS = 86400
 TOKEN_MAX_AGE_SECONDS = 12 * 3600
 # 5 minutes in seconds — anti OTP-spam guard
 TOKEN_FORCE_REFRESH_GUARD_SECONDS = 300
+
+# Cross-bot TOTP lock. FileLock is per-host; Redis is the only resource the
+# bots actually share, so the lock that matters lives there.
+REDIS_REFRESH_LOCK_KEY = "upstox:token_refresh_lock"
+REFRESH_LOCK_TTL_SECONDS = 90
+REFRESH_WAIT_SECONDS = 60
+REFRESH_POLL_SECONDS = 2
 
 
 def get_current_timestamp() -> str:
@@ -54,6 +62,42 @@ def _save_centralized_token(token: str) -> None:
         r.set(REDIS_TOKEN_KEY, token, ex=REDIS_TOKEN_TTL_SECONDS)
     except Exception as e:
         logger.error(f"Failed to connect to Redis or save token: {e}")
+
+
+def _acquire_refresh_lock() -> bool:
+    """Claim the right to run TOTP. Every TOTP login kills the other bot's session,
+    so only one bot may log in per refresh; the rest wait for the winner's token.
+
+    ponytail: SET NX EX, not Redlock — one Redis instance, and the TTL is the
+    only crash recovery needed. Swap if a second Redis ever appears.
+    """
+    try:
+        r = get_redis_client()
+        return bool(
+            r.set(REDIS_REFRESH_LOCK_KEY, "1", nx=True, ex=REFRESH_LOCK_TTL_SECONDS)
+        )
+    except Exception as e:
+        # Redis down: a duplicate login beats having no token at all.
+        logger.warning(f"Could not acquire Redis refresh lock ({e}); proceeding with TOTP.")
+        return True
+
+
+def _release_refresh_lock() -> None:
+    try:
+        get_redis_client().delete(REDIS_REFRESH_LOCK_KEY)
+    except Exception as e:
+        logger.warning(f"Could not release Redis refresh lock: {e}")
+
+
+def _wait_for_new_token(stale_token: str | None) -> str | None:
+    """Poll the bus for the token the lock holder is about to publish."""
+    deadline = time.monotonic() + REFRESH_WAIT_SECONDS
+    while time.monotonic() < deadline:
+        time.sleep(REFRESH_POLL_SECONDS)
+        token = get_centralized_token()
+        if token and token != stale_token:
+            return token
+    return None
 
 
 def _mirror_token_locally(token: str, created_at: str | None = None) -> None:
@@ -137,6 +181,20 @@ def authenticate_and_save_token(force_refresh: bool = False) -> str:
                 _save_centralized_token(access_token)
                 return access_token
 
+        stale_token = get_centralized_token()
+        holds_refresh_lock = _acquire_refresh_lock()
+
+        if not holds_refresh_lock:
+            logger.info("Another bot is refreshing the Upstox token; waiting for it on the bus.")
+            shared_token = _wait_for_new_token(stale_token)
+            if shared_token:
+                logger.info("Picked up the other bot's fresh token from Redis; skipping TOTP.")
+                _mirror_token_locally(shared_token)
+                return shared_token
+            logger.warning(
+                f"No fresh token on the bus after {REFRESH_WAIT_SECONDS}s; running TOTP anyway."
+            )
+
         if force_refresh:
             logger.info("force_refresh=True: clearing Redis token before TOTP login.")
             _delete_centralized_token()
@@ -191,3 +249,7 @@ def authenticate_and_save_token(force_refresh: bool = False) -> str:
         except Exception as e:
             logger.error(f"Failed to authenticate with Upstox: {e}")
             raise
+
+        finally:
+            if holds_refresh_lock:
+                _release_refresh_lock()

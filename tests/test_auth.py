@@ -54,6 +54,8 @@ class TestAuthenticatePrefersRedis:
             patch.object(auth, "get_centralized_token", return_value=None),
             patch.object(auth, "_save_centralized_token") as save_redis,
             patch.object(auth, "_delete_centralized_token"),
+            patch.object(auth, "_acquire_refresh_lock", return_value=True),
+            patch.object(auth, "_release_refresh_lock") as release_lock,
             patch.dict("os.environ", env, clear=False),
             patch("core.auth.UpstoxTOTP", return_value=fake_client),
         ):
@@ -61,6 +63,33 @@ class TestAuthenticatePrefersRedis:
 
         assert result == "fresh-totp-token"
         save_redis.assert_called_once_with("fresh-totp-token")
+        release_lock.assert_called_once()
+
+
+class TestCrossBotRefreshLock:
+    def test_loser_waits_for_winners_token_instead_of_second_totp(self, tmp_path):
+        """Two bots share one Upstox login — a second TOTP would kill the winner's session."""
+        from core import auth
+
+        token_file = tmp_path / "token.json"
+        lock_file = tmp_path / "token.json.lock"
+
+        with (
+            patch.object(auth, "TOKEN_FILE", str(token_file)),
+            patch.object(auth, "LOCK_FILE", str(lock_file)),
+            # Redis holds the dead token both bots just got a 401 on
+            patch.object(auth, "get_centralized_token", side_effect=["dead-tok", "other-bots-tok"]),
+            patch.object(auth, "_acquire_refresh_lock", return_value=False),
+            patch.object(auth, "_release_refresh_lock") as release_lock,
+            patch.object(auth, "REFRESH_POLL_SECONDS", 0),
+            patch("core.auth.UpstoxTOTP") as totp_cls,
+        ):
+            result = auth.authenticate_and_save_token(force_refresh=True)
+
+        assert result == "other-bots-tok"
+        totp_cls.assert_not_called()
+        release_lock.assert_not_called()  # never held it
+        assert "other-bots-tok" in token_file.read_text(encoding="utf-8")
 
     def test_local_file_reused_is_published_to_redis(self, tmp_path):
         from core import auth

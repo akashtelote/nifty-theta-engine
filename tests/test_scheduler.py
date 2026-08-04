@@ -35,7 +35,7 @@ class TestStartWsMonitor:
         with (
             patch.object(scheduler.settings, "MOCK_MARKET", False),
             patch.object(scheduler.settings, "PAPER_TRADE", True),
-            patch("core.auth.get_centralized_token", return_value="tok"),
+            patch("core.scheduler._live_access_token", return_value="tok"),
             patch("core.ws_monitor.WebSocketMonitor", return_value=mock_monitor) as mon_cls,
             patch("core.scheduler.WheelStateMachine", return_value=mock_wheel),
             patch("core.scheduler.Notifier") as mock_notifier_cls,
@@ -56,7 +56,7 @@ class TestStartWsMonitor:
         with (
             patch.object(scheduler.settings, "MOCK_MARKET", False),
             patch.object(scheduler.settings, "PAPER_TRADE", True),
-            patch("core.auth.get_centralized_token", return_value=None),
+            patch("core.scheduler._live_access_token", return_value=None),
             patch("core.scheduler.Notifier", return_value=mock_notifier),
         ):
             assert scheduler._start_ws_monitor() is False
@@ -72,7 +72,7 @@ class TestStartWsMonitor:
         with (
             patch.object(scheduler.settings, "MOCK_MARKET", False),
             patch.object(scheduler.settings, "PAPER_TRADE", False),
-            patch("core.auth.get_centralized_token", return_value="tok"),
+            patch("core.scheduler._live_access_token", return_value="tok"),
             patch("core.scheduler.WheelStateMachine", side_effect=RuntimeError("boom")),
             patch("core.scheduler.Notifier", return_value=mock_notifier),
         ):
@@ -89,6 +89,24 @@ class TestStartWsMonitor:
             scheduler._on_ws_runtime_error("disconnect again")
             mock_notifier.send_notification.assert_called_once()
             assert mock_notifier.send_notification.call_args.kwargs["level"] == "WARNING"
+
+
+class TestLiveAccessToken:
+    def test_returns_token_healed_by_rest_call_not_stale_cache(self):
+        """Overnight-expired token must be refreshed before the WS handshake."""
+        client = MagicMock()
+        client.access_token = "stale-tok"
+
+        def heal():
+            client.access_token = "fresh-tok"  # mirrors UpstoxClient's 401 self-heal
+            return 12.5
+
+        client.get_india_vix.side_effect = heal
+
+        with patch("core.client.UpstoxClient", return_value=client):
+            assert scheduler._live_access_token() == "fresh-tok"
+
+        client.get_india_vix.assert_called_once()
 
 
 class TestRestartWsMonitor:
@@ -121,7 +139,7 @@ class TestRestartWsMonitor:
         with (
             patch.object(scheduler.settings, "MOCK_MARKET", False),
             patch.object(scheduler.settings, "PAPER_TRADE", True),
-            patch("core.auth.get_centralized_token", return_value="fresh-tok"),
+            patch("core.scheduler._live_access_token", return_value="fresh-tok"),
             patch("core.ws_monitor.WebSocketMonitor", return_value=new_monitor) as mon_cls,
             patch("core.scheduler.WheelStateMachine", return_value=mock_wheel),
         ):
@@ -143,7 +161,7 @@ class TestRestartWsMonitor:
 
         with (
             patch.object(scheduler.settings, "MOCK_MARKET", False),
-            patch("core.auth.get_centralized_token", return_value=None),
+            patch("core.scheduler._live_access_token", return_value=None),
             patch("core.scheduler.Notifier", return_value=mock_notifier),
         ):
             assert scheduler._restart_ws_monitor() is False

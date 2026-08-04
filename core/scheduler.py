@@ -55,6 +55,21 @@ def _stop_ws_monitor() -> None:
     _ws_wheel = None
 
 
+def _live_access_token() -> str | None:
+    """Access token proven live by one authenticated REST call.
+
+    Upstox tokens die daily ~03:30 IST while Redis still caches them for 24h,
+    so reading the bus directly hands the WS handshake a dead token (401, and
+    the SDK reports it asynchronously — we just fall back to hourly polling).
+    One cheap GET routes through UpstoxClient's existing 401 self-heal instead.
+    """
+    from core.client import UpstoxClient
+
+    client = UpstoxClient()
+    client.get_india_vix()  # ponytail: any authenticated GET works; VIX is the cheapest
+    return client.access_token
+
+
 def _start_ws_monitor() -> bool:
     """Start real-time exit monitor when market data is available.
 
@@ -70,9 +85,8 @@ def _start_ws_monitor() -> bool:
 
     try:
         from core.ws_monitor import WebSocketMonitor
-        from core.auth import get_centralized_token
 
-        token = get_centralized_token()
+        token = _live_access_token()
         if not token:
             _notify_ws_fallback("No token available for WebSocket monitor.")
             return False
