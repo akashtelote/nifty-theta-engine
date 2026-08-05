@@ -141,6 +141,28 @@ class TestExitParameterization:
         assert wheel.state["Nifty 50"]["current_stage"] == "CLOSED"
 
     @patch("time.sleep", return_value=None)
+    def test_spot_breach_ignored_when_touch_stop_disabled(self, mock_sleep, wheel, mock_client, monkeypatch):
+        """STOP_ON_STRIKE_TOUCH=False must not exit on a touch, but the credit multiple still stops."""
+        from config import settings as settings_mod
+        monkeypatch.setattr(settings_mod.settings, "TP_RESIDUAL_CREDIT_FRACTION", 0.05)
+        monkeypatch.setattr(settings_mod.settings, "SL_CREDIT_MULTIPLE", 10.0)
+        monkeypatch.setattr(settings_mod.settings, "STOP_ON_STRIKE_TOUCH", False)
+        monkeypatch.setattr(settings_mod.settings, "DTE_MANAGE_THRESHOLD", -1)
+        monkeypatch.setattr(settings_mod.settings, "SHORT_DELTA_MANAGE", 0.99)
+        expiry = self._setup(wheel)  # credit = 20
+        mock_client.get_market_quote_ltp.return_value = 21900.0  # <= short strike
+        mock_client.get_option_chain.return_value = self._chain(expiry, 25.0, 10.0)  # cost 15 < 200
+        mock_client.get_order_status.return_value = "complete"
+        mock_client.place_order_by_key.return_value = "PAPER_x"
+        wheel.check_exits()
+        assert wheel.state["Nifty 50"]["current_stage"] == "STAGE_1_CSP"
+
+        # Credit-multiple stop is untouched by the flag: cost 205 >= 10 * 20
+        mock_client.get_option_chain.return_value = self._chain(expiry, 210.0, 5.0)
+        wheel.check_exits()
+        assert wheel.state["Nifty 50"]["current_stage"] == "CLOSED"
+
+    @patch("time.sleep", return_value=None)
     def test_time_stop_weekday_hour(self, mock_sleep, wheel, mock_client, monkeypatch):
         from config import settings as settings_mod
         monkeypatch.setattr(settings_mod.settings, "TP_RESIDUAL_CREDIT_FRACTION", 0.01)

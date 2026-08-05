@@ -1,5 +1,6 @@
 """Tests for the real-time WebSocket exit monitor and debounced tick handler."""
 
+import time
 from datetime import date, timedelta
 from unittest.mock import MagicMock, patch
 
@@ -276,6 +277,41 @@ class TestDebouncedRealtimeTick:
         # Spot breaches short strike (22000) but only one tick
         wheel.on_realtime_tick("NSE_INDEX|Nifty 50", 21950.0)
         mock_client.place_order_by_key.assert_not_called()
+
+    def test_no_exit_when_touch_stop_disabled(self, wheel, mock_client, monkeypatch):
+        """STOP_ON_STRIKE_TOUCH=False must make the real-time monitor inert, debounce included."""
+        from config import settings as settings_mod
+        wheel.state = {
+            "Nifty 50": {
+                "current_stage": "STAGE_1_CSP",
+                "active_position": {
+                    "instrument_key": "NSE_FO|NIFTY22000PE",
+                    "strike": 22000.0,
+                    "entry_price": 50.0,
+                    "expiry": _FUTURE_EXPIRY,
+                    "quantity": 25,
+                    "order_id": "ORD1",
+                },
+                "hedge_position": {
+                    "instrument_key": "NSE_FO|NIFTY21900PE",
+                    "strike": 21900.0,
+                    "entry_price": 30.0,
+                    "expiry": _FUTURE_EXPIRY,
+                    "quantity": 25,
+                    "order_id": "ORD2",
+                },
+                "net_credit_received": 500.0,
+                "realized_pnl": 0.0,
+            }
+        }
+        wheel.refresh_exit_thresholds()
+        # Pre-load a breach old enough that the debounce window has already elapsed,
+        # so the only thing standing between this tick and an exit is the flag.
+        wheel._breach_first_seen["Nifty 50"] = time.monotonic() - wheel.DEBOUNCE_SECONDS - 1
+        monkeypatch.setattr(settings_mod.settings, "STOP_ON_STRIKE_TOUCH", False)
+        wheel.on_realtime_tick("NSE_INDEX|Nifty 50", 21950.0)
+        mock_client.place_order_by_key.assert_not_called()
+        assert wheel._breach_first_seen == {}
 
     def test_ignores_unknown_instrument_key(self, wheel):
         wheel._exit_thresholds = {}

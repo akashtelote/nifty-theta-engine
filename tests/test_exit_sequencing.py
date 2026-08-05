@@ -9,6 +9,8 @@ from datetime import date, timedelta
 import polars as pl
 from unittest.mock import MagicMock, patch
 
+from config.settings import round_trip_fees
+
 _FUTURE_EXPIRY = (date.today() + timedelta(days=30)).isoformat()
 
 
@@ -192,7 +194,7 @@ class TestRealFillPnl:
         # STC filled at 0.90 (worse than bid 1.0 — slippage)
         # actual_cost_to_close = 2.10 - 0.90 = 1.20
         # initial_credit = 50.0 - 30.0 = 20.0
-        # pnl = (20.0 - 1.20) * 25 = 470.0
+        # gross pnl = (20.0 - 1.20) * 25 = 470.0, booked net of round-trip fees
         mock_client.get_order_fill_price.side_effect = lambda oid: 2.10 if oid == "ORD_BTC" else 0.90
 
         # Spy on _archive_trade to capture the P&L it receives
@@ -203,7 +205,7 @@ class TestRealFillPnl:
 
         assert len(archive_calls) == 1
         _, _, recorded_pnl = archive_calls[0]
-        expected_pnl = (20.0 - 1.20) * 25  # 470.0
+        expected_pnl = (20.0 - 1.20) * 25 - round_trip_fees(20.0, 1.20, 25, 1)
         assert abs(recorded_pnl - expected_pnl) < 0.01, f"Expected {expected_pnl}, got {recorded_pnl}"
 
     @patch("time.sleep", return_value=None)
@@ -223,9 +225,9 @@ class TestRealFillPnl:
 
         assert len(archive_calls) == 1
         # Fallback: theoretical cost_to_close = short_ask - long_bid = 2.0 - 1.0 = 1.0
-        # pnl = (20.0 - 1.0) * 25 = 475.0
+        # gross pnl = (20.0 - 1.0) * 25 = 475.0, booked net of round-trip fees
         _, _, recorded_pnl = archive_calls[0]
-        expected_pnl = (20.0 - 1.0) * 25
+        expected_pnl = (20.0 - 1.0) * 25 - round_trip_fees(20.0, 1.0, 25, 1)
         assert abs(recorded_pnl - expected_pnl) < 0.01
 
 

@@ -3,6 +3,8 @@ import pytest
 from datetime import date, timedelta
 from unittest.mock import MagicMock, patch, call
 
+from config.settings import round_trip_fees
+
 
 class TestEnsureSymbolState:
     def test_initializes_new_symbol(self, wheel):
@@ -198,7 +200,9 @@ class TestExpiryAutoClose:
         wheel.check_exits()
         assert wheel.state["Nifty 50"]["current_stage"] == "CLOSED"
         assert wheel.state["Nifty 50"]["active_position"] is None
-        assert wheel.state["Nifty 50"]["realized_pnl"] == 500.0
+        # Max profit is booked net of round-trip fees (gross 20.0 * 25 = 500.0)
+        expected_pnl = 500.0 - round_trip_fees(20.0, 0.0, 25, 1)
+        assert abs(wheel.state["Nifty 50"]["realized_pnl"] - expected_pnl) < 0.01
         mock_client.get_market_quote_ltp.assert_not_called()
         mock_notifier.send_notification.assert_called()
 

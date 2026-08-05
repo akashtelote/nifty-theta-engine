@@ -18,6 +18,7 @@ from config.settings import (
     settings,
     vix_regime_otm,
     get_redis_client,
+    round_trip_fees,
 )
 from config.event_calendar import in_event_blackout
 from core.ivr import ivr_allows_entry
@@ -981,7 +982,16 @@ class WheelStateMachine:
         self._exit_thresholds = thresholds
 
     def on_realtime_tick(self, instrument_key: str, ltp: float):
-        """Handle a real-time LTP tick. Debounces breach detection."""
+        """Handle a real-time LTP tick. Debounces breach detection.
+
+        Strike touch is this monitor's only trigger, so when the touch stop is
+        disabled the whole path is inert — bail at the top and drop any pending
+        debounce so a re-enable cannot fire on a stale breach timestamp.
+        """
+        if not settings.STOP_ON_STRIKE_TOUCH:
+            self._breach_first_seen.clear()
+            return
+
         matched_symbol = None
         for symbol, t in self._exit_thresholds.items():
             if t.get("underlying_key") == instrument_key:
@@ -1135,7 +1145,11 @@ class WheelStateMachine:
         else:
             actual_cost_to_close = theoretical_cost
 
-        pnl = (initial_credit - actual_cost_to_close) * quantity
+        gross_pnl = (initial_credit - actual_cost_to_close) * quantity
+        lot_size = LOT_SIZES.get(symbol) or quantity or 1
+        num_lots = max(quantity // lot_size, 1)
+        fees = round_trip_fees(initial_credit, actual_cost_to_close, lot_size, num_lots)
+        pnl = gross_pnl - fees
 
         # Archive and close — the short is covered regardless of STC outcome
         self._archive_trade(symbol, reason, pnl)
@@ -1153,7 +1167,10 @@ class WheelStateMachine:
             logger.warning(residual_msg)
             self.notifier.send_notification(title="Residual Hedge", message=residual_msg, level="WARNING")
 
-        success_msg = f"Exit completed for {symbol} due to {reason}. P&L: {pnl:.2f}. State updated to CLOSED."
+        success_msg = (
+            f"Exit completed for {symbol} due to {reason}. "
+            f"Gross P&L: {gross_pnl:.2f}, Fees: {fees:.2f}, Net P&L: {pnl:.2f}. State updated to CLOSED."
+        )
         logger.info(success_msg)
         self.notifier.send_notification(title="Exit Complete", message=success_msg, level="INFO")
 
@@ -1186,8 +1203,19 @@ class WheelStateMachine:
                     long_entry_price = hedge_position.get("entry_price", 0.0)
                     initial_credit = short_entry_price - long_entry_price
                     quantity_shares = active_position.get("quantity", LOT_SIZES.get(symbol, 25))
-                    pnl = initial_credit * quantity_shares
-                    msg = f"Position for {symbol} expired on {expiry_date} while bot was offline. Assuming options expired worthless (max profit). P&L: {pnl:.2f}"
+                    gross_pnl = initial_credit * quantity_shares
+                    lot_size = LOT_SIZES.get(symbol) or quantity_shares or 1
+                    num_lots = max(quantity_shares // lot_size, 1)
+                    # Slightly conservative: only the 2 entry orders were actually placed
+                    # (nothing traded to close), so the 4-order round trip over-charges by
+                    # roughly ₹40 flat. Conservative is the right direction here.
+                    fees = round_trip_fees(initial_credit, 0.0, lot_size, num_lots)
+                    pnl = gross_pnl - fees
+                    msg = (
+                        f"Position for {symbol} expired on {expiry_date} while bot was offline. "
+                        f"Assuming options expired worthless (max profit). "
+                        f"Gross P&L: {gross_pnl:.2f}, Fees: {fees:.2f}, Net P&L: {pnl:.2f}"
+                    )
                     logger.warning(msg)
                     self.notifier.send_notification(title="Expired Position Auto-Closed", message=msg, level="WARNING")
                     self._archive_trade(symbol, "Expiry (offline)", pnl)
@@ -1230,7 +1258,9 @@ class WheelStateMachine:
             tp_frac = settings.TP_RESIDUAL_CREDIT_FRACTION
             sl_mult = settings.SL_CREDIT_MULTIPLE
             take_profit = current_cost_to_close <= tp_frac * initial_credit
-            stop_loss = current_cost_to_close >= sl_mult * initial_credit or spot_price <= short_strike
+            stop_loss = current_cost_to_close >= sl_mult * initial_credit or (
+                settings.STOP_ON_STRIKE_TOUCH and spot_price <= short_strike
+            )
 
             now = datetime.now(IST)
             time_stop = (
