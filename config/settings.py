@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     TP_RESIDUAL_CREDIT_FRACTION: float = Field(default=0.50, ge=0.0, le=1.0)
     # Stop loss when cost_to_close >= SL_CREDIT_MULTIPLE * initial_credit
     SL_CREDIT_MULTIPLE: float = Field(default=2.0, ge=1.0)
+    # When True, stop out the moment spot touches the short strike (today's hardcoded
+    # behaviour). A touch fires roughly 2x as often as the strike is actually breached
+    # at expiry, so this is a prime suspect for the negative expectancy — parameterized
+    # here so it can finally be swept. Default True preserves current behaviour.
+    STOP_ON_STRIKE_TOUCH: bool = True
     # Time stop: weekday 0=Mon .. 6=Sun; set < 0 to disable (Stage 6 default)
     TIME_STOP_WEEKDAY: int = Field(default=-1, ge=-1, le=6)
     TIME_STOP_HOUR: int = Field(default=15, ge=0, le=23)
@@ -125,6 +130,7 @@ HEDGE_WIDTH = settings.HEDGE_WIDTH
 MIN_CREDIT_WIDTH_RATIO = settings.MIN_CREDIT_WIDTH_RATIO
 MAX_BID_ASK_SPREAD_PCT = settings.MAX_BID_ASK_SPREAD_PCT
 ALLOW_MIDWEEK_ENTRY = settings.ALLOW_MIDWEEK_ENTRY
+STOP_ON_STRIKE_TOUCH = settings.STOP_ON_STRIKE_TOUCH
 
 _redis_client = None
 
@@ -153,3 +159,43 @@ def vix_regime_otm(vix: float | None) -> tuple[str, float]:
     if vix < settings.VIX_ELEVATED_THRESHOLD:
         return "enter", settings.VIX_NORMAL_OTM_PCT
     return "enter", settings.VIX_ELEVATED_OTM_PCT
+
+
+# --- Trading friction (NSE F&O options, Upstox flat-fee schedule) ---
+# One credit spread round trip = 4 orders: buy hedge + sell short (entry),
+# buy-to-close short + sell-to-close hedge (exit).
+BROKERAGE_PER_ORDER = 20.0       # flat per order, NOT per lot
+ORDERS_PER_ROUND_TRIP = 4
+STT_SELL_PCT = 0.001             # 0.1% of sell-side option premium
+TXN_CHARGE_PCT = 0.0003503       # NSE exchange transaction charge on premium turnover
+GST_PCT = 0.18                   # on brokerage + transaction charges
+
+
+def round_trip_fees(
+    credit: float,
+    cost_to_close: float,
+    lot_size: int,
+    num_lots: int,
+) -> float:
+    """Total rupee cost of one spread round trip: brokerage + STT + txn + GST.
+
+    Excludes bid-ask slippage, which is modelled separately as a points haircut on
+    the credit and the cost to close (slippage scales with size; these fees mostly
+    do not, so they are kept distinct).
+
+    Brokerage is flat per ORDER, so it amortizes across lots: at 20 lots it is
+    about ₹4/lot, at 1 lot it is ₹80/lot. This is why backtesting 1 lot while the
+    bot trades 20 gets the cost structure badly wrong.
+    """
+    brokerage = BROKERAGE_PER_ORDER * ORDERS_PER_ROUND_TRIP
+
+    # ponytail: statutory charges approximated off net spread value, not per-leg premium.
+    # STT+txn are ~5% of total friction (flat brokerage and slippage dominate), so the
+    # error here is well under ₹1/lot. Pass per-leg premiums if that stops being true.
+    turnover = (abs(credit) + abs(cost_to_close)) * lot_size * num_lots
+    stt = STT_SELL_PCT * turnover
+    txn_charges = TXN_CHARGE_PCT * turnover
+
+    gst = GST_PCT * (brokerage + txn_charges)
+
+    return brokerage + stt + txn_charges + gst
