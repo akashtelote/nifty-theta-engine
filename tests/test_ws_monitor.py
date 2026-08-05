@@ -23,6 +23,53 @@ class TestWebSocketMonitor:
         monitor.start()
         mock_streamer.connect.assert_called_once()
 
+    def test_start_does_not_subscribe_before_open(self):
+        """connect() is async — subscribing before the open event hits a dead socket."""
+        monitor, mock_streamer, _ = self._make_monitor()
+        monitor.start()
+        monitor.update_subscriptions({"NSE_INDEX|Nifty 50"})
+        mock_streamer.subscribe.assert_not_called()
+        assert not monitor.is_alive()
+
+    def test_open_event_applies_queued_subscriptions(self):
+        monitor, mock_streamer, _ = self._make_monitor()
+        monitor.start()
+        monitor.update_subscriptions({"NSE_INDEX|Nifty 50"})
+        monitor._on_open()
+        assert set(mock_streamer.subscribe.call_args[0][0]) == {"NSE_INDEX|Nifty 50"}
+        assert monitor.is_alive()
+
+    def test_reconnect_resubscribes_after_close(self):
+        monitor, mock_streamer, _ = self._make_monitor()
+        monitor._on_open()
+        monitor.update_subscriptions({"KEY_A"})
+        monitor._on_close(1006, "lost")
+        assert not monitor.is_alive()
+        mock_streamer.subscribe.reset_mock()
+        monitor._on_open()  # SDK auto-reconnect
+        assert set(mock_streamer.subscribe.call_args[0][0]) == {"KEY_A"}
+
+    def test_failed_subscribe_retries_on_next_update(self):
+        monitor, mock_streamer, _ = self._make_monitor()
+        monitor._on_open()
+        mock_streamer.subscribe.side_effect = Exception("WebSocket is not open.")
+        monitor.update_subscriptions({"KEY_A"})
+        assert monitor._subscribed_keys == set()
+        mock_streamer.subscribe.side_effect = None
+        monitor.update_subscriptions({"KEY_A"})
+        assert set(mock_streamer.subscribe.call_args[0][0]) == {"KEY_A"}
+
+    def test_transient_error_does_not_alert(self):
+        """Only autoReconnectStopped means we're actually offline."""
+        monitor, _, _ = self._make_monitor()
+        on_error = MagicMock()
+        monitor._on_error_cb = on_error
+        monitor._on_error("Connection to remote host was lost.")
+        on_error.assert_not_called()
+        monitor._on_reconnect_stopped("retryCount of 5 exhausted.")
+        on_error.assert_called_once()
+        assert not monitor.is_alive()
+
     def test_stop_calls_streamer_disconnect(self):
         monitor, mock_streamer, _ = self._make_monitor()
         monitor.start()

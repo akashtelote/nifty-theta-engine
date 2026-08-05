@@ -39,8 +39,21 @@ def _notify_ws_fallback(reason: str, notifier: Notifier | None = None) -> None:
 
 
 def _on_ws_runtime_error(error) -> None:
-    """Callback when the live streamer errors — alert once, keep hourly poll."""
-    _notify_ws_fallback(f"WebSocket monitor error: {error}.")
+    """Callback when the streamer gives up reconnecting — alert once, keep hourly poll."""
+    _notify_ws_fallback(f"WebSocket monitor gave up reconnecting: {error}.")
+
+
+def _on_ws_connected() -> None:
+    """Socket came back (auto-reconnect or restart) — re-arm the fallback alert."""
+    global _ws_fallback_alerted
+    if not _ws_fallback_alerted:
+        return
+    _ws_fallback_alerted = False
+    Notifier().send_notification(
+        title="WebSocket Monitor Restored",
+        message="Market data stream reconnected. Real-time exits are active again.",
+        level="INFO",
+    )
 
 
 def _stop_ws_monitor() -> None:
@@ -77,7 +90,7 @@ def _start_ws_monitor() -> bool:
     Paper orders remain PAPER_* via the client; this only enables tick-driven exits.
     Returns True if the monitor started successfully.
     """
-    global _ws_wheel, _ws_monitor, _ws_fallback_alerted
+    global _ws_wheel, _ws_monitor
 
     if settings.MOCK_MARKET:
         logger.info("MOCK_MARKET enabled — skipping WebSocket monitor (hourly exits only).")
@@ -98,10 +111,11 @@ def _start_ws_monitor() -> bool:
             access_token=token,
             on_tick=_ws_wheel.on_realtime_tick,
             on_error=_on_ws_runtime_error,
+            on_open=_on_ws_connected,
         )
         _ws_monitor.start()
+        # Queued now, applied by the monitor once the socket's "open" event fires.
         _ws_monitor.update_subscriptions(_ws_wheel.active_instrument_keys())
-        _ws_fallback_alerted = False
         logger.info(
             "Real-time WebSocket monitor active with exit thresholds "
             f"(paper_trade={settings.PAPER_TRADE})."
@@ -113,14 +127,14 @@ def _start_ws_monitor() -> bool:
 
 
 def _restart_ws_monitor() -> bool:
-    """Morning reconnect before the open — fresh token + clear overnight fallback lock-in.
+    """Tear down and reconnect with a fresh token.
 
-    Scheduled Mon–Fri 08:55 IST so real-time exits are restored before the 09:00 poll.
+    Scheduled Mon–Fri 08:55 IST (overnight drops) and retried hourly from
+    _run_exits whenever the socket is down. The fallback alert flag is cleared
+    by _on_ws_connected on success, so repeated failures do not spam Discord.
     """
-    logger.info("Morning WebSocket restart — reconnecting market data stream.")
-    global _ws_fallback_alerted
+    logger.info("Restarting WebSocket monitor — reconnecting market data stream.")
     _stop_ws_monitor()
-    _ws_fallback_alerted = False
     return _start_ws_monitor()
 
 
@@ -192,6 +206,12 @@ def _run_exits():
         logger.error(f"Same-week re-entry failed: {e}", exc_info=True)
 
     logger.info("Exit evaluation completed.")
+
+    # Re-arm real-time exits if the stream died mid-session (don't wait for 08:55).
+    if not settings.MOCK_MARKET and (_ws_monitor is None or not _ws_monitor.is_alive()):
+        logger.warning("WebSocket monitor is down — attempting reconnect.")
+        _restart_ws_monitor()
+
     _refresh_realtime_state()
 
 def _check_missed_entry():

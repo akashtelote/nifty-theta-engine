@@ -127,7 +127,7 @@ class TestRestartWsMonitor:
         assert scheduler._ws_monitor is None
         assert scheduler._ws_wheel is None
 
-    def test_restart_stops_old_clears_fallback_and_starts(self):
+    def test_restart_stops_old_and_starts(self):
         old_monitor = MagicMock()
         new_monitor = MagicMock()
         mock_wheel = MagicMock()
@@ -150,11 +150,23 @@ class TestRestartWsMonitor:
         assert mon_cls.call_args.kwargs["access_token"] == "fresh-tok"
         new_monitor.start.assert_called_once()
         new_monitor.update_subscriptions.assert_called_once_with({"NSE_INDEX|Nifty 50"})
-        assert scheduler._ws_fallback_alerted is False
+        assert mon_cls.call_args.kwargs["on_open"] is scheduler._on_ws_connected
         assert scheduler._ws_monitor is new_monitor
 
-    def test_restart_after_overnight_error_allows_new_alert_on_failure(self):
-        """Fallback flag must clear so a failed morning restart can alert again."""
+    def test_connected_callback_clears_fallback_and_notifies(self):
+        """Only a real socket open clears the flag — and tells Discord we're back."""
+        mock_notifier = MagicMock()
+        scheduler._ws_fallback_alerted = True
+
+        with patch("core.scheduler.Notifier", return_value=mock_notifier):
+            scheduler._on_ws_connected()
+            scheduler._on_ws_connected()  # already clear — must stay quiet
+
+        assert scheduler._ws_fallback_alerted is False
+        mock_notifier.send_notification.assert_called_once()
+
+    def test_failed_restart_while_alerted_does_not_respam(self):
+        """Hourly re-arm retries must not fire a Discord alert per attempt."""
         mock_notifier = MagicMock()
         scheduler._ws_fallback_alerted = True
         scheduler._ws_monitor = MagicMock()
@@ -166,5 +178,5 @@ class TestRestartWsMonitor:
         ):
             assert scheduler._restart_ws_monitor() is False
 
-        mock_notifier.send_notification.assert_called_once()
+        mock_notifier.send_notification.assert_not_called()
         assert scheduler._ws_fallback_alerted is True
