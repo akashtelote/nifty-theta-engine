@@ -27,6 +27,7 @@ import numpy as np
 import polars as pl
 
 from config.event_calendar import in_event_blackout
+from config.settings import round_trip_fees
 from core.chain_loader import chain_files_available, load_option_chains
 from core.ivr import ivr_allows_entry
 from core.trend_filter import sma, trend_allows_entry
@@ -44,7 +45,11 @@ class PCSParams:
     dte_manage: int = 7
     short_delta_manage: float = 0.30
     otm_pct: float = 0.01
+    otm_floor_extra: float = 0.02  # tracks wheel_strategy._find_credit_spread hardcode
     hedge_width: float = DEFAULT_HEDGE_WIDTH
+    stop_on_touch: bool = True
+    slippage_points: float = 1.5  # per-side bid-ask haircut vs the BS mid we price at
+    allocation_pct: float = 1.0  # tracks scheduler ALLOCATION_PCT_PER_TRADE
     target_delta: float = 0.18
     min_credit_width: float = 0.15
     entry_weekday: int = 4  # Friday
@@ -221,8 +226,10 @@ def _select_strikes(
     t = params.dte_entry / 365.0
     vol = vix / 100.0
     best = None
+    # Same band the live bot searches (wheel_strategy._find_credit_spread).
     ceiling = spot * (1.0 - params.otm_pct)
-    for k in np.arange(_round_strike(ceiling), _round_strike(spot * 0.92) - 1, -50.0):
+    floor = spot * (1.0 - max(params.otm_pct * 2.5, params.otm_pct + params.otm_floor_extra))
+    for k in np.arange(_round_strike(ceiling), _round_strike(floor) - 1, -50.0):
         delta = abs(bs_put_delta(spot, float(k), t, vol))
         long_k = float(k) - params.hedge_width
         if long_k <= 0:
@@ -239,6 +246,9 @@ def _select_strikes(
         if best is None or score < best[0]:
             best = (score, float(k), long_k, credit)
     if best is None:
+        # Live falls back to "any strike <= ceiling" only when the band holds no
+        # strikes at all; on a 50-point grid the band is never empty, so the only
+        # fallback that can fire here is the ceiling strike itself.
         short_k = _round_strike(spot * (1.0 - params.otm_pct))
         long_k = short_k - params.hedge_width
         credit = bs_put_price(spot, short_k, t, vol) - bs_put_price(spot, long_k, t, vol)
@@ -273,6 +283,7 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
     trades: list[TradeRecord] = []
     in_trade = False
     short_k = long_k = credit = 0.0
+    num_lots = 0
     entry_d: date | None = None
     expiry_d: date | None = None
     vix_hist: list[float] = []
@@ -291,12 +302,17 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
         if not in_trade:
             if d.weekday() != params.entry_weekday:
                 continue
-            if equity < params.hedge_width * params.lot_size:
-                continue
             sel = _select_strikes(spot, vix, params, vix_hist[-252:], spot_hist, d)
             if sel is None:
                 continue
             short_k, long_k, credit = sel
+            # Sizing parity with wheel_strategy: lots = floor(budget / width×lot).
+            required_capital_per_lot = (short_k - long_k) * params.lot_size
+            if required_capital_per_lot <= 0:
+                continue
+            num_lots = math.floor(equity * params.allocation_pct / required_capital_per_lot)
+            if num_lots == 0:
+                continue
             entry_d = d
             expiry_d = d + timedelta(days=params.dte_entry)
             in_trade = True
@@ -309,7 +325,7 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
         reason = None
         if ctc <= params.tp_residual * credit:
             reason = "Take Profit"
-        elif ctc >= params.sl_multiple * credit or spot <= short_k:
+        elif ctc >= params.sl_multiple * credit or (params.stop_on_touch and spot <= short_k):
             reason = "Stop Loss"
         elif abs_delta >= params.short_delta_manage:
             reason = "Delta Manage"
@@ -324,9 +340,16 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
         if reason is None:
             continue
 
-        pnl = (credit - ctc) * params.lot_size
-        max_loss = (params.hedge_width - credit) * params.lot_size
-        pnl = max(pnl, -max_loss)
+        qty = params.lot_size * num_lots
+        # Max loss is a structural property of the spread (width - credit), so the
+        # clamp goes on the raw market P&L. Slippage and fees are friction paid on
+        # top of that floor — subtract them after the clamp, or a max-loss trade
+        # would come out looking free of both.
+        market_pnl = max((credit - ctc) * qty, -(params.hedge_width - credit) * qty)
+        # Nothing is traded to close when the spread expires worthless: no exit haircut.
+        exit_traded = not (reason == "Expiry" and ctc <= 0.0)
+        slippage = params.slippage_points * qty * (2 if exit_traded else 1)
+        pnl = market_pnl - slippage - round_trip_fees(credit, ctc, params.lot_size, num_lots)
         equity += pnl
         peak = max(peak, equity)
         max_dd = max(max_dd, peak - equity)
@@ -355,18 +378,35 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
     )
 
 
-def sweep_exit_params(df: pl.DataFrame | None = None) -> list[dict[str, Any]]:
+def sweep_exit_params(
+    df: pl.DataFrame | None = None,
+    slippage_points: float = PCSParams.slippage_points,
+) -> list[dict[str, Any]]:
+    """Sweep the untested levers: touch-stop x hedge width x take-profit (18 cells).
+
+    sl_multiple/dte_manage stay at defaults — the full cross product is >100 cells
+    of mostly noise.
+    """
     df = df if df is not None else synthetic_spot_path()
+    defaults = PCSParams()
     grid = []
-    for tp in (0.25, 0.35, 0.50):
-        for sl in (1.5, 2.0, 2.5):
-            for dte_m in (-1, 7):
-                params = PCSParams(tp_residual=tp, sl_multiple=sl, dte_manage=dte_m, time_stop_weekday=-1)
+    for touch in (True, False):
+        for width in (100.0, 200.0, 300.0):
+            for tp in (0.25, 0.50, 0.75):
+                params = PCSParams(
+                    tp_residual=tp,
+                    hedge_width=width,
+                    stop_on_touch=touch,
+                    slippage_points=slippage_points,
+                    time_stop_weekday=-1,
+                )
                 res = run_pcs_backtest(df, params)
                 grid.append({
+                    "stop_on_touch": touch,
+                    "hedge_width": width,
                     "tp_residual": tp,
-                    "sl_multiple": sl,
-                    "dte_manage": dte_m,
+                    "sl_multiple": defaults.sl_multiple,
+                    "dte_manage": defaults.dte_manage,
                     **res.as_dict(),
                 })
     grid.sort(
@@ -453,7 +493,12 @@ def main():
     parser.add_argument("--start", default="2022-01-01")
     parser.add_argument("--days", type=int, default=756)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--slippage", type=float, default=PCSParams.slippage_points,
+        help="Per-side bid-ask haircut in index points (0 isolates the parity fixes)",
+    )
     args = parser.parse_args()
+    params = PCSParams(slippage_points=args.slippage)
 
     if args.from_yahoo or args.walk_forward:
         try:
@@ -468,11 +513,14 @@ def main():
         model = "synthetic GBM + VIX-calibrated BS"
 
     chain_note = " + option_chains parquet" if chain_files_available() else ""
-    print(f"PCS backtest | capital=INR {INITIAL_CAPITAL:,.0f} | lot={NIFTY_LOT} | width={DEFAULT_HEDGE_WIDTH}")
+    print(
+        f"PCS backtest | capital=INR {INITIAL_CAPITAL:,.0f} | lot={NIFTY_LOT} | "
+        f"width={DEFAULT_HEDGE_WIDTH} | alloc={params.allocation_pct:.0%} | slippage={args.slippage}pt/side"
+    )
     print(f"Model: {model}{chain_note}\n")
 
     if args.walk_forward:
-        folds = walk_forward(df, params=PCSParams())
+        folds = walk_forward(df, params=params)
         print(f"{'Fold':>4} {'Start':>12} {'Trades':>7} {'Win%':>7} {'TotalPnL':>10} {'PF':>6}")
         for f in folds:
             print(
@@ -485,21 +533,22 @@ def main():
         return
 
     if args.sweep:
-        grid = sweep_exit_params(df)
-        print(f"{'TP':>5} {'SL':>5} {'DTE':>4} {'Trades':>7} {'Win%':>7} {'PF':>6} {'TotalPnL':>10} {'Ruin':>6}")
-        for row in grid[:15]:
+        grid = sweep_exit_params(df, slippage_points=args.slippage)
+        print(f"{'Touch':>6} {'Width':>6} {'TP':>5} {'Trades':>7} {'Win%':>7} {'PF':>6} {'TotalPnL':>11} {'Ruin':>6}")
+        for row in grid[:18]:
             print(
-                f"{row['tp_residual']:5.2f} {row['sl_multiple']:5.1f} {row['dte_manage']:4d} "
+                f"{str(row['stop_on_touch']):>6} {row['hedge_width']:6.0f} {row['tp_residual']:5.2f} "
                 f"{row['total_trades']:7d} {row['win_rate']:6.1f}% {row['profit_factor']:6.2f} "
-                f"{row['total_pnl']:10.1f} {row['ruin_proxy']:6.2f}"
+                f"{row['total_pnl']:11.1f} {row['ruin_proxy']:6.2f}"
             )
         best = grid[0]
         print("\nBest by profit_factor:", {k: best[k] for k in (
-            "tp_residual", "sl_multiple", "dte_manage", "profit_factor", "total_pnl", "ruin_proxy"
+            "stop_on_touch", "hedge_width", "tp_residual", "sl_multiple", "dte_manage",
+            "profit_factor", "total_pnl", "ruin_proxy"
         )})
         return
 
-    res = run_pcs_backtest(df, PCSParams())
+    res = run_pcs_backtest(df, params)
     print(f"Trades: {res.total_trades}")
     print(f"Win rate: {res.win_rate:.1f}%")
     print(f"Profit factor: {res.profit_factor:.2f}")
