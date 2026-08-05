@@ -58,7 +58,12 @@ class Settings(BaseSettings):
     # --- IVR gate (PROF-016) ---
     SKIP_LOW_IVR: bool = True
     IVR_LOOKBACK_DAYS: int = Field(default=252, ge=20)
-    IVR_MIN_PERCENTILE: float = Field(default=50.0, ge=0.0, le=100.0)
+    # 30, not 50: at 50 the gate cut 62% of entries whose per-trade expectancy was
+    # statistically indistinguishable from the ones it kept (bootstrap 95% CI on the
+    # difference straddled zero), so it was shedding return without improving quality.
+    # 30 keeps a tail-guard against genuinely dead vol; MIN_CREDIT_WIDTH_RATIO does the
+    # real premium filtering on credit actually received at fill time.
+    IVR_MIN_PERCENTILE: float = Field(default=30.0, ge=0.0, le=100.0)
 
     # --- Left-tail (PROF-018) ---
     EVENT_BLACKOUT_ENABLED: bool = True

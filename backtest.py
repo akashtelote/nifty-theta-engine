@@ -50,7 +50,7 @@ class PCSParams:
     entry_weekday: int = 4  # Friday
     dte_entry: int = 21
     vix_max: float = 22.0
-    ivr_min: float = 50.0
+    ivr_min: float = 30.0  # tracks settings.IVR_MIN_PERCENTILE
     skip_low_ivr: bool = True
     trend_sma_days: int = 50
     trend_filter: bool = True

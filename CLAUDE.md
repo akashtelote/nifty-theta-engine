@@ -51,7 +51,7 @@ STAGE_2_CC ──[Called Away]──> IDLE
 CLOSED ──[Next cycle / same-week re-entry if TP]──> IDLE
 ```
 
-Entry gates (Stage 6): VIX≤22, IVR≥50th pct, event blackout clear, spot≥SMA50, min credit/width 0.15.
+Entry gates (Stage 6): VIX≤22, IVR≥30th pct, event blackout clear, spot≥SMA50, min credit/width 0.15.
 ## Commands
 
 ```bash

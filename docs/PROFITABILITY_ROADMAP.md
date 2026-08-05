@@ -334,7 +334,7 @@ yfinance `^NSEI`/`^INDIAVIX` paths + VIX-calibrated BS; optional `data/option_ch
 
 **Status:** DONE
 
-`SKIP_LOW_IVR`, `IVR_LOOKBACK_DAYS`, `IVR_MIN_PERCENTILE` (default 50). Cached VIX history in `data/india_vix_history.json`. Discord INFO on skip.
+`SKIP_LOW_IVR`, `IVR_LOOKBACK_DAYS`, `IVR_MIN_PERCENTILE` (default 30, was 50 — see PROF-020). Cached VIX history in `data/india_vix_history.json`. Discord INFO on skip.
 
 ### PROF-017: Exit policy retune
 
@@ -360,6 +360,42 @@ Event blackout (`config/event_calendar.py`), SMA50 trend filter, `VIX_MAX_THRESH
 
 `ALLOW_SAME_WEEK_REENTRY=True` (cap 1/week via Redis after Take Profit). `ALLOW_MIDWEEK_ENTRY=True` still gated by IVR + event + trend + midweek VIX band.
 
+### PROF-020: IVR gate retune (50 → 30)
+
+**Status:** DONE (2026-08-05)
+
+Triggered by a live `IVR 44.0 < min 50.0` entry skip. Swept `ivr_min` through
+`run_pcs_backtest` on real `^NSEI`/`^INDIAVIX` 2021-01 → 2026-08:
+
+| ivr_min | Trades | Win% | PF | Total P&L | Ruin |
+|---------|--------|------|------|-----------|------|
+| off | 113 | 73.5% | 1.62 | ₹8,397 | 6.0% |
+| 25 | 66 | 72.7% | 1.50 | ₹4,324 | 6.0% |
+| **30** | 61 | 70.5% | 1.36 | ₹3,058 | 6.0% |
+| 40 | 49 | 69.4% | 1.26 | ₹1,878 | 5.4% |
+| 50 (old) | 43 | 72.1% | 1.40 | ₹2,399 | 4.0% |
+
+Bootstrap (20k resamples) on per-trade P&L, gate off vs 50: diff `+18.4`,
+95% CI `[-101.6, +145.0]`, P(off>on) 61%. **The gate was not selecting better
+trades, only fewer** — it discarded 62% of entries whose expectancy was
+statistically indistinguishable from those it kept. Gate held VIX below its own
+252d median, so low-vol regimes produced long droughts: a 30-consecutive-Friday
+blackout 2025-06-20 → 2026-01-16.
+
+Caveats on this evidence:
+- n=43 in the gated arm; the sweep is non-monotonic (50 scores above 35/40), so
+  individual rows are noise-dominated. Only the trade-count effect is robust.
+- Backtest prices at BS(VIX), so IV-richness-vs-realized — what IVR proxies for —
+  is only partly modelled. This biases *against* finding IVR value; the result
+  says this implementation doesn't pay its opportunity cost, not that the concept
+  is wrong.
+- `MIDWEEK_VIX_MIN=16` is untested here (`entry_weekday=4` is hardcoded, so the
+  midweek path never enters the sim). Left at 16 deliberately. It is inert
+  whenever VIX < 16, which covers most of the current regime.
+
+**Open:** 2026 YTD is negative in both arms (PF 0.45 ungated / 0.40 gated) — the
+base strategy, not the entry gate, is the live problem.
+
 ---
 
 ## Chosen defaults (after Stage 6)
@@ -376,5 +412,5 @@ Event blackout (`config/event_calendar.py`), SMA50 trend filter, `VIX_MAX_THRESH
 | Hedge width | 100 pts | **100** | 100×25 ≤ ₹50k |
 | Min credit/width | 0.12 | **0.15** | Reject thin credits |
 | VIX crisis skip | 25 | **22** | Tighter left-tail |
-| IVR min percentile | n/a | **50** | Sell rich vol only |
+| IVR min percentile | n/a | **30** | Retuned in PROF-020 |
 | Midweek / re-entry | off | **on (gated)** | IVR+filters required |
