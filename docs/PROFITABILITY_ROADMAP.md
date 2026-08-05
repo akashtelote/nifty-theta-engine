@@ -398,6 +398,67 @@ base strategy, not the entry gate, is the live problem.
 
 ---
 
+### PROF-021: Measurement rebuild — the tuning target was wrong
+
+**Status:** OPEN. Do not tune further until the slippage question below is answered.
+
+PROF-001..020 were all ranked on a backtest that did not simulate this bot. Three
+divergences, now fixed:
+
+| | backtest was | live is | effect |
+|---|---|---|---|
+| Strike band | searched to `spot*0.92` | clamped to `spot*0.97` | ranked trades the bot cannot take |
+| Sizing | always 1 lot | `floor(budget/width·lot)` @ `allocation_pct=1.0` → 20 lots | understated drawdown ~20× |
+| Friction | none | brokerage + STT + txn + GST + bid-ask | see curve |
+
+Friction now modelled: `round_trip_fees()` in `config/settings.py` (flat ₹20/order ×4,
+STT 0.1% sell-side, txn 0.03503%, GST 18% on brokerage+txn) plus `slippage_points`,
+a per-side points haircut on entry credit and exit cost. Both are also subtracted
+from live `realized_pnl` — `trade_history` and the dashboard were reporting gross.
+
+**Friction sensitivity, real `^NSEI`/`^INDIAVIX` 2021-01 → 2026-08, 65 trades:**
+
+| slippage/side | PF | Total P&L | ruin_proxy |
+|---|---|---|---|
+| 0 | 1.38 | +65,688 | 0.64 |
+| 0.5 | 1.09 | +15,646 | 0.88 |
+| **0.6 (breakeven)** | **~1.00** | **~0** | ~0.92 |
+| 0.75 | 0.95 | −7,135 | 0.96 |
+| 1.0 | 0.87 | −19,228 | 0.98 |
+| 1.5 | 0.69 | −35,786 | 1.05 |
+| 2.0 | 0.57 | −43,025 | 1.10 |
+
+2026 YTD after the rebuild: PF 0.22, −₹31,033 (was 0.40 on the 1-lot model — the
+model and the live book now disagree by less than tuning noise).
+
+**Decision gate — failed on all three criteria:** net PF ≥ 1.2 (actual 0.57 @ slip 2),
+2026 net P&L > 0 (actual −31,033), ruin_proxy ≤ 0.20 (actual 1.10).
+
+Findings, in order of leverage:
+
+1. **`allocation_pct=1.0` in `core/scheduler.py:18` is the acute risk.** It puts the
+   whole account in one spread; `ruin_proxy` ≥ 0.64 even at zero slippage. The
+   `ALLOCATION_PCT_PER_TRADE=0.15` default in settings exists and is never read.
+2. **The edge dies at ~0.6 points of slippage per side.** `EXIT_SLIPPAGE_BUFFER_PCT
+   =0.02` alone is ~0.6 pts on a 30-pt option, before any bid-ask crossing. The
+   strategy is priced to lose at its own configured execution quality.
+3. **`STOP_ON_STRIKE_TOUCH` is inert, not the culprit.** `ctc >= 2.0×credit` always
+   trips before spot reaches the short strike at credit/width ≥ 0.15 on a 100-wide
+   spread. Disabling *both* stops (`sl_multiple=99`) took 2021-26 from PF 0.79 to
+   1.02 — the SL multiple is what harvests the losses.
+4. Sweep ranked `hedge_width=300` best; every 100-wide cell was negative. Per-leg
+   friction against 3× the credit. `PF 1.02–1.03` at n=65 is inside noise — read as
+   absence of a large loss, not as an edge.
+
+**Next step is a measurement, not a tune:** paper mode already logs fills. Measure
+realized slippage per side against the 0.6 breakeven. Everything else is downstream
+of that number.
+
+Unchanged caveat (see ISS-019): still BS(VIX) with no skew, so IV-richness is only
+partly modelled. These rank configurations; they are not absolute expectancy.
+
+---
+
 ## Chosen defaults (after Stage 6)
 
 | Parameter | Pre-sweep code | Stage 6 default | Notes |
