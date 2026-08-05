@@ -436,9 +436,10 @@ model and the live book now disagree by less than tuning noise).
 
 Findings, in order of leverage:
 
-1. **`allocation_pct=1.0` in `core/scheduler.py:18` is the acute risk.** It puts the
+1. **FIXED (2026-08-06):** `allocation_pct=1.0` in `core/scheduler.py:18` put the
    whole account in one spread; `ruin_proxy` ≥ 0.64 even at zero slippage. The
-   `ALLOCATION_PCT_PER_TRADE=0.15` default in settings exists and is never read.
+   `ALLOCATION_PCT_PER_TRADE=0.15` default in settings existed but was never read —
+   `TARGET_SYMBOLS` now sources it from settings instead of hardcoding `1.0`.
 2. **The edge dies at ~0.6 points of slippage per side.** `EXIT_SLIPPAGE_BUFFER_PCT
    =0.02` alone is ~0.6 pts on a 30-pt option, before any bid-ask crossing. The
    strategy is priced to lose at its own configured execution quality.
@@ -453,6 +454,14 @@ Findings, in order of leverage:
 **Next step is a measurement, not a tune:** paper mode already logs fills. Measure
 realized slippage per side against the 0.6 breakeven. Everything else is downstream
 of that number.
+
+**2026-08-06:** entry-side fill quality was already logged (`PAPER fill quality`,
+`wheel_strategy.py`), but exit-side wasn't — `_execute_exit` computed
+`actual_cost_to_close` vs `theoretical_cost` and discarded the comparison. Added a
+matching `PAPER fill quality ... (exit)` log line with `slippage_per_leg`. No
+historical run data exists to mine (stdout-only logging, nothing persisted) — this
+starts accumulating from the next paper session onward. Still needed: let paper mode
+run and pull both log lines to get an actual number against the 0.6pt breakeven.
 
 Unchanged caveat (see ISS-019): still BS(VIX) with no skew, so IV-richness is only
 partly modelled. These rank configurations; they are not absolute expectancy.

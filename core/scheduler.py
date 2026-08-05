@@ -8,14 +8,14 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from strategies.wheel_strategy import WheelStateMachine
 from core.notifier import Notifier
-from config.settings import LOT_SIZES, settings
+from config.settings import ALLOCATION_PCT_PER_TRADE, LOT_SIZES, settings
 
 logger = logging.getLogger(__name__)
 
 HEARTBEAT_URL = os.getenv("HEARTBEAT_URL")
 
 TARGET_SYMBOLS = {
-    "Nifty 50": {"allocation_pct": 1.0}
+    "Nifty 50": {"allocation_pct": ALLOCATION_PCT_PER_TRADE}
 }
 
 _ws_wheel: WheelStateMachine | None = None

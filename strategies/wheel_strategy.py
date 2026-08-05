@@ -1145,6 +1145,13 @@ class WheelStateMachine:
         else:
             actual_cost_to_close = theoretical_cost
 
+        if self.client.is_paper_trade:
+            logger.info(
+                f"PAPER fill quality {symbol} (exit): theoretical_cost={theoretical_cost:.2f}, "
+                f"actual_cost_to_close={actual_cost_to_close:.2f}, "
+                f"slippage_per_leg={(actual_cost_to_close - theoretical_cost) / 2:.2f}"
+            )
+
         gross_pnl = (initial_credit - actual_cost_to_close) * quantity
         # round_trip_fees uses lot_size × num_lots only as a product, so passing total
         # shares directly is exact — and unlike deriving lots via floor division, it
