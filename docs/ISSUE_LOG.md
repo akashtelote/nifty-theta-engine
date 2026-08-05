@@ -2,7 +2,7 @@
 
 Known issues, bugs, technical debt, and planned enhancements in the Nifty Theta Engine.
 
-Last updated: 2026-08-02
+Last updated: 2026-08-06
 
 Profitability / expectancy work is tracked separately in [`PROFITABILITY_ROADMAP.md`](PROFITABILITY_ROADMAP.md) (`PROF-*` stages under a ₹50,000 capital constraint).
 
@@ -138,43 +138,27 @@ Profitability / expectancy work is tracked separately in [`PROFITABILITY_ROADMAP
 
 ## Enhancements
 
-### ENH-001: No test suite
+### ENH-001: No test suite — FIXED
 
-**Severity:** High — no automated verification of any logic
-
-The system has a money-handling state machine with zero automated tests. All fixes and features are validated only through manual paper trading. State transitions, exit logic, VIX circuit breaker, position sizing, hedge unwinding, and exit verification are all unverified by automated tests.
-
-**Fix:** Add pytest suite covering state machine transitions, exit logic, VIX breaker, position sizing, and hedge unwinding with mocked UpstoxClient.
+**Status:** Fixed — `tests/` now covers state machine, exit sequencing, scheduler, client, auth, settings, and profitability logic (`test_wheel_strategy.py`, `test_exit_sequencing.py`, `test_scheduler.py`, `test_client.py`, `test_auth.py`, `test_settings.py`, `test_stage6.py`, `test_profitability.py`, `test_ws_monitor.py`).
 
 ---
 
-### ENH-002: No position reconciliation on startup
+### ENH-002: No position reconciliation on startup — FIXED
 
-**Severity:** High — DB state can drift from broker positions
-
-If the bot crashes between Leg 1 filling and Leg 2 (or mid-exit), the database state won't match the broker's actual positions. Nothing detects this drift on restart. Dangling legs that the automated unwind couldn't handle (because the process died) remain invisible.
-
-**Fix:** Add `reconcile_positions()` that queries Upstox's real positions endpoint on startup and compares against `index_spread_state`. Alert on mismatches.
+**Status:** Fixed — `reconcile_positions()` in `strategies/wheel_strategy.py:271`, called from `core/scheduler.py:324` on startup.
 
 ---
 
-### ENH-003: No concurrency guard against double-entry
+### ENH-003: No concurrency guard against double-entry — FIXED
 
-**Severity:** High — duplicate spreads possible
-
-The `_check_missed_entry()` startup logic can race with the scheduled Friday 15:15 job if the bot restarts at 15:14 on Friday. There's also no lock between entry and exit jobs. Multiple concurrent `execute_daily_cycle` calls could place duplicate spreads.
-
-**Fix:** Add a PostgreSQL advisory lock around `execute_daily_cycle` to prevent concurrent execution per symbol.
+**Status:** Fixed — `pg_try_advisory_lock(hashtext(symbol))` in `strategies/wheel_strategy.py:672` around entry execution.
 
 ---
 
-### ENH-004: Pure MARKET exits risk slippage on illiquid strikes
+### ENH-004: Pure MARKET exits risk slippage on illiquid strikes — FIXED
 
-**Severity:** Medium — unbounded slippage on exits
-
-The ISS-006 fix uses `MARKET` orders for exits. On illiquid Nifty option strikes, market orders can fill at significantly worse prices. A marketable-limit approach (limit at `ask + buffer` for buys, `bid - buffer` for sells) guarantees fill near touch without unbounded slippage.
-
-**Fix:** Use marketable-limit pricing for exit orders: price at live quote + configurable buffer percentage.
+**Status:** Fixed — `_execute_exit` places `LIMIT` orders priced at live quote ± `EXIT_SLIPPAGE_BUFFER_PCT` (marketable-limit), not `MARKET`.
 
 ---
 
@@ -184,23 +168,15 @@ The ISS-006 fix uses `MARKET` orders for exits. On illiquid Nifty option strikes
 
 ---
 
-### ENH-006: No config validation — env vars parsed scattered with silent defaults
+### ENH-006: No config validation — FIXED
 
-**Severity:** Medium — misconfiguration discovered mid-trade, not at boot
-
-Environment variables are read across multiple modules with implicit string conversions and hardcoded defaults. A missing or malformed `VIX_MAX_THRESHOLD` silently falls back to 25.0. A typo in `PAPER_TRADE` could route real orders.
-
-**Fix:** Use pydantic-settings to validate all configuration at startup, failing fast on missing or invalid values.
+**Status:** Fixed — `config/settings.py` uses `pydantic_settings.BaseSettings` to validate configuration at startup.
 
 ---
 
-### ENH-007: No CI/CD pipeline
+### ENH-007: No CI/CD pipeline — FIXED
 
-**Severity:** Medium — no automated quality gate
-
-Only an auto-merge workflow exists. There are no automated checks on pull requests — no linting, no type checking, no test execution. Changes can be merged with broken imports or logic errors.
-
-**Fix:** Add GitHub Actions workflow running pytest and basic linting on PRs.
+**Status:** Fixed — `.github/workflows/ci.yml` runs `ruff check`, `pytest`, and coverage on every push/PR to `main`.
 
 ---
 
