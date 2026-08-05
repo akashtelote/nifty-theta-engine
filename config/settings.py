@@ -189,10 +189,13 @@ def round_trip_fees(
     """
     brokerage = BROKERAGE_PER_ORDER * ORDERS_PER_ROUND_TRIP
 
-    # ponytail: statutory charges approximated off net spread value, not per-leg premium.
-    # STT+txn are ~5% of total friction (flat brokerage and slippage dominate), so the
-    # error here is well under ₹1/lot. Pass per-leg premiums if that stops being true.
-    turnover = (abs(credit) + abs(cost_to_close)) * lot_size * num_lots
+    # ponytail: statutory charges approximated off NET spread value, not per-leg premium.
+    # This UNDERSTATES them by ~38%: STT is levied on sell-side leg premium and txn on all
+    # four legs' gross premium, and both bases are larger than the net spread. Measured
+    # error ~₹2/lot at 20 lots (true ~₹8/lot vs ~₹5.8/lot modelled) — small beside the
+    # ~₹75/lot slippage term, but it errs OPTIMISTIC on a strategy already suspected of
+    # negative expectancy. Pass per-leg premiums if fees stop being slippage-dominated.
+    turnover = (abs(credit) + abs(cost_to_close)) * abs(lot_size) * abs(num_lots)
     stt = STT_SELL_PCT * turnover
     txn_charges = TXN_CHARGE_PCT * turnover
 
