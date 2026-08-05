@@ -27,7 +27,7 @@ import numpy as np
 import polars as pl
 
 from config.event_calendar import in_event_blackout
-from config.settings import round_trip_fees
+from config.settings import MAX_CAPITAL, round_trip_fees
 from core.chain_loader import chain_files_available, load_option_chains
 from core.ivr import ivr_allows_entry
 from core.trend_filter import sma, trend_allows_entry
@@ -229,7 +229,10 @@ def _select_strikes(
     # Same band the live bot searches (wheel_strategy._find_credit_spread).
     ceiling = spot * (1.0 - params.otm_pct)
     floor = spot * (1.0 - max(params.otm_pct * 2.5, params.otm_pct + params.otm_floor_extra))
-    for k in np.arange(_round_strike(ceiling), _round_strike(floor) - 1, -50.0):
+    # Floor the ceiling to the grid, don't round it: live filters `strike <= otm_ceiling`
+    # (wheel_strategy._select_target_put), so rounding up would offer the backtest the
+    # highest-delta strike in the band — one the bot can never actually pick.
+    for k in np.arange(math.floor(ceiling / 50.0) * 50.0, _round_strike(floor) - 1, -50.0):
         delta = abs(bs_put_delta(spot, float(k), t, vol))
         long_k = float(k) - params.hedge_width
         if long_k <= 0:
@@ -246,17 +249,11 @@ def _select_strikes(
         if best is None or score < best[0]:
             best = (score, float(k), long_k, credit)
     if best is None:
-        # Live falls back to "any strike <= ceiling" only when the band holds no
-        # strikes at all; on a 50-point grid the band is never empty, so the only
-        # fallback that can fire here is the ceiling strike itself.
-        short_k = _round_strike(spot * (1.0 - params.otm_pct))
-        long_k = short_k - params.hedge_width
-        credit = bs_put_price(spot, short_k, t, vol) - bs_put_price(spot, long_k, t, vol)
-        if credit <= 0 or params.hedge_width * params.lot_size > params.initial_capital:
-            return None
-        if credit / params.hedge_width < params.min_credit_width:
-            return None
-        return short_k, long_k, credit
+        # No fallback. Live widens to "any strike <= ceiling" only when the band holds
+        # no strikes at all, which cannot happen here — a 2%-wide band always spans
+        # several strikes on a 50-point grid. So reaching this means every candidate
+        # failed the credit/width guard, and the only honest answer is "no trade".
+        return None
     return best[1], best[2], best[3]
 
 
@@ -307,11 +304,18 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
                 continue
             short_k, long_k, credit = sel
             # Sizing parity with wheel_strategy: lots = floor(budget / width×lot).
+            # Budget is clamped to MAX_CAPITAL the same way get_available_margin() is
+            # (core/client.py), so a compounding backtest can never take a position the
+            # live bot is structurally incapable of taking. Without the clamp, equity
+            # runs past ₹50k and sizes 32 lots against a live ceiling of 20.
             required_capital_per_lot = (short_k - long_k) * params.lot_size
             if required_capital_per_lot <= 0:
                 continue
-            num_lots = math.floor(equity * params.allocation_pct / required_capital_per_lot)
-            if num_lots == 0:
+            budget = min(equity, MAX_CAPITAL) * params.allocation_pct
+            num_lots = math.floor(budget / required_capital_per_lot)
+            # <= 0, not == 0: floor() of a negative budget yields -1, which would flip a
+            # max-loss trade into a credit and quietly hide ruin.
+            if num_lots <= 0:
                 continue
             entry_d = d
             expiry_d = d + timedelta(days=params.dte_entry)
@@ -345,7 +349,7 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
         # clamp goes on the raw market P&L. Slippage and fees are friction paid on
         # top of that floor — subtract them after the clamp, or a max-loss trade
         # would come out looking free of both.
-        market_pnl = max((credit - ctc) * qty, -(params.hedge_width - credit) * qty)
+        market_pnl = max((credit - ctc) * qty, -((short_k - long_k) - credit) * qty)
         # Nothing is traded to close when the spread expires worthless: no exit haircut.
         exit_traded = not (reason == "Expiry" and ctc <= 0.0)
         slippage = params.slippage_points * qty * (2 if exit_traded else 1)

@@ -1146,9 +1146,10 @@ class WheelStateMachine:
             actual_cost_to_close = theoretical_cost
 
         gross_pnl = (initial_credit - actual_cost_to_close) * quantity
-        lot_size = LOT_SIZES.get(symbol) or quantity or 1
-        num_lots = max(quantity // lot_size, 1)
-        fees = round_trip_fees(initial_credit, actual_cost_to_close, lot_size, num_lots)
+        # round_trip_fees uses lot_size × num_lots only as a product, so passing total
+        # shares directly is exact — and unlike deriving lots via floor division, it
+        # stays exact when quantity is not a whole multiple of the lot size.
+        fees = round_trip_fees(initial_credit, actual_cost_to_close, quantity, 1)
         pnl = gross_pnl - fees
 
         # Archive and close — the short is covered regardless of STC outcome
@@ -1204,12 +1205,10 @@ class WheelStateMachine:
                     initial_credit = short_entry_price - long_entry_price
                     quantity_shares = active_position.get("quantity", LOT_SIZES.get(symbol, 25))
                     gross_pnl = initial_credit * quantity_shares
-                    lot_size = LOT_SIZES.get(symbol) or quantity_shares or 1
-                    num_lots = max(quantity_shares // lot_size, 1)
                     # Slightly conservative: only the 2 entry orders were actually placed
                     # (nothing traded to close), so the 4-order round trip over-charges by
                     # roughly ₹40 flat. Conservative is the right direction here.
-                    fees = round_trip_fees(initial_credit, 0.0, lot_size, num_lots)
+                    fees = round_trip_fees(initial_credit, 0.0, quantity_shares, 1)
                     pnl = gross_pnl - fees
                     msg = (
                         f"Position for {symbol} expired on {expiry_date} while bot was offline. "
