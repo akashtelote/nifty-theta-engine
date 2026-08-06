@@ -1,6 +1,5 @@
 import argparse
 import logging
-import sys
 from datetime import datetime, timedelta, timezone
 from core.auth import authenticate_and_save_token
 from core.smart_money import SmartMoneyFilter
@@ -36,10 +35,10 @@ def main():
     subparsers.required = True
 
     # Subcommand: auth
-    auth_parser = subparsers.add_parser("auth", help="Generate or refresh the Upstox API token")
+    subparsers.add_parser("auth", help="Generate or refresh the Upstox API token")
 
     # Subcommand: screen
-    screen_parser = subparsers.add_parser("screen", help="Run the Smart Money Filter to find institutional whales")
+    subparsers.add_parser("screen", help="Run the Smart Money Filter to find institutional whales")
 
     # Subcommand: trade
     trade_parser = subparsers.add_parser("trade", help="Run a simulated paper trade or live trade")
@@ -49,7 +48,7 @@ def main():
     trade_parser.add_argument("price", type=float, help="Order price")
 
     # Subcommand: start
-    start_parser = subparsers.add_parser("start", help="Start the daily scheduler")
+    subparsers.add_parser("start", help="Start the daily scheduler")
 
     args = parser.parse_args()
 

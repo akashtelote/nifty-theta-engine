@@ -128,7 +128,7 @@ class SmartMoneyFilter:
                         # Store without .NS
                         base_symbol = t_symbol.replace('.NS', '')
                         new_metadata[base_symbol] = {'sharesOutstanding': shares}
-                except Exception as e:
+                except Exception:
                     # Ignore individual ticker errors to keep the process going
                     pass
 
@@ -180,7 +180,7 @@ class SmartMoneyFilter:
         # Hit main page first to get cookies/session
         try:
             session.get("https://www.nseindia.com", headers=self.headers, timeout=10)
-        except:
+        except Exception:
             pass
 
         for url in [url_bulk, url_block]:
@@ -343,10 +343,9 @@ asyncio.run(fetch())
         if self._cached_deals is not None:
             return self._cached_deals
 
-        target_date = self._get_last_trading_day()
-
         # 1. Try jugaad-data (Currently known to have issues, but keeping as stage 1)
-        # Temporarily disabled due to NSE blocking/hanging issues
+        # Temporarily disabled due to NSE blocking/hanging issues.
+        # Re-enabling also needs: target_date = self._get_last_trading_day()
         # try:
         #     df = self._fetch_deals_jugaad(target_date)
         #     if not df.empty:

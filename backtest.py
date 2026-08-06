@@ -35,7 +35,7 @@ from config.settings import (
 )
 from core.chain_loader import chain_files_available, load_option_chains
 from core.ivr import ivr_allows_entry
-from core.trend_filter import sma, trend_allows_entry
+from core.trend_filter import trend_allows_entry
 
 INITIAL_CAPITAL = 50_000.0
 DEFAULT_HEDGE_WIDTH = 100.0
@@ -460,7 +460,6 @@ def walk_forward(
     fold = 0
     while i + test_days <= len(rows):
         test_slice = rows[i : i + test_days]
-        test_df = pl.DataFrame(test_slice)
         # Warm-up history for IVR/SMA from prior train window
         warm = rows[max(0, i - train_days) : i + test_days]
         warm_df = pl.DataFrame(warm)

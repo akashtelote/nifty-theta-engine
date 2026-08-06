@@ -1,7 +1,7 @@
 """Tests for PROF-005..014 profitability stages."""
 
 from datetime import date, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 import math
 
 import polars as pl
@@ -21,8 +21,8 @@ def _liquid_chain(spot: float = 22000.0, width: float = 100.0):
     short = round(spot * 0.99 / 50) * 50
     rows = []
     for k in range(int(short - 400), int(short + 150), 50):
-        # Intrinsic-ish + OTM time value so credit/width clears MIN_CREDIT_WIDTH_RATIO
-        intrinsic = max(spot - k, 0.0) * 0.0  # OTM puts: no intrinsic when k < spot
+        # Pure OTM time value so credit/width clears MIN_CREDIT_WIDTH_RATIO
+        # (OTM puts carry no intrinsic while k < spot)
         otm = max(spot - k, 0.0)
         mid = max(10.0, 180.0 * math.exp(-otm / 500.0))
         bid = round(mid * 0.98, 2)
