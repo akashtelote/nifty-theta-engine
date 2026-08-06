@@ -118,7 +118,7 @@ Tables `index_spread_state` (one row per symbol, upsert semantics) and `trade_hi
 - **Exit monitoring:** Hourly `check_exits` Mon–Fri 9:00–15:00 IST as backstop; WebSocket real-time exits in live and paper when market data is available (`MOCK_MARKET` skips WS).
 - **Exit rules:** TP at ≤`TP_RESIDUAL_CREDIT_FRACTION` residual credit (default 0.25); SL at ≥`SL_CREDIT_MULTIPLE`× credit (default 2.0) or spot ≤ short strike; time stop Thu ≥ 15:00 IST. VIX regimes scale OTM via `vix_regime_otm`; hard skip above `VIX_MAX_THRESHOLD` (25). Short put: target delta ≈0.18 + min credit/width; hedge width `HEDGE_WIDTH` (default 100).
 - **PCS backtest:** `uv run python backtest.py` (add `--sweep` for TP/SL grid). ₹50k capital; synthetic model documented in module docstring.
-- **Single-symbol focus:** Only Nifty 50 at 100% allocation in production.
+- **Single-symbol focus:** Nifty 50 is the only symbol in `TARGET_SYMBOLS`. Sizing is `ALLOCATION_PCT_PER_TRADE` (default `0.15`), so the per-trade budget is ~₹7,500 of the ₹50k ceiling — not 100%.
 - **Paper trade default:** `PAPER_TRADE=True` unless explicitly overridden.
 
 ## Conventions

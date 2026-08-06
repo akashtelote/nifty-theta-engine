@@ -1,7 +1,6 @@
 import polars as pl
-import pytest
 from datetime import date, timedelta
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import patch
 
 from config.settings import round_trip_fees
 
