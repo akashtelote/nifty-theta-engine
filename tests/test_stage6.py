@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from config.event_calendar import in_event_blackout
+from config.event_calendar import EVENT_DATES, in_event_blackout
 from config.settings import Settings, vix_regime_otm
 from core.ivr import ivr_allows_entry, vix_percentile
 from core.trend_filter import sma, trend_allows_entry
@@ -42,6 +42,19 @@ class TestEventBlackout:
     def test_outside_window(self):
         blocked, _ = in_event_blackout(date(2026, 3, 15), days_before=1, days_after=1)
         assert blocked is False
+
+    def test_fy2027_mpc_dates_match_published_calendar(self):
+        """Guards the calendar data, not the window logic — the Oct 2026 date was
+        wrong (extrapolated from 2025) until checked against RBI's FY27 release."""
+        published = {
+            date(2026, 4, 8),
+            date(2026, 6, 5),
+            date(2026, 8, 5),
+            date(2026, 10, 7),
+            date(2026, 12, 4),
+            date(2027, 2, 5),
+        }
+        assert published <= set(EVENT_DATES)
 
 
 class TestTrendFilter:
