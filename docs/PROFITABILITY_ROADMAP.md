@@ -463,6 +463,38 @@ historical run data exists to mine (stdout-only logging, nothing persisted) — 
 starts accumulating from the next paper session onward. Still needed: let paper mode
 run and pull both log lines to get an actual number against the 0.6pt breakeven.
 
+**2026-08-06 re-run, corrected sizing:** `backtest.py`'s `PCSParams.allocation_pct`
+default was still hardcoded `1.0`, silently matching the live bug from finding #1
+above rather than tracking it. Fixed to read `settings.ALLOCATION_PCT_PER_TRADE`
+(now `0.15`) and re-ran the same real `^NSEI`/`^INDIAVIX` 2021-01→2026-08 series:
+
+| slippage/side | PF | Total P&L | ruin_proxy |
+|---|---|---|---|
+| 0 | 1.08 | +1,941 | 12.7% |
+| 0.2 (new breakeven) | 1.00 | −26 | 13.5% |
+| **0.6 (old breakeven)** | **0.89** | **−2,423** | **15.5%** |
+| 1.0 | 0.78 | −5,263 | 18.1% |
+| 1.5 (default) | 0.67 | −8,180 | 21.0% |
+| 2.0 | 0.54 | −12,009 | 27.2% |
+
+2026 YTD (6 trades): PF 0.30, −₹2,077.
+
+Decision gate still fails on all three criteria (PF 0.67 vs ≥1.2, 2026 P&L −2,077 vs
+>0, ruin_proxy 21.0% vs ≤20%) — but the *shape* changed:
+- **Ruin risk is fixed.** `ruin_proxy` at slippage 1.5 dropped from 105% (old,
+  `allocation_pct=1.0`) to 21% — the sizing bug was masking a survivable strategy as
+  an account-destroying one. This confirms finding #1 was correctly diagnosed as the
+  acute risk, separate from the edge question.
+- **Breakeven slippage dropped from ~0.6pt to ~0.2pt/side.** Flat per-order fees
+  (`round_trip_fees`) don't scale down with position size, so at 15% allocation
+  (~3 lots vs ~20 before) they eat a much larger share of a smaller trade's credit.
+  Smaller size reduces ruin, but tightens the margin for error on execution quality —
+  the two findings trade off against each other, they don't independently resolve.
+
+Net: sizing is no longer the blocker; the edge itself, after realistic fixed-cost
+drag, still isn't there. The slippage measurement from live paper fills (once
+logged) is now more urgent, not less — the tolerance for bad fills just shrank.
+
 Unchanged caveat (see ISS-019): still BS(VIX) with no skew, so IV-richness is only
 partly modelled. These rank configurations; they are not absolute expectancy.
 

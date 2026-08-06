@@ -27,7 +27,7 @@ import numpy as np
 import polars as pl
 
 from config.event_calendar import in_event_blackout
-from config.settings import MAX_CAPITAL, round_trip_fees
+from config.settings import ALLOCATION_PCT_PER_TRADE, MAX_CAPITAL, round_trip_fees
 from core.chain_loader import chain_files_available, load_option_chains
 from core.ivr import ivr_allows_entry
 from core.trend_filter import sma, trend_allows_entry
@@ -49,7 +49,7 @@ class PCSParams:
     hedge_width: float = DEFAULT_HEDGE_WIDTH
     stop_on_touch: bool = True
     slippage_points: float = 1.5  # per-side bid-ask haircut vs the BS mid we price at
-    allocation_pct: float = 1.0  # tracks scheduler ALLOCATION_PCT_PER_TRADE
+    allocation_pct: float = ALLOCATION_PCT_PER_TRADE  # tracks scheduler ALLOCATION_PCT_PER_TRADE
     target_delta: float = 0.18
     min_credit_width: float = 0.15
     entry_weekday: int = 4  # Friday
