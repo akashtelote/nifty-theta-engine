@@ -33,6 +33,8 @@ def mock_client(monkeypatch):
     client.cancel_order.return_value = True
     client.get_positions.return_value = []
     client.get_order_fill_price.return_value = None
+    # Real NSE Nifty option lot size — tests must size the contract the exchange lists.
+    client.get_lot_size.return_value = 65
     return client
 
 
@@ -87,6 +89,8 @@ def wheel(mock_client, mock_notifier, mock_db_pool, monkeypatch):
     # Patch _save_state to be a no-op (avoid DB calls)
     monkeypatch.setattr(instance, "_save_state", lambda symbol: None)
     # Patch _archive_trade to be a no-op (avoid DB calls)
-    monkeypatch.setattr(instance, "_archive_trade", lambda symbol, reason, pnl: None)
+    monkeypatch.setattr(
+        instance, "_archive_trade", lambda symbol, reason, pnl, exit_slippage_per_leg=None: None
+    )
 
     return instance

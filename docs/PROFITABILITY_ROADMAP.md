@@ -2,7 +2,7 @@
 
 Staged tracker for expectancy improvements to the Nifty put credit spread engine.
 
-Last updated: 2026-08-02
+Last updated: 2026-08-06
 
 > **Capital constraint:** All sizing, backtests, and live/paper configs must operate within **₹50,000** total capital (`MAX_CAPITAL` / `PAPER_CAPITAL` in [`config/settings.py`](../config/settings.py); paper returns `PAPER_CAPITAL`, live clamps to `MAX_CAPITAL` in [`core/client.py`](../core/client.py)). One-lot margin check: `(spread_width × lot_size) ≤ 50000`.
 
@@ -500,6 +500,148 @@ partly modelled. These rank configurations; they are not absolute expectancy.
 
 ---
 
+### PROF-022: Lot size was 25; NSE lists 65
+
+**Status:** DONE (2026-08-06) for the fixes; the slippage measurement it enables is OPEN.
+
+`config/settings.py` held `LOT_SIZES = {"Nifty 50": 25}` and `backtest.py` held
+`NIFTY_LOT = 25`. The Upstox instruments master the bot already downloads
+(`data/nse_fo_instruments.csv`, refreshed every 24h for `_get_instrument_token`) lists
+**65** for every one of the 1,760 NIFTY OPTIDX rows.
+
+Consequences, in order of severity:
+
+1. **Live orders were malformed.** Entry sent `num_lots × 25` shares. 25 is not a
+   multiple of 65, so the exchange rejects the quantity outright. Paper mode never
+   surfaced it — nothing validates quantity there.
+2. **Sizing was 2.6× off.** `num_lots = floor(budget / (width × lot))` divided by
+   ₹2,500 instead of ₹6,500.
+3. **Every PROF-001..021 number was computed on a contract that does not exist.**
+
+This is the third instance of the same bug class after the two `allocation_pct`
+hardcodes in PROF-021 — a constant duplicating a value the system already knows.
+The fix removes the constant rather than correcting it: `UpstoxClient.get_lot_size()`
+and `settings.lot_size_from_master()` read the master, `LOT_SIZES` is deleted, and
+there is **no fallback** outside `MOCK_MARKET`. A missing master aborts entry.
+`backtest.py` raises rather than defaulting, so a sim can never silently size a
+contract the bot cannot trade.
+
+Also fixed in passing: three exit paths defaulted to `LOT_SIZES.get(symbol, 25)` when
+the stored position quantity was missing — closing a *guessed* size on a real
+position. They now skip the position and log an error.
+
+**Re-run, real `^NSEI`/`^INDIAVIX` 2021-01 → 2026-08, lot 65, alloc 15%, width 100:**
+
+| slippage/side | Trades | PF | Total P&L | ruin_proxy |
+|---|---|---|---|---|
+| 0 | 65 | 1.14 | +3,520 | 11.0% |
+| 0.2 | 65 | 1.07 | +1,831 | 12.6% |
+| **0.4 (breakeven)** | **65** | **1.01** | **+141** | **14.3%** |
+| 0.6 | 65 | 0.94 | −1,550 | 15.9% |
+| 1.0 | 39 | 0.60 | −7,767 | 19.2% |
+| 1.5 (default) | 23 | 0.46 | −6,742 | 16.3% |
+| 2.0 | 19 | 0.37 | −6,996 | 16.2% |
+
+2026 YTD @ 1.5: 9 trades, PF 0.23, −₹5,993.
+
+**Decision gate:** PF ≥ 1.2 → **fails** (0.46). 2026 net > 0 → **fails** (−5,993).
+ruin_proxy ≤ 0.20 → **passes** (16.3%). Two of three, same as before the fix.
+
+What actually changed:
+
+- **Breakeven slippage moved from ~0.2 to ~0.4 pt/side.** Roughly double the tolerance
+  PROF-021 reported, but still inside the bid-ask on a Nifty weekly. The edge is thin,
+  not obviously absent.
+- **The strategy is barely fundable at ₹50k.** One 100-wide spread at lot 65 costs
+  ₹6,500 of max loss against a ₹7,500 per-trade budget (15% of ₹50k) — exactly one lot,
+  with ₹1,000 of the budget stranded. Worse, `budget = min(equity, MAX_CAPITAL) × 0.15`
+  means **trading stops entirely once equity drops below ₹43,334**. That is what the
+  collapsing trade counts above are: the ≥1.0 slippage rows did not survive the period,
+  they ran out of fundable capital partway through. Their P&L is therefore optimistic —
+  2.0 looks *better* than 1.0 only because it stopped losing sooner.
+- **`hedge_width=300`, the sweep's preferred cell, is unreachable.** ₹19,500/lot against
+  a ₹7,500 budget is zero lots. It should stop being read as an available option.
+
+**Still open — the measurement PROF-021 called for.** Fill quality is now persisted
+rather than logged to a stdout nobody captured (`logs/` held only `.gitkeep`):
+`trade_history.entry_slippage_per_leg` / `exit_slippage_per_leg`, with
+`index_spread_state.theoretical_credit` carrying the entry-side mid to archive time.
+The dashboard reports the mean against the 0.4 breakeven. Rows predating this change
+are null, not zero. **Next step is unchanged: run paper mode and read the number.**
+
+#### Minimum viable capital
+
+Capital enters the result through one channel: `num_lots = floor(min(equity, MAX_CAPITAL)
+× alloc / (width × lot))`. More lots spread the flat ₹94/round-trip brokerage over more
+credit. Slippage scales with lots and never amortises, which sets a hard ceiling.
+
+Same real path, 2021-01 → 2026-08, alloc 15%, width 100:
+
+| Capital | Lots | PF @0.4 | PF @0.6 | PF @1.0 | PF @1.5 |
+|---|---|---|---|---|---|
+| ₹50k | 1 | 1.01 | 0.94 | 0.60 | 0.46 |
+| ₹75k | 1 | 1.01 | 0.94 | 0.82 | 0.69 |
+| ₹100k | 2 | 1.13 | 1.06 | 0.93 | 0.65 |
+| **₹200k** | 4 | **1.20** | 1.12 | 0.99 | 0.81 |
+| ₹500k | 11 | 1.24 | 1.16 | 0.99 | 0.85 |
+| ₹5M | 115 | 1.26 | 1.18 | 1.03 | 0.87 |
+
+PF asymptotes at ~1.26. Ten times the capital between ₹500k and ₹5M buys 0.02 of PF.
+**What capital actually buys is slippage tolerance: breakeven moves from ~0.4 to ~1.05
+pt/side, and no further.** So: at ≥1.1 pt/side no budget works; at ~0.6 no budget clears
+the PF ≥ 1.2 gate (ceiling 1.18); at ~0.4 the minimum is **₹200,000**. ₹50k–₹75k is a
+dead band — both fund exactly one lot, so the extra ₹25k buys only survival past the
+₹43,334 funding cliff, not size.
+
+#### Why 97.5% of the account is idle
+
+| | |
+|---|---|
+| Days holding a position | 392 / 2038 = **19.2%** |
+| Deployed while in a trade | ₹6,500 / ₹50,000 = **13%** |
+| Time-weighted utilisation | **2.5%** |
+
+Friday census over the sample (272 Fridays): 65 entered (23.9%), **19 blocked by an open
+position (7.0%)**, **188 blocked by an entry gate (69.1%)**. Concurrent positions would
+recover ~19 trades in 5.6 years. The gate stack — IVR, VIX, SMA50 trend, event blackout,
+min credit/width — is the real throttle, consistent with PROF-020's 30-Friday blackout.
+
+Three structural reasons the capital sits:
+
+1. `ALLOCATION_PCT_PER_TRADE=0.15` — a *per-trade* risk cap (PROF-021 finding #1) applied
+   to a system that only ever holds one trade, so it caps total exposure.
+2. Lot granularity: ₹7,500 budget, ₹6,500 per spread, ₹1,000 stranded. `alloc` 0.15 and
+   0.25 produce byte-identical runs — both round to 1 lot.
+3. One position per symbol. `index_spread_state.symbol` is the PRIMARY KEY; `state[symbol]`
+   holds a singular active/hedge pair; entry requires `current_stage in (IDLE, CLOSED)`;
+   the advisory lock is per symbol. `backtest.py` mirrors this with a scalar `in_trade`
+   flag, deliberately — a harness that models trades the bot cannot take is what PROF-021
+   was written about. Concurrency means re-keying positions by ID, not a config toggle.
+   `ALLOW_MIDWEEK_ENTRY` is already on but inert for the same reason.
+
+**Allocation sweep at ₹50k, slippage 0.4:**
+
+| alloc | lots | PF | Total P&L | Max DD | ruin |
+|---|---|---|---|---|---|
+| 0.15 | 1 | 1.01 | +141 | 7,124 | 14.2% |
+| 0.40 | 3 | 1.06 | +3,867 | 16,374 | 32.7% |
+| 0.60 | 4 | 1.12 | +11,072 | 24,498 | 49.0% |
+| 1.00 | 7 | 1.18 | +29,436 | 36,790 | 73.6% |
+
+Deploying more does improve PF — fixed fees amortise — but ruin tracks it straight up.
+**At ₹50k, safe sizing and fee-efficient sizing are mutually exclusive:** ruin ≤ 20% or
+PF → 1.2, not both. This is the ₹200k result seen from the other side. At ₹200k a 15%
+allocation buys 4 lots, so the fee amortisation and the risk cap coexist. The idle
+capital is not a bug — ₹50k cannot fund a fee-efficient position without betting the
+account.
+
+Caveat unchanged from ISS-019: still BS(VIX) with no skew, so IV richness is only
+partly modelled. These rank configurations; they are not absolute expectancy. The
+return-on-account figures are further depressed by the single-position design — with
+2.5% utilisation, account-level return measures the harness's shape, not the edge.
+
+---
+
 ## Chosen defaults (after Stage 6)
 
 | Parameter | Pre-sweep code | Stage 6 default | Notes |
@@ -511,7 +653,8 @@ partly modelled. These rank configurations; they are not absolute expectancy.
 | DTE manage | off (−1) | **7** | Last week manage |
 | Short delta manage | n/a | **0.30** | PROF-017 |
 | Short OTM / delta | Target δ≈0.18 | **δ≈0.18 + regime OTM** | + IVR / trend / events |
-| Hedge width | 100 pts | **100** | 100×25 ≤ ₹50k |
+| Hedge width | 100 pts | **100** | 100×65 = ₹6,500/lot (PROF-022) |
+| Lot size | `LOT_SIZES` dict = 25 | **from instruments master (65)** | No constant; aborts if unreadable |
 | Min credit/width | 0.12 | **0.15** | Reject thin credits |
 | VIX crisis skip | 25 | **22** | Tighter left-tail |
 | IVR min percentile | n/a | **30** | Retuned in PROF-020 |

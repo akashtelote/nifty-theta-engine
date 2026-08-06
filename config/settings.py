@@ -1,3 +1,6 @@
+import csv
+import os
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 import redis
@@ -107,8 +110,47 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# NSE lot sizes — not an env var, updated manually when NSE changes contract specs
-LOT_SIZES = {"Nifty 50": 25}
+# Underlying `name` as it appears in the Upstox instruments master, per traded symbol.
+# This is a naming convention, not a market parameter — unlike lot size it does not
+# drift when NSE revises contract specs.
+MASTER_UNDERLYING_NAME = {"Nifty 50": "NIFTY"}
+
+INSTRUMENT_MASTER_PATH = "data/nse_fo_instruments.csv"
+
+
+def lot_size_from_master(symbol: str, csv_path: str = INSTRUMENT_MASTER_PATH) -> int | None:
+    """Read the current F&O lot size for `symbol` from the Upstox instruments master.
+
+    Returns None when the master is absent or has no option rows for the symbol.
+    Callers must treat None as a hard abort: a hardcoded fallback is what let the
+    lot size sit at 25 while NSE had moved it to 65 (see PROF-022).
+    """
+    underlying = MASTER_UNDERLYING_NAME.get(symbol)
+    if not underlying or not os.path.exists(csv_path):
+        return None
+
+    sizes: set[int] = set()
+    try:
+        with open(csv_path, newline="", encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                if (row.get("name") or "").strip().upper() != underlying:
+                    continue
+                if (row.get("instrument_type") or "").strip().upper() != "OPTIDX":
+                    continue
+                try:
+                    sizes.add(int(row["lot_size"]))
+                except (KeyError, TypeError, ValueError):
+                    continue
+    except OSError:
+        return None
+
+    if not sizes:
+        return None
+    # ponytail: during a contract-spec transition the master briefly carries both the
+    # old and new size across expiries. Take the max — oversizing margin is a rejected
+    # order, undersizing is an invalid quantity that trades wrong. Switch to
+    # per-expiry lookup if multi-expiry support ever lands.
+    return max(sizes)
 
 # Backward-compatible module-level exports
 CONNECTION_TIMEOUT = settings.CONNECTION_TIMEOUT

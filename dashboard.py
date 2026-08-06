@@ -173,6 +173,33 @@ else:
     t3.metric("Avg Credit", f"₹{avg_credit:,.2f}")
     t4.metric("Realized P&L", f"₹{total_realized:,.2f}")
 
+    # --- Realized fill quality (PROF-022) ---
+    # The strategy's measured breakeven is ~0.2 points of slippage per side, so this
+    # is the number the profitability verdict actually turns on.
+    slip_cols = [c for c in ("entry_slippage_per_leg", "exit_slippage_per_leg") if c in historical_df.columns]
+    if slip_cols:
+        st.subheader("Realized Fill Quality")
+        measured = historical_df.select(slip_cols).drop_nulls()
+        if measured.is_empty():
+            st.info(
+                "No fill-quality samples yet — slippage is recorded from the first trade "
+                "opened after the PROF-022 change. Older rows are left null rather than zero."
+            )
+        else:
+            s1, s2, s3 = st.columns(3)
+            entry_mean = float(measured["entry_slippage_per_leg"].mean()) if "entry_slippage_per_leg" in measured.columns else float("nan")
+            exit_mean = float(measured["exit_slippage_per_leg"].mean()) if "exit_slippage_per_leg" in measured.columns else float("nan")
+            s1.metric("Entry slippage / leg", f"{entry_mean:.2f} pt")
+            s2.metric("Exit slippage / leg", f"{exit_mean:.2f} pt")
+            round_trip = (entry_mean + exit_mean) / 2.0
+            s3.metric(
+                "Avg / side vs 0.2 breakeven",
+                f"{round_trip:.2f} pt",
+                delta=f"{0.2 - round_trip:.2f} pt",
+                delta_color="normal",
+            )
+            st.caption(f"n={measured.height} closed trades with recorded fills. Positive = filled worse than mid.")
+
     if reason_col:
         st.subheader("Exit-Reason Mix")
         mix = (

@@ -230,14 +230,14 @@ class TestMidweekEntry:
         monkeypatch.setattr(settings_mod.settings, "MIDWEEK_VIX_MIN", 16.0)
         monkeypatch.setattr(settings_mod.settings, "MIDWEEK_VIX_MAX", 22.0)
         mock_client.get_india_vix.return_value = 14.0  # below band
-        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0, "entry_session": "midweek"})
+        wheel.execute_daily_cycle("Nifty 50", {"allocation_pct": 1.0, "entry_session": "midweek"})
         mock_client.get_market_quote_ltp.assert_not_called()
 
     def test_midweek_blocked_when_flag_off(self, wheel, mock_client, monkeypatch):
         from config import settings as settings_mod
         monkeypatch.setattr(settings_mod.settings, "ALLOW_MIDWEEK_ENTRY", False)
         mock_client.get_india_vix.return_value = 18.0
-        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0, "entry_session": "midweek"})
+        wheel.execute_daily_cycle("Nifty 50", {"allocation_pct": 1.0, "entry_session": "midweek"})
         mock_client.get_market_quote_ltp.assert_not_called()
 
     def test_friday_session_ignores_midweek_band(self, wheel, mock_client, monkeypatch):
@@ -248,7 +248,7 @@ class TestMidweekEntry:
             "instrument_key": pl.Utf8, "type": pl.Utf8, "strike": pl.Float64,
             "expiry": pl.Utf8, "bid": pl.Float64, "ask": pl.Float64, "last_price": pl.Float64,
         })
-        wheel.execute_daily_cycle("Nifty 50", 25, {"allocation_pct": 1.0, "entry_session": "friday"})
+        wheel.execute_daily_cycle("Nifty 50", {"allocation_pct": 1.0, "entry_session": "friday"})
         mock_client.get_market_quote_ltp.assert_called_once()
 
 
@@ -271,7 +271,10 @@ class TestPcsBacktest:
     def test_sweep_returns_ranked_grid(self):
         grid = sweep_exit_params(synthetic_spot_path(n_days=120, seed=7))
         assert len(grid) >= 4
-        assert grid[0]["total_pnl"] >= grid[-1]["total_pnl"]
+        # Ranked by the sort's primary key. Asserting on total_pnl instead was wrong:
+        # a losing cell can still out-rank a zero-trade cell on profit factor.
+        keys = [(r["profit_factor"], r["total_pnl"], -r["ruin_proxy"]) for r in grid]
+        assert keys == sorted(keys, reverse=True)
 
 
 class TestSettingsProfitDefaults:

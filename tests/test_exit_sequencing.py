@@ -199,7 +199,7 @@ class TestRealFillPnl:
 
         # Spy on _archive_trade to capture the P&L it receives
         archive_calls = []
-        wheel._archive_trade = lambda sym, reason, pnl: archive_calls.append((sym, reason, pnl))
+        wheel._archive_trade = lambda sym, reason, pnl, exit_slippage_per_leg=None: archive_calls.append((sym, reason, pnl))
 
         wheel.check_exits()
 
@@ -219,7 +219,7 @@ class TestRealFillPnl:
         mock_client.get_order_fill_price.return_value = None  # Unavailable
 
         archive_calls = []
-        wheel._archive_trade = lambda sym, reason, pnl: archive_calls.append((sym, reason, pnl))
+        wheel._archive_trade = lambda sym, reason, pnl, exit_slippage_per_leg=None: archive_calls.append((sym, reason, pnl))
 
         wheel.check_exits()
 
@@ -264,3 +264,41 @@ class TestGetOrderFillPrice:
             with patch.object(client, "_make_authenticated_request", return_value=None):
                 result = client.get_order_fill_price("ORD123")
                 assert result is None
+
+
+class TestFillQualityCapture:
+    """PROF-022: realized slippage must survive to trade_history, not just stdout."""
+
+    def test_entry_slippage_is_half_the_credit_shortfall(self, wheel):
+        from strategies.wheel_strategy import WheelStateMachine
+        state = {"theoretical_credit": 20.0, "net_credit_received": 19.0 * 65}
+        # 1.0 point of credit given up across 2 legs = 0.5 per leg
+        assert WheelStateMachine._entry_slippage_per_leg(state, 65) == 0.5
+
+    def test_entry_slippage_none_without_baseline(self, wheel):
+        from strategies.wheel_strategy import WheelStateMachine
+        state = {"net_credit_received": 1000.0}
+        assert WheelStateMachine._entry_slippage_per_leg(state, 65) is None
+
+    def test_entry_slippage_none_without_quantity(self, wheel):
+        from strategies.wheel_strategy import WheelStateMachine
+        state = {"theoretical_credit": 20.0, "net_credit_received": 1000.0}
+        assert WheelStateMachine._entry_slippage_per_leg(state, 0) is None
+
+    @patch("time.sleep", return_value=None)
+    def test_exit_slippage_reaches_archive(self, mock_sleep, wheel, mock_client):
+        captured = {}
+        wheel._archive_trade = lambda sym, reason, pnl, exit_slippage_per_leg=None: captured.update(
+            {"slippage": exit_slippage_per_leg}
+        )
+        wheel.state["Nifty 50"] = {
+            "current_stage": "STAGE_1_CSP", "realized_pnl": 0.0,
+            "active_position": {}, "hedge_position": {},
+        }
+        mock_client.get_order_fill_price.side_effect = [31.0, 9.0]  # ctc 22 vs 20 theoretical
+        wheel._execute_exit("Nifty 50", "Take Profit", {
+            "short_instrument_key": "S", "long_instrument_key": "L", "quantity": 65,
+            "short_live_ask": 30.0, "long_live_bid": 10.0,
+            "initial_credit": 40.0, "current_cost_to_close": 20.0,
+        })
+        assert captured["slippage"] == 1.0

@@ -8,7 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from strategies.wheel_strategy import WheelStateMachine
 from core.notifier import Notifier
-from config.settings import ALLOCATION_PCT_PER_TRADE, LOT_SIZES, settings
+from config.settings import ALLOCATION_PCT_PER_TRADE, settings
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ def _run_daily_wheel(entry_session: str = "friday"):
         symbol_config = {**base_config, "entry_session": entry_session}
         try:
             logger.info(f"Processing symbol: {symbol} with config: {symbol_config}")
-            wheel.execute_daily_cycle(symbol=symbol, symbol_config=symbol_config, quantity_shares=LOT_SIZES.get(symbol, 25))
+            wheel.execute_daily_cycle(symbol=symbol, symbol_config=symbol_config)
         except Exception as e:
             logger.error(f"Error processing {symbol}: {e}", exc_info=True)
             notifier.send_notification(

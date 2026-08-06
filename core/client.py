@@ -11,9 +11,18 @@ from datetime import datetime, timedelta
 from filelock import FileLock, Timeout
 
 from core.auth import authenticate_and_save_token, get_centralized_token
-from config.settings import MAX_CAPITAL, PAPER_CAPITAL
+from config.settings import (
+    INSTRUMENT_MASTER_PATH,
+    MAX_CAPITAL,
+    PAPER_CAPITAL,
+    lot_size_from_master,
+)
 
 logger = logging.getLogger(__name__)
+
+# Only used when MOCK_MARKET=True and the instruments master is unavailable.
+MOCK_LOT_SIZE = 65
+
 
 def fetch_data_safe(func, *args, **kwargs):
     """
@@ -119,16 +128,13 @@ class UpstoxClient:
 
         return response
 
-    def _get_instrument_token(self, symbol: str, exchange: str = None) -> str | None:
-        """
-        Looks up the real instrument token from the Upstox NSE equities master file.
-        Caches the file locally for 24 hours.
-        """
-        if exchange is None:
-            exchange = "NSE_INDEX" if symbol == "Nifty 50" else "NSE_EQ"
+    def _ensure_instrument_master(self) -> str | None:
+        """Download/refresh the Upstox NSE instruments master (24h TTL, lock-protected).
 
-        csv_path = "data/nse_fo_instruments.csv"
-        lock_path = "data/nse_fo_instruments.csv.lock"
+        Returns the local CSV path, or None if it is neither present nor downloadable.
+        """
+        csv_path = INSTRUMENT_MASTER_PATH
+        lock_path = f"{INSTRUMENT_MASTER_PATH}.lock"
         url = "https://assets.upstox.com/market-quote/instruments/exchange/NSE.csv.gz"
 
         # Check if file exists and is less than 24 hours old
@@ -171,6 +177,38 @@ class UpstoxClient:
 
         if not os.path.exists(csv_path):
             logger.error("NSE F&O instruments file not found and could not be downloaded.")
+            return None
+
+        return csv_path
+
+    def get_lot_size(self, symbol: str) -> int | None:
+        """Current F&O lot size for `symbol`, straight from the instruments master.
+
+        There is deliberately no fallback constant. A hardcoded `LOT_SIZES` dict sat
+        at 25 while NSE had moved Nifty to 65, which sends order quantities that are
+        not a multiple of the real lot (rejected live, silently wrong in paper).
+        None means "abort", not "guess".
+        """
+        lot = lot_size_from_master(symbol) if self._ensure_instrument_master() else None
+        if lot is None and self.is_mock_market:
+            # Offline testing only — never reachable in paper or live, both of which
+            # abort rather than trade a guessed contract size.
+            logger.warning(f"Mock market: no instruments master, assuming lot size {MOCK_LOT_SIZE}.")
+            return MOCK_LOT_SIZE
+        if lot is None:
+            logger.error(f"No option lot size for '{symbol}' in the instruments master.")
+        return lot
+
+    def _get_instrument_token(self, symbol: str, exchange: str = None) -> str | None:
+        """
+        Looks up the real instrument token from the Upstox NSE equities master file.
+        Caches the file locally for 24 hours.
+        """
+        if exchange is None:
+            exchange = "NSE_INDEX" if symbol == "Nifty 50" else "NSE_EQ"
+
+        csv_path = self._ensure_instrument_master()
+        if csv_path is None:
             return None
 
         try:

@@ -11,7 +11,6 @@ from core.client import UpstoxClient
 import math
 from core.notifier import Notifier
 from config.settings import (
-    LOT_SIZES,
     ALLOCATION_PCT_PER_TRADE,
     EXIT_SLIPPAGE_BUFFER_PCT,
     MAX_CAPITAL,
@@ -74,9 +73,42 @@ class WheelStateMachine:
                     closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS index_spread_state (
+                    symbol TEXT PRIMARY KEY,
+                    current_stage TEXT,
+                    short_instrument_key TEXT,
+                    short_strike DOUBLE PRECISION,
+                    short_entry_price DOUBLE PRECISION,
+                    short_order_id TEXT,
+                    long_instrument_key TEXT,
+                    long_strike DOUBLE PRECISION,
+                    long_entry_price DOUBLE PRECISION,
+                    long_order_id TEXT,
+                    quantity INTEGER,
+                    net_credit_received DOUBLE PRECISION,
+                    trade_date TEXT,
+                    expiry_date TEXT,
+                    realized_pnl DOUBLE PRECISION
+                )
+            ''')
+            # PROF-022 fill-quality columns. Realized slippage is the input the whole
+            # profitability verdict hinges on, and stdout logging left nothing to mine.
+            for ddl in (
+                "ALTER TABLE index_spread_state ADD COLUMN IF NOT EXISTS theoretical_credit DOUBLE PRECISION",
+                "ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS entry_slippage_per_leg DOUBLE PRECISION",
+                "ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS exit_slippage_per_leg DOUBLE PRECISION",
+            ):
+                cursor.execute(ddl)
             conn.commit()
         except Exception as e:
-            logger.error(f"Error ensuring tables exist: {e}")
+            # Raise, don't swallow. init_nifty_schema.sql only runs on first DB init, so
+            # on an existing volume these ALTERs are the only migration path. If they
+            # fail, _load_state's SELECT of theoretical_credit fails too, which returns
+            # an EMPTY state — and an empty state reads as IDLE, so the bot would open a
+            # second spread on top of a live one. Failing to start is the safe outcome.
+            logger.critical(f"Schema migration failed — refusing to start: {e}")
+            raise
         finally:
             if conn:
                 self._pool.putconn(conn)
@@ -93,14 +125,14 @@ class WheelStateMachine:
             cursor.execute('''
                 SELECT symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
                        long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
-                       trade_date, expiry_date, realized_pnl
+                       trade_date, expiry_date, realized_pnl, theoretical_credit
                 FROM index_spread_state
             ''')
             rows = cursor.fetchall()
             for row in rows:
                 (symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
                  long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
-                 trade_date, expiry_date, realized_pnl) = row
+                 trade_date, expiry_date, realized_pnl, theoretical_credit) = row
 
                 state[symbol] = {
                     "current_stage": current_stage,
@@ -121,7 +153,8 @@ class WheelStateMachine:
                         "quantity": quantity
                     },
                     "net_credit_received": net_credit_received if net_credit_received is not None else 0.0,
-                    "realized_pnl": realized_pnl if realized_pnl is not None else 0.0
+                    "realized_pnl": realized_pnl if realized_pnl is not None else 0.0,
+                    "theoretical_credit": theoretical_credit,
                 }
         except psycopg2.Error as e:
             logger.error(f"Error loading state from database: {e}")
@@ -143,6 +176,7 @@ class WheelStateMachine:
         hedge_position = symbol_state.get("hedge_position")
         net_credit_received = symbol_state.get("net_credit_received", 0.0)
         realized_pnl = symbol_state.get("realized_pnl", 0.0)
+        theoretical_credit = symbol_state.get("theoretical_credit")
 
         if active_position:
             short_instrument_key = active_position.get("instrument_key")
@@ -185,8 +219,8 @@ class WheelStateMachine:
                 INSERT INTO index_spread_state
                 (symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
                  long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
-                 trade_date, expiry_date, realized_pnl)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 trade_date, expiry_date, realized_pnl, theoretical_credit)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (symbol) DO UPDATE SET
                     current_stage = EXCLUDED.current_stage,
                     short_instrument_key = EXCLUDED.short_instrument_key,
@@ -201,10 +235,11 @@ class WheelStateMachine:
                     net_credit_received = EXCLUDED.net_credit_received,
                     trade_date = EXCLUDED.trade_date,
                     expiry_date = EXCLUDED.expiry_date,
-                    realized_pnl = EXCLUDED.realized_pnl
+                    realized_pnl = EXCLUDED.realized_pnl,
+                    theoretical_credit = EXCLUDED.theoretical_credit
             ''', (symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
                   long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
-                  trade_date, expiry_date, realized_pnl))
+                  trade_date, expiry_date, realized_pnl, theoretical_credit))
             conn.commit()
         except psycopg2.Error as e:
             logger.error(f"Error saving state to database for {symbol}: {e}")
@@ -212,12 +247,34 @@ class WheelStateMachine:
             if conn:
                 self._pool.putconn(conn)
 
-    def _archive_trade(self, symbol: str, exit_reason: str, realized_pnl: float):
+    @staticmethod
+    def _entry_slippage_per_leg(symbol_state: dict, quantity: int | None) -> float | None:
+        """Points per leg given up on entry versus the mid we quoted against.
+
+        Positive = filled worse than mid. None when the trade predates PROF-022 or
+        the quantity is unknown, so old rows stay absent rather than reading as zero
+        slippage — the whole point of this column is to not flatter the fills.
+        """
+        theoretical = symbol_state.get("theoretical_credit")
+        if theoretical is None or not quantity:
+            return None
+        achieved_per_share = symbol_state.get("net_credit_received", 0.0) / quantity
+        return (theoretical - achieved_per_share) / 2.0
+
+    def _archive_trade(
+        self,
+        symbol: str,
+        exit_reason: str,
+        realized_pnl: float,
+        exit_slippage_per_leg: float | None = None,
+    ):
         symbol_state = self.state.get(symbol)
         if not symbol_state:
             return
         active = symbol_state.get("active_position") or {}
         hedge = symbol_state.get("hedge_position") or {}
+        quantity = active.get("quantity") or hedge.get("quantity")
+        entry_slippage_per_leg = self._entry_slippage_per_leg(symbol_state, quantity)
         conn = None
         try:
             conn = self._pool.getconn()
@@ -227,16 +284,17 @@ class WheelStateMachine:
                 (symbol, short_instrument_key, short_strike, short_entry_price,
                  long_instrument_key, long_strike, long_entry_price,
                  quantity, net_credit_received, exit_reason, realized_pnl,
-                 trade_date, expiry_date)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                 trade_date, expiry_date, entry_slippage_per_leg, exit_slippage_per_leg)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 symbol,
                 active.get("instrument_key"), active.get("strike"), active.get("entry_price"),
                 hedge.get("instrument_key"), hedge.get("strike"), hedge.get("entry_price"),
-                active.get("quantity") or hedge.get("quantity"),
+                quantity,
                 symbol_state.get("net_credit_received", 0.0),
                 exit_reason, realized_pnl,
-                date.today().isoformat(), active.get("expiry") or hedge.get("expiry")
+                date.today().isoformat(), active.get("expiry") or hedge.get("expiry"),
+                entry_slippage_per_leg, exit_slippage_per_leg,
             ))
             conn.commit()
         except psycopg2.Error as e:
@@ -320,7 +378,8 @@ class WheelStateMachine:
                 "active_position": None,
                 "hedge_position": None,
                 "net_credit_received": 0.0,
-                "realized_pnl": 0.0
+                "realized_pnl": 0.0,
+                "theoretical_credit": None,
             }
             self._save_state(symbol)
 
@@ -656,11 +715,10 @@ class WheelStateMachine:
             logger.info(f"Attempting same-week re-entry for {symbol} after Take Profit.")
             self.execute_daily_cycle(
                 symbol=symbol,
-                quantity_shares=LOT_SIZES.get(symbol, 25),
                 symbol_config={"allocation_pct": 1.0, "entry_session": "midweek", "same_week_reentry": True},
             )
 
-    def execute_daily_cycle(self, symbol: str, quantity_shares: int, symbol_config: dict):
+    def execute_daily_cycle(self, symbol: str, symbol_config: dict):
         # Reload state from DB before proceeding
         self.state = self._load_state()
         self.ensure_symbol_state(symbol)
@@ -785,7 +843,15 @@ class WheelStateMachine:
                     return
 
                 chain_df = self.client.get_option_chain(symbol)
-                lot_size = LOT_SIZES.get(symbol, 25)
+                lot_size = self.client.get_lot_size(symbol)
+                if not lot_size:
+                    msg = (
+                        f"Could not resolve F&O lot size for {symbol} from the instruments "
+                        f"master. Aborting entry rather than guessing a contract size."
+                    )
+                    logger.error(msg)
+                    self.notifier.send_notification(title="Lot Size Unavailable", message=msg, level="ERROR")
+                    return
 
                 targets = self._select_target_put(
                     chain_df, spot_price, otm_pct=otm_pct, vix=current_vix or 15.0, lot_size=lot_size
@@ -894,12 +960,12 @@ class WheelStateMachine:
                 achieved_long = long_fill_price if long_fill_price is not None else long_entry_price
                 achieved_credit_per = achieved_short - achieved_long
 
-                if self.client.is_paper_trade:
-                    logger.info(
-                        f"PAPER fill quality {symbol}: theoretical_mid={theoretical_mid:.2f}, "
-                        f"theoretical_natural={theoretical_natural:.2f}, "
-                        f"achieved={achieved_credit_per:.2f}"
-                    )
+                logger.info(
+                    f"Fill quality {symbol} (entry): theoretical_mid={theoretical_mid:.2f}, "
+                    f"theoretical_natural={theoretical_natural:.2f}, "
+                    f"achieved={achieved_credit_per:.2f}, "
+                    f"slippage_per_leg={(theoretical_mid - achieved_credit_per) / 2:.2f}"
+                )
 
                 msg = (
                     f"Credit Spread placed successfully for {symbol}. STAGE_1_CSP entry: "
@@ -929,6 +995,9 @@ class WheelStateMachine:
                     "quantity": final_quantity
                 }
                 self.state[symbol]["net_credit_received"] = achieved_credit_per * final_quantity
+                # Baseline for the PROF-022 slippage measurement; mid, not natural, since
+                # that is what backtest.py's slippage_points haircut is measured from.
+                self.state[symbol]["theoretical_credit"] = theoretical_mid
                 self._save_state(symbol)
         finally:
             if lock_conn:
@@ -967,6 +1036,13 @@ class WheelStateMachine:
             hedge = data.get("hedge_position")
             if not active or not hedge:
                 continue
+            quantity = active.get("quantity")
+            if not quantity:
+                logger.error(
+                    f"Open position for {symbol} has no stored quantity — excluding it from "
+                    f"real-time exit monitoring rather than closing a guessed size."
+                )
+                continue
             short_entry = active.get("entry_price", 0.0)
             long_entry = hedge.get("entry_price", 0.0)
             initial_credit = short_entry - long_entry
@@ -974,7 +1050,7 @@ class WheelStateMachine:
                 "short_strike": active.get("strike"),
                 "short_instrument_key": active.get("instrument_key"),
                 "long_instrument_key": hedge.get("instrument_key"),
-                "quantity": active.get("quantity", LOT_SIZES.get(symbol, 25)),
+                "quantity": quantity,
                 "initial_credit": initial_credit,
                 "expiry": active.get("expiry"),
                 "underlying_key": self.INDEX_INSTRUMENT_KEYS.get(symbol),
@@ -1145,12 +1221,12 @@ class WheelStateMachine:
         else:
             actual_cost_to_close = theoretical_cost
 
-        if self.client.is_paper_trade:
-            logger.info(
-                f"PAPER fill quality {symbol} (exit): theoretical_cost={theoretical_cost:.2f}, "
-                f"actual_cost_to_close={actual_cost_to_close:.2f}, "
-                f"slippage_per_leg={(actual_cost_to_close - theoretical_cost) / 2:.2f}"
-            )
+        exit_slippage_per_leg = (actual_cost_to_close - theoretical_cost) / 2.0
+        logger.info(
+            f"Fill quality {symbol} (exit): theoretical_cost={theoretical_cost:.2f}, "
+            f"actual_cost_to_close={actual_cost_to_close:.2f}, "
+            f"slippage_per_leg={exit_slippage_per_leg:.2f}"
+        )
 
         gross_pnl = (initial_credit - actual_cost_to_close) * quantity
         # round_trip_fees uses lot_size × num_lots only as a product, so passing total
@@ -1160,12 +1236,13 @@ class WheelStateMachine:
         pnl = gross_pnl - fees
 
         # Archive and close — the short is covered regardless of STC outcome
-        self._archive_trade(symbol, reason, pnl)
+        self._archive_trade(symbol, reason, pnl, exit_slippage_per_leg=exit_slippage_per_leg)
         self.state[symbol]["realized_pnl"] += pnl
         self.state[symbol]["current_stage"] = "CLOSED"
         self.state[symbol]["last_exit_reason"] = reason
         self.state[symbol]["active_position"] = None
         self.state[symbol]["hedge_position"] = None
+        self.state[symbol]["theoretical_credit"] = None
         self._save_state(symbol)
         if reason == "Take Profit":
             self._mark_tp_ready_for_reentry(symbol)
@@ -1200,6 +1277,14 @@ class WheelStateMachine:
             if not active_position or not hedge_position:
                 continue
 
+            quantity_shares = active_position.get("quantity")
+            if not quantity_shares:
+                logger.error(
+                    f"Open position for {symbol} has no stored quantity — skipping exit "
+                    f"evaluation rather than acting on a guessed size. Manual review required."
+                )
+                continue
+
             expiry_str = active_position.get("expiry")
             if expiry_str:
                 try:
@@ -1210,7 +1295,6 @@ class WheelStateMachine:
                     short_entry_price = active_position.get("entry_price", 0.0)
                     long_entry_price = hedge_position.get("entry_price", 0.0)
                     initial_credit = short_entry_price - long_entry_price
-                    quantity_shares = active_position.get("quantity", LOT_SIZES.get(symbol, 25))
                     gross_pnl = initial_credit * quantity_shares
                     # Slightly conservative: only the 2 entry orders were actually placed
                     # (nothing traded to close), so the 4-order round trip over-charges by
@@ -1229,6 +1313,7 @@ class WheelStateMachine:
                     self.state[symbol]["current_stage"] = "CLOSED"
                     self.state[symbol]["active_position"] = None
                     self.state[symbol]["hedge_position"] = None
+                    self.state[symbol]["theoretical_credit"] = None
                     self._save_state(symbol)
                     continue
 
@@ -1243,7 +1328,6 @@ class WheelStateMachine:
             short_instrument_key = active_position.get("instrument_key")
             long_instrument_key = hedge_position.get("instrument_key")
             expiry_str = active_position.get("expiry")
-            quantity_shares = active_position.get("quantity", LOT_SIZES.get(symbol, 25))
 
             chain_df = self.client.get_option_chain(symbol, expiry_date=expiry_str)
             short_contract_df = chain_df.filter(pl.col("instrument_key") == short_instrument_key)

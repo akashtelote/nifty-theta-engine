@@ -27,14 +27,40 @@ import numpy as np
 import polars as pl
 
 from config.event_calendar import in_event_blackout
-from config.settings import ALLOCATION_PCT_PER_TRADE, MAX_CAPITAL, round_trip_fees
+from config.settings import (
+    ALLOCATION_PCT_PER_TRADE,
+    MAX_CAPITAL,
+    lot_size_from_master,
+    round_trip_fees,
+)
 from core.chain_loader import chain_files_available, load_option_chains
 from core.ivr import ivr_allows_entry
 from core.trend_filter import sma, trend_allows_entry
 
-NIFTY_LOT = 25
 INITIAL_CAPITAL = 50_000.0
 DEFAULT_HEDGE_WIDTH = 100.0
+
+
+def nifty_lot_size() -> int:
+    """Lot size the live bot would actually trade, from the same instruments master.
+
+    Hard failure rather than a fallback constant: a backtest sized to a contract the
+    exchange does not list ranks configurations the bot cannot take, which is exactly
+    how PROF-001..021 came to be tuned against a 25-lot Nifty that no longer existed.
+
+    ponytail: applies today's lot size across the whole history, though NSE has revised
+    it (25 → 75 → 65). The question these runs answer is "what would this config do at
+    the current contract spec", not "what would it have returned in 2021". Thread a
+    date→lot table through `_simulate` if per-era fidelity ever matters.
+    """
+    lot = lot_size_from_master("Nifty 50")
+    if lot is None:
+        raise RuntimeError(
+            "Nifty lot size unavailable: data/nse_fo_instruments.csv is missing. "
+            "Run the bot once so it downloads the Upstox NSE master, or pass "
+            "PCSParams(lot_size=...) explicitly."
+        )
+    return lot
 
 
 @dataclass
@@ -62,7 +88,7 @@ class PCSParams:
     event_blackout: bool = True
     event_before: int = 1
     event_after: int = 1
-    lot_size: int = NIFTY_LOT
+    lot_size: int = field(default_factory=nifty_lot_size)
     initial_capital: float = INITIAL_CAPITAL
 
 
@@ -518,7 +544,7 @@ def main():
 
     chain_note = " + option_chains parquet" if chain_files_available() else ""
     print(
-        f"PCS backtest | capital=INR {INITIAL_CAPITAL:,.0f} | lot={NIFTY_LOT} | "
+        f"PCS backtest | capital=INR {INITIAL_CAPITAL:,.0f} | lot={params.lot_size} | "
         f"width={DEFAULT_HEDGE_WIDTH} | alloc={params.allocation_pct:.0%} | slippage={args.slippage}pt/side"
     )
     print(f"Model: {model}{chain_note}\n")

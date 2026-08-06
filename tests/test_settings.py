@@ -37,7 +37,43 @@ class TestSettingsValidation:
         assert settings_mod.MAX_CAPITAL == 50000.0
         assert settings_mod.PAPER_CAPITAL == 50000.0
 
-    def test_lot_sizes_defined(self):
-        from config.settings import LOT_SIZES
-        assert "Nifty 50" in LOT_SIZES
-        assert LOT_SIZES["Nifty 50"] == 25
+
+class TestLotSizeFromMaster:
+    """PROF-022: lot size must come from the instruments master, never a constant."""
+
+    HEADER = (
+        "instrument_key,name,strike,lot_size,instrument_type,exchange\n"
+    )
+
+    def _write(self, tmp_path, rows: str):
+        path = tmp_path / "master.csv"
+        path.write_text(self.HEADER + rows, encoding="utf-8")
+        return str(path)
+
+    def test_reads_option_lot_size(self, tmp_path):
+        from config.settings import lot_size_from_master
+        csv_path = self._write(tmp_path, "NSE_FO|1,NIFTY,24000,65,OPTIDX,NSE_FO\n")
+        assert lot_size_from_master("Nifty 50", csv_path) == 65
+
+    def test_ignores_other_underlyings(self, tmp_path):
+        from config.settings import lot_size_from_master
+        csv_path = self._write(tmp_path, "NSE_FO|2,BANKNIFTY,52000,15,OPTIDX,NSE_FO\n")
+        assert lot_size_from_master("Nifty 50", csv_path) is None
+
+    def test_takes_max_across_transition(self, tmp_path):
+        """Mid-revision the master carries both sizes; oversizing is the safe error."""
+        from config.settings import lot_size_from_master
+        csv_path = self._write(
+            tmp_path,
+            "NSE_FO|3,NIFTY,24000,25,OPTIDX,NSE_FO\nNSE_FO|4,NIFTY,24000,65,OPTIDX,NSE_FO\n",
+        )
+        assert lot_size_from_master("Nifty 50", csv_path) == 65
+
+    def test_missing_master_returns_none_not_a_guess(self, tmp_path):
+        from config.settings import lot_size_from_master
+        assert lot_size_from_master("Nifty 50", str(tmp_path / "absent.csv")) is None
+
+    def test_no_hardcoded_lot_size_dict_remains(self):
+        """A constant is what let the bot trade 25 while NSE listed 65."""
+        from config import settings as settings_mod
+        assert not hasattr(settings_mod, "LOT_SIZES")

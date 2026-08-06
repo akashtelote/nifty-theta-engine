@@ -13,6 +13,10 @@ CREATE TABLE IF NOT EXISTS trade_history (
     realized_pnl DOUBLE PRECISION,
     trade_date TEXT,
     expiry_date TEXT,
+    -- PROF-022: realized fill quality in index points per leg, positive = worse than
+    -- the mid we priced against. Feeds the slippage-vs-breakeven measurement.
+    entry_slippage_per_leg DOUBLE PRECISION,
+    exit_slippage_per_leg DOUBLE PRECISION,
     closed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -31,5 +35,8 @@ CREATE TABLE index_spread_state (
     net_credit_received DOUBLE PRECISION,
     trade_date TEXT,
     expiry_date TEXT,
-    realized_pnl DOUBLE PRECISION
+    realized_pnl DOUBLE PRECISION,
+    -- Mid-price credit the entry aimed at, carried so exit-time archiving can
+    -- compute entry slippage without re-fetching the entry chain.
+    theoretical_credit DOUBLE PRECISION
 );
