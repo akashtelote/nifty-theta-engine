@@ -92,6 +92,24 @@ class WheelStateMachine:
                     realized_pnl DOUBLE PRECISION
                 )
             ''')
+            # PROF-022 spread sampler. Entries are gated (VIX/IVR/blackout/trend), so
+            # waiting on fills yields at most one slippage point a week and none at all
+            # on blocked days. The quoted mid-vs-natural gap needs no order to observe.
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS spread_quality_samples (
+                    id SERIAL PRIMARY KEY,
+                    sampled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    symbol TEXT NOT NULL,
+                    spot DOUBLE PRECISION,
+                    vix DOUBLE PRECISION,
+                    short_strike DOUBLE PRECISION,
+                    long_strike DOUBLE PRECISION,
+                    expiry_date TEXT,
+                    credit_mid DOUBLE PRECISION,
+                    credit_natural DOUBLE PRECISION,
+                    half_spread_per_leg DOUBLE PRECISION
+                )
+            ''')
             # PROF-022 fill-quality columns. Realized slippage is the input the whole
             # profitability verdict hinges on, and stdout logging left nothing to mine.
             for ddl in (
@@ -260,6 +278,83 @@ class WheelStateMachine:
             return None
         achieved_per_share = symbol_state.get("net_credit_received", 0.0) / quantity
         return (theoretical - achieved_per_share) / 2.0
+
+    def sample_spread_quality(self, symbol: str) -> float | None:
+        """Record the quoted half-spread on the strikes we would trade, without trading.
+
+        PROF-022 needs a slippage distribution to compare against the 0.4 pt/side
+        breakeven, but entry gates block most days and paper fills cannot produce one
+        (the paper client "fills" at our own limit price, so achieved == mid == the
+        baseline). The chain is the observable: (mid - natural) / 2 is what crossing
+        the spread costs per leg, and it is available every session regardless of gates.
+
+        Deliberately runs no entry gates — wide-VIX and blackout days are exactly when
+        spreads blow out, so excluding them would bias the sample optimistic.
+
+        Returns points per leg, or None when the chain gave us nothing to measure.
+        """
+        spot = self.client.get_market_quote_ltp(symbol)
+        lot_size = self.client.get_lot_size(symbol)
+        if spot is None or not lot_size:
+            logger.warning(f"Spread sample skipped for {symbol}: no spot price or lot size.")
+            return None
+
+        vix = self.client.get_india_vix()
+        _, otm_pct = vix_regime_otm(vix)
+        targets = self._select_target_put(
+            self.client.get_option_chain(symbol),
+            spot,
+            otm_pct=otm_pct,
+            vix=vix or 15.0,
+            lot_size=lot_size,
+        )
+        if not targets or targets[0] is None or targets[1] is None:
+            logger.warning(f"Spread sample skipped for {symbol}: no target spread in chain.")
+            return None
+        short_put, long_put = targets
+
+        short_bid, short_ask = short_put.get("bid"), short_put.get("ask")
+        long_bid, long_ask = long_put.get("bid"), long_put.get("ask")
+        if short_bid in (None, 0, 0.0) or long_ask in (None, 0, 0.0):
+            logger.warning(f"Spread sample skipped for {symbol}: missing liquidity.")
+            return None
+
+        credit_natural = float(short_bid) - float(long_ask)
+        short_mid = (float(short_bid) + float(short_ask)) / 2.0 if short_ask else float(short_bid)
+        long_mid = (float(long_bid) + float(long_ask)) / 2.0 if long_bid else float(long_ask)
+        credit_mid = short_mid - long_mid
+        half_spread_per_leg = (credit_mid - credit_natural) / 2.0
+
+        logger.info(
+            f"Spread quality {symbol}: short {short_put.get('strike')} PE / "
+            f"long {long_put.get('strike')} PE exp {short_put.get('expiry')}; "
+            f"mid {credit_mid:.2f}, natural {credit_natural:.2f}, "
+            f"half_spread_per_leg {half_spread_per_leg:.2f}"
+        )
+
+        conn = None
+        try:
+            conn = self._pool.getconn()
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT INTO spread_quality_samples
+                (symbol, spot, vix, short_strike, long_strike, expiry_date,
+                 credit_mid, credit_natural, half_spread_per_leg)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ''', (
+                symbol, float(spot), vix,
+                short_put.get("strike"), long_put.get("strike"), short_put.get("expiry"),
+                credit_mid, credit_natural, half_spread_per_leg,
+            ))
+            conn.commit()
+        except psycopg2.Error as e:
+            # A lost sample is not worth failing anything over — this is measurement.
+            logger.error(f"Failed to persist spread sample for {symbol}: {e}")
+        finally:
+            if conn:
+                self._pool.putconn(conn)
+
+        return half_spread_per_leg
 
     def _archive_trade(
         self,
@@ -956,8 +1051,18 @@ class WheelStateMachine:
                     self._unwind_hedge(symbol, long_instrument_key, final_quantity, long_order_id)
                     return
 
-                achieved_short = short_fill_price if short_fill_price is not None else short_entry_price
-                achieved_long = long_fill_price if long_fill_price is not None else long_entry_price
+                if self.client.is_paper_trade:
+                    # Paper has no broker fills: get_order_status() returns "complete"
+                    # instantly and get_order_fill_price() returns None, so the requote
+                    # loop hands back our own limit — the mid. Measured against a mid
+                    # baseline that is 0.00 slippage forever, which reads as "fills are
+                    # free" on the one number PROF-022 exists to answer. Assume we always
+                    # cross instead: pessimistic, but a real bound rather than a flattering
+                    # zero, and it keeps paper P&L conservative.
+                    achieved_short, achieved_long = float(short_bid), float(long_ask)
+                else:
+                    achieved_short = short_fill_price if short_fill_price is not None else short_entry_price
+                    achieved_long = long_fill_price if long_fill_price is not None else long_entry_price
                 achieved_credit_per = achieved_short - achieved_long
 
                 logger.info(

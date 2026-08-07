@@ -185,6 +185,21 @@ def _run_midweek_wheel():
         return
     _run_daily_wheel(entry_session="midweek")
 
+def _run_spread_sample():
+    """PROF-022: record the quoted half-spread daily, whether or not an entry fires.
+
+    Runs 15:10 IST, five minutes ahead of the entry job, so it samples the same
+    session but never contends with the entry advisory lock.
+    """
+    wheel = WheelStateMachine()
+    for symbol in TARGET_SYMBOLS:
+        try:
+            wheel.sample_spread_quality(symbol)
+        except Exception as e:
+            # Measurement only — never escalate to Discord or block the entry job.
+            logger.error(f"Spread sample failed for {symbol}: {e}", exc_info=True)
+
+
 def _run_exits():
     logger.info("Starting exit evaluation.")
     wheel = WheelStateMachine()
@@ -287,6 +302,19 @@ def start_scheduler():
             f"Mid-week entry enabled: {settings.MIDWEEK_ENTRY_DAYS} "
             f"{settings.MIDWEEK_ENTRY_HOUR}:{settings.MIDWEEK_ENTRY_MINUTE:02d} IST"
         )
+
+    spread_sample_trigger = CronTrigger(
+        day_of_week='mon-fri',
+        hour=15,
+        minute=10,
+        timezone=tz,
+    )
+    scheduler.add_job(
+        _run_spread_sample,
+        trigger=spread_sample_trigger,
+        id="spread_sample",
+    )
+    logger.info("Spread quality sampling scheduled: Mon-Fri 15:10 IST")
 
     exit_trigger = CronTrigger(
         day_of_week='mon-fri',
