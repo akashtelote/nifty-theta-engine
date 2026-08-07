@@ -1,8 +1,10 @@
 name: CI
 
+# Runs on every branch, not just main. Main is written only by the merge job below,
+# and pushes made with GITHUB_TOKEN never trigger workflows — so a main-only trigger
+# meant CI fired for nothing between 2026-08-02 and 2026-08-06 while main went red.
 on:
   push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -55,12 +57,30 @@ jobs:
           REDIS_URL: redis://localhost:6379/1
           PAPER_TRADE: "True"
           MOCK_MARKET: "True"
-        run: uv run pytest tests/ -v --tb=short
+        run: uv run pytest tests/ -v --tb=short --cov=strategies --cov=core --cov-report=term-missing
 
-      - name: Test coverage
-        env:
-          DATABASE_URL: postgresql://wheelbot:securepassword@localhost:5432/wheeldb_test
-          REDIS_URL: redis://localhost:6379/1
-          PAPER_TRADE: "True"
-          MOCK_MARKET: "True"
-        run: uv run pytest tests/ --cov=strategies --cov=core --cov-report=term-missing
+  merge-to-main:
+    # Was a separate auto-merge.yml triggered on push, which merged to main without
+    # waiting for anything — a merge gate that did not gate. As a needs: edge it
+    # cannot run unless lint-and-test is green.
+    needs: lint-and-test
+    if: github.event_name == 'push' && github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the merge has a real base
+
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge current branch into main
+        run: |
+          git checkout main
+          git merge ${{ github.ref_name }} --no-ff --commit -m "Auto-merge branch ${{ github.ref_name }} to main"
+          git push origin main
