@@ -302,3 +302,71 @@ class TestFillQualityCapture:
             "initial_credit": 40.0, "current_cost_to_close": 20.0,
         })
         assert captured["slippage"] == 1.0
+
+
+def _quoted_chain():
+    """Chain whose target spread has a known mid/natural gap.
+
+    Short 21700 (bid 50 / ask 51, mid 50.5), long 21600 (bid 30 / ask 31, mid 30.5):
+    natural credit 50 - 31 = 19.0, mid credit 50.5 - 30.5 = 20.0, half-spread 0.5/leg.
+    """
+    expiry = (date.today() + timedelta(days=20)).isoformat()
+    return pl.DataFrame([
+        {"instrument_key": "NSE_FO|NIFTY21700PE", "type": "PE", "strike": 21700.0,
+         "expiry": expiry, "bid": 50.0, "ask": 51.0, "last_price": 50.5},
+        {"instrument_key": "NSE_FO|NIFTY21600PE", "type": "PE", "strike": 21600.0,
+         "expiry": expiry, "bid": 30.0, "ask": 31.0, "last_price": 30.5},
+    ])
+
+
+class TestSpreadQualitySampler:
+    """PROF-022: the half-spread must be observable without an entry firing."""
+
+    def test_returns_half_the_mid_natural_gap(self, wheel, mock_client):
+        mock_client.get_option_chain.return_value = _quoted_chain()
+        assert wheel.sample_spread_quality("Nifty 50") == 0.5
+
+    def test_places_no_orders(self, wheel, mock_client):
+        mock_client.get_option_chain.return_value = _quoted_chain()
+        wheel.sample_spread_quality("Nifty 50")
+        mock_client.place_order_by_key.assert_not_called()
+
+    def test_samples_even_when_vix_would_block_entry(self, wheel, mock_client):
+        # VIX 30 trips the entry circuit breaker outright; wide-VIX days are precisely
+        # the ones a slippage sample must not omit. Strikes sit lower here because the
+        # regime widens OTM to 1.5%, which is the selection the sampler should follow.
+        expiry = (date.today() + timedelta(days=20)).isoformat()
+        mock_client.get_india_vix.return_value = 30.0
+        mock_client.get_option_chain.return_value = pl.DataFrame([
+            {"instrument_key": "NSE_FO|NIFTY21600PE", "type": "PE", "strike": 21600.0,
+             "expiry": expiry, "bid": 50.0, "ask": 51.0, "last_price": 50.5},
+            {"instrument_key": "NSE_FO|NIFTY21500PE", "type": "PE", "strike": 21500.0,
+             "expiry": expiry, "bid": 30.0, "ask": 31.0, "last_price": 30.5},
+        ])
+        assert wheel.sample_spread_quality("Nifty 50") == 0.5
+
+    def test_returns_none_without_a_target_spread(self, wheel, mock_client):
+        mock_client.get_option_chain.return_value = pl.DataFrame(schema={
+            "instrument_key": pl.Utf8, "type": pl.Utf8, "strike": pl.Float64,
+            "expiry": pl.Utf8, "bid": pl.Float64, "ask": pl.Float64, "last_price": pl.Float64
+        })
+        assert wheel.sample_spread_quality("Nifty 50") is None
+
+
+class TestPaperFillsAreNotFree:
+    """PROF-022: paper entry must not record 0.00 slippage by measuring mid against mid."""
+
+    @patch("time.sleep", return_value=None)
+    def test_paper_entry_records_the_half_spread(self, mock_sleep, wheel, mock_client):
+        from strategies.wheel_strategy import WheelStateMachine
+
+        mock_client.get_option_chain.return_value = _quoted_chain()
+        wheel.execute_daily_cycle("Nifty 50", {"allocation_pct": 1.0, "entry_session": "friday"})
+
+        state = wheel.state["Nifty 50"]
+        assert state["current_stage"] == "STAGE_1_CSP"
+        # Baseline stays the mid; the fill is booked at natural, so the gap survives.
+        assert state["theoretical_credit"] == 20.0
+        quantity = state["active_position"]["quantity"]
+        assert state["net_credit_received"] == 19.0 * quantity
+        assert WheelStateMachine._entry_slippage_per_leg(state, quantity) == 0.5

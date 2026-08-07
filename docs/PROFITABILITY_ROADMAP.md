@@ -2,7 +2,7 @@
 
 Staged tracker for expectancy improvements to the Nifty put credit spread engine.
 
-Last updated: 2026-08-06
+Last updated: 2026-08-07
 
 > **Capital constraint:** All sizing, backtests, and live/paper configs must operate within **₹50,000** total capital (`MAX_CAPITAL` / `PAPER_CAPITAL` in [`config/settings.py`](../config/settings.py); paper returns `PAPER_CAPITAL`, live clamps to `MAX_CAPITAL` in [`core/client.py`](../core/client.py)). One-lot margin check: `(spread_width × lot_size) ≤ 50000`.
 
@@ -567,7 +567,39 @@ rather than logged to a stdout nobody captured (`logs/` held only `.gitkeep`):
 `trade_history.entry_slippage_per_leg` / `exit_slippage_per_leg`, with
 `index_spread_state.theoretical_credit` carrying the entry-side mid to archive time.
 The dashboard reports the mean against the 0.4 breakeven. Rows predating this change
-are null, not zero. **Next step is unchanged: run paper mode and read the number.**
+are null, not zero.
+
+**Correction (2026-08-07): "run paper mode and read the number" cannot work.** Paper
+mode is a closed loop that measures the mid against itself, so the column it fills
+would have read `0.00` — the PF 1.14 row above — no matter what real spreads cost:
+
+- `get_order_status()` returns `"complete"` on attempt 0 for any `PAPER_` id
+  (`core/client.py`), so the requote walk never advances off its opening price.
+- `get_order_fill_price()` returns `None` in paper, so `_place_entry_leg_with_requote`
+  falls back to the limit it just sent.
+- With `ENTRY_USE_MID_PRICE=True` that limit *is* the mid, and `theoretical_mid` is the
+  baseline it is compared against. Slippage = rounding noise.
+- Exit is 0 by construction, not approximately: `actual_cost_to_close` falls back to
+  `theoretical_cost` and the next line subtracts them.
+
+A zero here is worse than the nulls it replaced — it reads as "fills are free" on the
+one input the whole verdict turns on. Two fixes landed:
+
+1. **`spread_quality_samples` + `WheelStateMachine.sample_spread_quality()`**, scheduled
+   Mon–Fri 15:10 IST. Records `(credit_mid - credit_natural) / 2` on the strikes
+   `_select_target_put` would have chosen, placing no orders and running **no entry
+   gates** — VIX and blackout days are when spreads blow out, so gating the sample
+   would bias it optimistic. This decouples the measurement from entry, which matters
+   because the gates block most sessions: the 2026-08-06 attempt died on event blackout
+   and produced nothing. Note that high-VIX samples measure further-OTM strikes by
+   design, so the series is not strictly like-for-like across regimes.
+2. **Paper entries now book fills at natural** (`short_bid` / `long_ask`) rather than at
+   our own mid limit, so `entry_slippage_per_leg` carries a real pessimistic bound and
+   paper P&L stops flattering itself.
+
+Both are bounds on what crossing costs, not realized fills. **The only true measurement
+is one live lot** (₹6,500 max loss); hold that until the sampled half-spread shows
+whether the real number is anywhere near 0.4.
 
 #### Minimum viable capital
 
