@@ -88,7 +88,9 @@ class PCSParams:
     event_blackout: bool = True
     event_before: int = 1
     event_after: int = 1
-    lot_size: int = field(default_factory=nifty_lot_size)
+    # Called through a lambda, not passed directly: a bare default_factory binds the
+    # function object at class-definition time, so tests could not substitute it.
+    lot_size: int = field(default_factory=lambda: nifty_lot_size())
     initial_capital: float = INITIAL_CAPITAL
 
 
