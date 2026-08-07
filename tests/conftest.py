@@ -18,6 +18,25 @@ def _stage6_entry_gates_open(monkeypatch):
     monkeypatch.setattr(settings_mod.settings, "ALLOW_SAME_WEEK_REENTRY", False)
 
 
+@pytest.fixture(autouse=True)
+def _pin_backtest_lot_size(monkeypatch):
+    """Pin the backtest contract size so tests never depend on a downloaded file.
+
+    PCSParams defaults lot_size from data/nse_fo_instruments.csv — a gitignored 9.5MB
+    runtime artifact that exists on a dev box which has run the bot and never on a
+    fresh checkout. Seven tests passed locally and failed in CI on exactly that.
+    Patched here rather than at each call site because sweep_exit_params builds its
+    own PCSParams inside backtest.py, where no test can reach the constructor.
+
+    65 is the NSE Nifty lot these tests are written against. This does not blind us to
+    a regression in the real lookup: tests/test_settings.py::TestLotSizeFromMaster
+    exercises lot_size_from_master directly, including the missing-master path.
+    """
+    import backtest
+
+    monkeypatch.setattr(backtest, "nifty_lot_size", lambda: 65)
+
+
 @pytest.fixture
 def mock_client(monkeypatch):
     """Provides a mock UpstoxClient that returns controllable values."""
