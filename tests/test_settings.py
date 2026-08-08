@@ -16,7 +16,10 @@ class TestSettingsValidation:
         )
         assert settings.PAPER_TRADE is True
         assert settings.VIX_MAX_THRESHOLD == 22.0
-        assert settings.ALLOCATION_PCT_PER_TRADE == 0.15
+        # 0.25, not 0.15: the largest allocation that still buys exactly one lot
+        # at the ₹50k ceiling, chosen for drawdown runway rather than size.
+        # See config/settings.py and tests/test_stress.py.
+        assert settings.ALLOCATION_PCT_PER_TRADE == 0.25
         assert settings.MAX_CAPITAL == 50000.0
         assert settings.PAPER_CAPITAL == 50000.0
         assert 0.0 <= settings.EXIT_SLIPPAGE_BUFFER_PCT <= 0.10
