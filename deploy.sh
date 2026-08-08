@@ -11,13 +11,13 @@ fi
 git pull
 
 # Teardown
-podman compose down
+docker compose down
 
 # Build
-podman compose build
+docker compose build
 
 # Cleanup
-podman image prune -f
+docker image prune -f
 
 # Launch
-podman compose up -d
+docker compose up -d
