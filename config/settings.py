@@ -19,8 +19,15 @@ class Settings(BaseSettings):
     # VIX circuit breaker (hard skip above this) — Stage 6 tightened to 22
     VIX_MAX_THRESHOLD: float = 22.0
 
-    # Position sizing
-    ALLOCATION_PCT_PER_TRADE: float = 0.15
+    # Position sizing.
+    # 0.25 is the largest value that still buys exactly ONE lot at the ₹50k ceiling
+    # (12,500 / (100×65) = 1.92 → 1); 0.26 would buy a second and double per-trade risk.
+    # It is set here for drawdown runway, not size: one lot needs width×lot = ₹6,500 of
+    # budget, so at 0.15 the bot silently stops entering once live equity drops below
+    # ₹43,334 (a 13% drawdown bricks it). At 0.25 that floor is ₹26,000.
+    # Paper mode cannot surface this — get_available_margin() returns a static
+    # PAPER_CAPITAL that never decays. See stress.py::funding_cliff.
+    ALLOCATION_PCT_PER_TRADE: float = 0.25
 
     # Capital ceiling (₹). Paper budget and live margin clamp — sizing must never exceed this.
     MAX_CAPITAL: float = Field(default=50000.0, gt=0.0)
