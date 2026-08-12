@@ -459,7 +459,7 @@ STAGE_2_CC → IDLE: Shares called away (ITM)
 | `net_credit_received` | DOUBLE | Initial net credit |
 | `trade_date` | TEXT | Trade entry date |
 | `expiry_date` | TEXT | Option expiration date |
-| `realized_pnl` | DOUBLE | Accumulated realized P&L |
+| `lifetime_realized_pnl` | DOUBLE | Cumulative realized P&L across all closed trades for this symbol (not just the current trade); per-trade P&L is in `trade_history.realized_pnl` |
 
 ---
 
@@ -613,7 +613,7 @@ CREATE TABLE index_spread_state (
     net_credit_received DOUBLE PRECISION,
     trade_date TEXT,
     expiry_date TEXT,
-    realized_pnl DOUBLE PRECISION
+    lifetime_realized_pnl DOUBLE PRECISION
 );
 ```
 

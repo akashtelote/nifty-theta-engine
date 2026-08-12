@@ -1,7 +1,7 @@
-# Graph Report - nifty-theta-engine  (2026-08-12)
+# Graph Report - nifty-theta-engine  (2026-08-07)
 
 ## Corpus Check
-- 46 files · ~43,499 words
+- 46 files · ~43,381 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
@@ -10,7 +10,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `3a2b667a`
+- Built from commit: `248fee6a`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -99,7 +99,7 @@ Nodes (13): Real-time LTP monitor using the Upstox SDK's MarketDataStreamerV3. T
 
 ### Community 3 - "WheelStateMachine"
 Cohesion: 0.07
-Nodes (22): DataFrame, date, Returns all instrument keys that should be monitored in real-time., Populate/refresh the in-memory exit threshold cache from current state., Handle a real-time LTP tick. Debounces breach detection. Strike touch is this…, Execute a sequenced exit: buy-to-close short FIRST, then sell-to-close hedge.…, Evaluate active positions for Take Profit, Stop Loss, and Time Stop conditions., Loads state from the PostgreSQL database and parses it into the nested… (+14 more)
+Nodes (22): DataFrame, date, Returns all instrument keys that should be monitored in real-time., Populate/refresh the in-memory exit threshold cache from current state., Handle a real-time LTP tick. Debounces breach detection. Strike touch is this…, Execute a sequenced exit: buy-to-close short FIRST, then sell-to-close hedge.…, Loads state from the PostgreSQL database and parses it into the nested…, Evaluate active positions for Take Profit, Stop Loss, and Time Stop conditions. (+14 more)
 
 ### Community 4 - "PCSParams"
 Cohesion: 0.05

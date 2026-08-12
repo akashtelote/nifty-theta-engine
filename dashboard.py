@@ -33,7 +33,7 @@ def load_data() -> pl.DataFrame:
             "net_credit_received": pl.Float64,
             "trade_date": pl.Utf8,
             "expiry_date": pl.Utf8,
-            "realized_pnl": pl.Float64
+            "lifetime_realized_pnl": pl.Float64
         })
     except Exception as e:
         st.error(f"An unexpected error occurred: {e}")
@@ -83,7 +83,7 @@ if df.is_empty():
 expected_columns = [
     "symbol", "current_stage", "short_instrument_key", "short_strike", "short_entry_price",
     "short_order_id", "long_instrument_key", "long_strike", "long_entry_price", "long_order_id",
-    "quantity", "net_credit_received", "trade_date", "expiry_date", "realized_pnl",
+    "quantity", "net_credit_received", "trade_date", "expiry_date", "lifetime_realized_pnl",
 ]
 for col in expected_columns:
     if col not in df.columns:
@@ -94,7 +94,7 @@ st.header("Global Summary Metrics")
 
 active_positions = df.filter(pl.col("current_stage") != "IDLE")
 total_active = active_positions.height
-total_pnl = df["realized_pnl"].fill_null(0.0).sum()
+total_pnl = df["lifetime_realized_pnl"].fill_null(0.0).sum()
 
 idle_count = df.filter(pl.col("current_stage") == "IDLE").height
 csp_count = df.filter(pl.col("current_stage") == "STAGE_1_CSP").height

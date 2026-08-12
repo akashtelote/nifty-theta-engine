@@ -89,7 +89,7 @@ class WheelStateMachine:
                     net_credit_received DOUBLE PRECISION,
                     trade_date TEXT,
                     expiry_date TEXT,
-                    realized_pnl DOUBLE PRECISION
+                    lifetime_realized_pnl DOUBLE PRECISION
                 )
             ''')
             # PROF-022 spread sampler. Entries are gated (VIX/IVR/blackout/trend), so
@@ -118,6 +118,19 @@ class WheelStateMachine:
                 "ALTER TABLE trade_history ADD COLUMN IF NOT EXISTS exit_slippage_per_leg DOUBLE PRECISION",
             ):
                 cursor.execute(ddl)
+            # Pre-rename installs still have the old column; new installs get it
+            # straight from the CREATE TABLE above, so this is a no-op there.
+            cursor.execute('''
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'index_spread_state' AND column_name = 'realized_pnl'
+                    ) THEN
+                        ALTER TABLE index_spread_state RENAME COLUMN realized_pnl TO lifetime_realized_pnl;
+                    END IF;
+                END $$;
+            ''')
             conn.commit()
         except Exception as e:
             # Raise, don't swallow. init_nifty_schema.sql only runs on first DB init, so
@@ -143,14 +156,14 @@ class WheelStateMachine:
             cursor.execute('''
                 SELECT symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
                        long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
-                       trade_date, expiry_date, realized_pnl, theoretical_credit
+                       trade_date, expiry_date, lifetime_realized_pnl, theoretical_credit
                 FROM index_spread_state
             ''')
             rows = cursor.fetchall()
             for row in rows:
                 (symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
                  long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
-                 trade_date, expiry_date, realized_pnl, theoretical_credit) = row
+                 trade_date, expiry_date, lifetime_realized_pnl, theoretical_credit) = row
 
                 state[symbol] = {
                     "current_stage": current_stage,
@@ -171,7 +184,7 @@ class WheelStateMachine:
                         "quantity": quantity
                     },
                     "net_credit_received": net_credit_received if net_credit_received is not None else 0.0,
-                    "realized_pnl": realized_pnl if realized_pnl is not None else 0.0,
+                    "lifetime_realized_pnl": lifetime_realized_pnl if lifetime_realized_pnl is not None else 0.0,
                     "theoretical_credit": theoretical_credit,
                 }
         except psycopg2.Error as e:
@@ -193,7 +206,7 @@ class WheelStateMachine:
         active_position = symbol_state.get("active_position")
         hedge_position = symbol_state.get("hedge_position")
         net_credit_received = symbol_state.get("net_credit_received", 0.0)
-        realized_pnl = symbol_state.get("realized_pnl", 0.0)
+        lifetime_realized_pnl = symbol_state.get("lifetime_realized_pnl", 0.0)
         theoretical_credit = symbol_state.get("theoretical_credit")
 
         if active_position:
@@ -237,7 +250,7 @@ class WheelStateMachine:
                 INSERT INTO index_spread_state
                 (symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
                  long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
-                 trade_date, expiry_date, realized_pnl, theoretical_credit)
+                 trade_date, expiry_date, lifetime_realized_pnl, theoretical_credit)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (symbol) DO UPDATE SET
                     current_stage = EXCLUDED.current_stage,
@@ -253,11 +266,11 @@ class WheelStateMachine:
                     net_credit_received = EXCLUDED.net_credit_received,
                     trade_date = EXCLUDED.trade_date,
                     expiry_date = EXCLUDED.expiry_date,
-                    realized_pnl = EXCLUDED.realized_pnl,
+                    lifetime_realized_pnl = EXCLUDED.lifetime_realized_pnl,
                     theoretical_credit = EXCLUDED.theoretical_credit
             ''', (symbol, current_stage, short_instrument_key, short_strike, short_entry_price, short_order_id,
                   long_instrument_key, long_strike, long_entry_price, long_order_id, quantity, net_credit_received,
-                  trade_date, expiry_date, realized_pnl, theoretical_credit))
+                  trade_date, expiry_date, lifetime_realized_pnl, theoretical_credit))
             conn.commit()
         except psycopg2.Error as e:
             logger.error(f"Error saving state to database for {symbol}: {e}")
@@ -473,7 +486,7 @@ class WheelStateMachine:
                 "active_position": None,
                 "hedge_position": None,
                 "net_credit_received": 0.0,
-                "realized_pnl": 0.0,
+                "lifetime_realized_pnl": 0.0,
                 "theoretical_credit": None,
             }
             self._save_state(symbol)
@@ -1342,7 +1355,7 @@ class WheelStateMachine:
 
         # Archive and close — the short is covered regardless of STC outcome
         self._archive_trade(symbol, reason, pnl, exit_slippage_per_leg=exit_slippage_per_leg)
-        self.state[symbol]["realized_pnl"] += pnl
+        self.state[symbol]["lifetime_realized_pnl"] += pnl
         self.state[symbol]["current_stage"] = "CLOSED"
         self.state[symbol]["last_exit_reason"] = reason
         self.state[symbol]["active_position"] = None
@@ -1414,7 +1427,7 @@ class WheelStateMachine:
                     logger.warning(msg)
                     self.notifier.send_notification(title="Expired Position Auto-Closed", message=msg, level="WARNING")
                     self._archive_trade(symbol, "Expiry (offline)", pnl)
-                    self.state[symbol]["realized_pnl"] = data.get("realized_pnl", 0.0) + pnl
+                    self.state[symbol]["lifetime_realized_pnl"] = data.get("lifetime_realized_pnl", 0.0) + pnl
                     self.state[symbol]["current_stage"] = "CLOSED"
                     self.state[symbol]["active_position"] = None
                     self.state[symbol]["hedge_position"] = None

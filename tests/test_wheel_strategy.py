@@ -103,7 +103,7 @@ class TestExitVerification:
                 "quantity": 25,
             },
             "net_credit_received": 500.0,
-            "realized_pnl": 0.0,
+            "lifetime_realized_pnl": 0.0,
         }
 
     @patch("time.sleep", return_value=None)
@@ -194,14 +194,14 @@ class TestExpiryAutoClose:
                 "quantity": 25,
             },
             "net_credit_received": 500.0,
-            "realized_pnl": 0.0,
+            "lifetime_realized_pnl": 0.0,
         }
         wheel.check_exits()
         assert wheel.state["Nifty 50"]["current_stage"] == "CLOSED"
         assert wheel.state["Nifty 50"]["active_position"] is None
         # Max profit is booked net of round-trip fees (gross 20.0 * 25 = 500.0)
         expected_pnl = 500.0 - round_trip_fees(20.0, 0.0, 25, 1)
-        assert abs(wheel.state["Nifty 50"]["realized_pnl"] - expected_pnl) < 0.01
+        assert abs(wheel.state["Nifty 50"]["lifetime_realized_pnl"] - expected_pnl) < 0.01
         mock_client.get_market_quote_ltp.assert_not_called()
         mock_notifier.send_notification.assert_called()
 
@@ -226,7 +226,7 @@ class TestExpiryAutoClose:
                 "quantity": 25,
             },
             "net_credit_received": 500.0,
-            "realized_pnl": 0.0,
+            "lifetime_realized_pnl": 0.0,
         }
         mock_client.get_market_quote_ltp.return_value = 23000.0
         mock_client.get_option_chain.return_value = pl.DataFrame(schema={

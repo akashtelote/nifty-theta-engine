@@ -36,7 +36,7 @@ def _make_active_state():
                 "quantity": 25,
             },
             "net_credit_received": 500.0,  # (50-30)*25
-            "realized_pnl": 0.0,
+            "lifetime_realized_pnl": 0.0,
         }
     }
 
@@ -292,7 +292,7 @@ class TestFillQualityCapture:
             {"slippage": exit_slippage_per_leg}
         )
         wheel.state["Nifty 50"] = {
-            "current_stage": "STAGE_1_CSP", "realized_pnl": 0.0,
+            "current_stage": "STAGE_1_CSP", "lifetime_realized_pnl": 0.0,
             "active_position": {}, "hedge_position": {},
         }
         mock_client.get_order_fill_price.side_effect = [31.0, 9.0]  # ctc 22 vs 20 theoretical

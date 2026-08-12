@@ -23,7 +23,7 @@ This document serves as a living audit of the current production state of the co
   - Option legs: `instrument_key`, `strike_price`, `expiry`, `trade_date`, `entry_price`, `order_id`
   - Hedge legs: `hedge_instrument_key`, `hedge_strike_price`, `hedge_entry_price`, `hedge_order_id`
   - Inventory tracking: `assigned_shares`, `average_cost_basis`
-  - Accounting: `realized_pnl`
+  - Accounting: `lifetime_realized_pnl` (cumulative across all closed trades for the symbol, not just the current one — per-trade P&L lives in `trade_history.realized_pnl`)
 - **Application Parsing:** Within `strategies/wheel_strategy.py`, the flat SQL records are packed/unpacked into a nested Python dictionary to maintain strategy logic compatibility.
 
 ## The ML Pipeline (ml_service/) — historical / not wired to live entry

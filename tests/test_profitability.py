@@ -87,7 +87,7 @@ class TestExitParameterization:
                 "quantity": 25,
             },
             "net_credit_received": (initial_short - initial_long) * 25,
-            "realized_pnl": 0.0,
+            "lifetime_realized_pnl": 0.0,
         }
         return expiry
 

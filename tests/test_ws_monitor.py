@@ -194,7 +194,7 @@ class TestExitThresholdCache:
                     "quantity": 25,
                 },
                 "net_credit_received": 500.0,
-                "realized_pnl": 0.0,
+                "lifetime_realized_pnl": 0.0,
             }
         }
         wheel.refresh_exit_thresholds()
@@ -210,7 +210,7 @@ class TestExitThresholdCache:
                 "active_position": None,
                 "hedge_position": None,
                 "net_credit_received": 0.0,
-                "realized_pnl": 0.0,
+                "lifetime_realized_pnl": 0.0,
             }
         }
         wheel.refresh_exit_thresholds()
@@ -241,7 +241,7 @@ class TestDebouncedRealtimeTick:
                     "order_id": "ORD2",
                 },
                 "net_credit_received": 500.0,
-                "realized_pnl": 0.0,
+                "lifetime_realized_pnl": 0.0,
             }
         }
         wheel.refresh_exit_thresholds()
@@ -270,7 +270,7 @@ class TestDebouncedRealtimeTick:
                     "order_id": "ORD2",
                 },
                 "net_credit_received": 500.0,
-                "realized_pnl": 0.0,
+                "lifetime_realized_pnl": 0.0,
             }
         }
         wheel.refresh_exit_thresholds()
@@ -301,7 +301,7 @@ class TestDebouncedRealtimeTick:
                     "order_id": "ORD2",
                 },
                 "net_credit_received": 500.0,
-                "realized_pnl": 0.0,
+                "lifetime_realized_pnl": 0.0,
             }
         }
         wheel.refresh_exit_thresholds()
@@ -340,7 +340,7 @@ class TestDebouncedRealtimeTick:
                     "order_id": "ORD2",
                 },
                 "net_credit_received": 500.0,
-                "realized_pnl": 0.0,
+                "lifetime_realized_pnl": 0.0,
             }
         }
         wheel.refresh_exit_thresholds()

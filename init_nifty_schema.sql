@@ -35,7 +35,9 @@ CREATE TABLE index_spread_state (
     net_credit_received DOUBLE PRECISION,
     trade_date TEXT,
     expiry_date TEXT,
-    realized_pnl DOUBLE PRECISION,
+    -- Cumulative realized P&L for this symbol across every closed trade, not just
+    -- the current/most recent one. Per-trade P&L lives in trade_history.realized_pnl.
+    lifetime_realized_pnl DOUBLE PRECISION,
     -- Mid-price credit the entry aimed at, carried so exit-time archiving can
     -- compute entry slippage without re-fetching the entry chain.
     theoretical_credit DOUBLE PRECISION
