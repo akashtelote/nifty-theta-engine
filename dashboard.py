@@ -217,10 +217,10 @@ col_v1, col_v2 = st.columns(2)
 
 with col_v1:
     st.subheader("Realized PnL by Symbol")
-    pnl_by_symbol = df.group_by("symbol").agg(pl.col("realized_pnl").fill_null(0.0).sum())
-    pnl_by_symbol = pnl_by_symbol.sort("realized_pnl", descending=True)
+    pnl_by_symbol = df.group_by("symbol").agg(pl.col("lifetime_realized_pnl").fill_null(0.0).sum())
+    pnl_by_symbol = pnl_by_symbol.sort("lifetime_realized_pnl", descending=True)
     if not pnl_by_symbol.is_empty():
-        st.bar_chart(pnl_by_symbol.to_pandas().set_index("symbol")["realized_pnl"])
+        st.bar_chart(pnl_by_symbol.to_pandas().set_index("symbol")["lifetime_realized_pnl"])
     else:
         st.info("No PnL data available to display.")
 
