@@ -597,6 +597,58 @@ one input the whole verdict turns on. Two fixes landed:
    our own mid limit, so `entry_slippage_per_leg` carries a real pessimistic bound and
    paper P&L stops flattering itself.
 
+**2026-09-16: exit-side slippage was still flattened to 0.00.** The two live trades in
+`trade_history` (2026-08-03, 2026-08-11) showed `exit_slippage_per_leg = 0` for the
+instrumented one — not a real measurement. `_execute_exit` benchmarked
+`actual_cost_to_close` against `theoretical_cost`, but in paper mode (no real fills,
+`get_order_fill_price` returns `None`) `actual_cost_to_close` *falls back to that exact
+same natural ask/bid number* — comparing it against itself guarantees 0.00 regardless of
+real spread width, the exit-side twin of the entry bug fixed above. Fixed by threading
+the opposite-side quote (`short_bid`, `long_ask`) through both exit call sites
+(`check_exits`, `on_realtime_tick`) and benchmarking slippage against mid instead of
+natural, matching the entry-side and `sample_spread_quality()` convention. This moves
+**live's** baseline too (real fill vs mid, not vs natural) — both call sites populate
+the new fields whenever the chain has quotes, live included. Rows archived before
+2026-09-16 were measured against natural, not mid — averaging the two blends
+baselines.
+
+Three follow-on fixes from independent review, same bug class:
+- A resting bid/ask of exactly `0.0` (routine on near-worthless TP puts) was checked
+  with truthiness (`if short_ask else ...`), so a real `0.0` quote was wrongly treated
+  as "missing" and silently substituted with the other side's price — understating
+  slippage. Switched to `is not None` in both the new exit code and its cited sibling
+  `sample_spread_quality()`, which had the same bug independently of this change (there,
+  only `short_ask == 0.0` is reachable in practice — `_select_target_put`'s own
+  `_leg_liquid` gate already rejects any candidate with `bid == 0` on either leg before
+  it reaches this function, so a `long_bid == 0.0` variant of this bug cannot occur).
+- When a quote is genuinely absent (`None`, not `0.0`) in the exit path, the mid
+  baseline now records no measurement (`exit_slippage_per_leg = None`) rather than
+  degrading to a single-sided number that would read as a real one — the same
+  flattering-zero failure mode PROF-022 exists to catch, in a new shape. Matches the
+  entry-side rule that absent rows stay absent (see PROF-020's era note above
+  `_entry_slippage_per_leg`).
+- The dashboard's fill-quality panel computed both means from one `drop_nulls()` over
+  both columns together, so a null exit reading (now a normal outcome, not just a
+  pre-instrumentation artifact) would also discard that trade's real entry reading.
+  Each column now drops its own nulls and reports its own count independently.
+
+`tests/test_exit_sequencing.py::TestFillQualityCapture::
+test_paper_exit_slippage_is_not_flattened_to_zero`,
+`test_zero_bid_is_a_real_quote_not_a_missing_one`,
+`test_exit_slippage_none_without_mid_quotes`, and
+`TestSpreadQualitySampler::test_zero_ask_on_short_leg_is_a_real_quote` pin these
+(the dashboard change has no test coverage — this repo has none for `dashboard.py`;
+verified manually instead).
+
+**Known data-hygiene gap, not fixed here:** the one live-instrumented `trade_history`
+row that predates this change (2026-08-11) holds a literal `exit_slippage_per_leg =
+0.00`, not `null` — it was archived under the old tautological formula, before this
+column's "absent, not zero" rule existed. `dashboard.py`'s `drop_nulls()` keeps it, so
+with only ~2 rows total it silently drags the reported exit-slippage mean toward zero
+right at the 0.2–0.4pt breakeven the PROF-021/022 verdict turns on. Nulling that one
+archived row is a production data edit, left for a deliberate decision rather than
+folded into this fix.
+
 Both are bounds on what crossing costs, not realized fills. **The only true measurement
 is one live lot** (₹6,500 max loss); hold that until the sampled half-spread shows
 whether the real number is anywhere near 0.4.

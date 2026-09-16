@@ -179,26 +179,41 @@ else:
     slip_cols = [c for c in ("entry_slippage_per_leg", "exit_slippage_per_leg") if c in historical_df.columns]
     if slip_cols:
         st.subheader("Realized Fill Quality")
-        measured = historical_df.select(slip_cols).drop_nulls()
-        if measured.is_empty():
+        # Each column drops its own nulls independently — entry and exit slippage are
+        # measured on separate legs of the trade, so a null exit (e.g. the option chain
+        # had no quote at close) must not also discard that trade's real entry reading.
+        col_means, col_counts = {}, {}
+        for col in slip_cols:
+            values = historical_df[col].drop_nulls()
+            col_counts[col] = values.len()
+            col_means[col] = float(values.mean()) if values.len() > 0 else None
+
+        if not any(col_counts.values()):
             st.info(
                 "No fill-quality samples yet — slippage is recorded from the first trade "
                 "opened after the PROF-022 change. Older rows are left null rather than zero."
             )
         else:
             s1, s2, s3 = st.columns(3)
-            entry_mean = float(measured["entry_slippage_per_leg"].mean()) if "entry_slippage_per_leg" in measured.columns else float("nan")
-            exit_mean = float(measured["exit_slippage_per_leg"].mean()) if "exit_slippage_per_leg" in measured.columns else float("nan")
-            s1.metric("Entry slippage / leg", f"{entry_mean:.2f} pt")
-            s2.metric("Exit slippage / leg", f"{exit_mean:.2f} pt")
-            round_trip = (entry_mean + exit_mean) / 2.0
-            s3.metric(
-                "Avg / side vs 0.2 breakeven",
-                f"{round_trip:.2f} pt",
-                delta=f"{0.2 - round_trip:.2f} pt",
-                delta_color="normal",
+            entry_mean = col_means.get("entry_slippage_per_leg")
+            exit_mean = col_means.get("exit_slippage_per_leg")
+            s1.metric("Entry slippage / leg", f"{entry_mean:.2f} pt" if entry_mean is not None else "n/a")
+            s2.metric("Exit slippage / leg", f"{exit_mean:.2f} pt" if exit_mean is not None else "n/a")
+            if entry_mean is not None and exit_mean is not None:
+                round_trip = (entry_mean + exit_mean) / 2.0
+                s3.metric(
+                    "Avg / side vs 0.2 breakeven",
+                    f"{round_trip:.2f} pt",
+                    delta=f"{0.2 - round_trip:.2f} pt",
+                    delta_color="normal",
+                )
+            else:
+                s3.metric("Avg / side vs 0.2 breakeven", "n/a")
+            st.caption(
+                f"n={col_counts.get('entry_slippage_per_leg', 0)} entry / "
+                f"{col_counts.get('exit_slippage_per_leg', 0)} exit samples. "
+                "Positive = filled worse than mid."
             )
-            st.caption(f"n={measured.height} closed trades with recorded fills. Positive = filled worse than mid.")
 
     if reason_col:
         st.subheader("Exit-Reason Mix")

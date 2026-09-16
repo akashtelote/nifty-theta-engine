@@ -333,8 +333,12 @@ class WheelStateMachine:
             return None
 
         credit_natural = float(short_bid) - float(long_ask)
-        short_mid = (float(short_bid) + float(short_ask)) / 2.0 if short_ask else float(short_bid)
-        long_mid = (float(long_bid) + float(long_ask)) / 2.0 if long_bid else float(long_ask)
+        # `is not None`, not truthiness: short_ask/long_bid are guaranteed non-None by
+        # _select_target_put's own _leg_liquid gate (its only caller), but a resting
+        # value of exactly 0.0 there (e.g. short_ask on a leg nobody's offering) is a
+        # real quote to average into mid, not a missing one.
+        short_mid = (float(short_bid) + float(short_ask)) / 2.0 if short_ask is not None else float(short_bid)
+        long_mid = (float(long_bid) + float(long_ask)) / 2.0 if long_bid is not None else float(long_ask)
         credit_mid = short_mid - long_mid
         half_spread_per_leg = (credit_mid - credit_natural) / 2.0
 
@@ -1239,6 +1243,8 @@ class WheelStateMachine:
 
             short_live_ask = short_df.row(0, named=True).get("ask")
             long_live_bid = long_df.row(0, named=True).get("bid")
+            short_live_bid = short_df.row(0, named=True).get("bid")
+            long_live_ask = long_df.row(0, named=True).get("ask")
             if short_live_ask is None or long_live_bid is None:
                 return
 
@@ -1254,6 +1260,8 @@ class WheelStateMachine:
                 "quantity": t["quantity"],
                 "short_live_ask": short_live_ask,
                 "long_live_bid": long_live_bid,
+                "short_live_bid": short_live_bid,
+                "long_live_ask": long_live_ask,
                 "initial_credit": t["initial_credit"],
                 "current_cost_to_close": short_live_ask - long_live_bid,
             })
@@ -1339,11 +1347,38 @@ class WheelStateMachine:
         else:
             actual_cost_to_close = theoretical_cost
 
-        exit_slippage_per_leg = (actual_cost_to_close - theoretical_cost) / 2.0
+        # Slippage is benchmarked against mid, not the natural (ask/bid) snapshot used
+        # as `theoretical_cost` above — in paper mode `actual_cost_to_close` falls back
+        # to that exact same natural number, so comparing against it is tautological
+        # and always reads 0.00 (PROF-022). This also moves live's baseline from
+        # natural to mid, matching entry's theoretical_credit and the dashboard's
+        # "positive = worse than mid" convention — rows archived before this change
+        # were benchmarked against natural, not mid.
+        # A resting bid/ask of exactly 0.0 is routine (near-worthless TP puts) and is a
+        # real quote to average into mid — checked with `is not None`, not truthiness.
+        # If the opposite-side quote is genuinely absent (None), record no measurement
+        # at all rather than a single-sided value that reads as a real one: this column
+        # exists specifically so paper fills stop flattering themselves (PROF-022), and
+        # a quietly degraded number is the same flattery in a new shape.
+        short_live_bid = snapshot.get("short_live_bid")
+        long_live_ask = snapshot.get("long_live_ask")
+        if short_live_bid is None or long_live_ask is None:
+            theoretical_mid_cost = None
+        else:
+            theoretical_mid_cost = (
+                (short_live_bid + short_live_ask) / 2.0 - (long_live_bid + long_live_ask) / 2.0
+            )
+
+        if theoretical_mid_cost is None:
+            exit_slippage_per_leg = None
+            mid_display, slip_display = "n/a", "n/a"
+        else:
+            exit_slippage_per_leg = (actual_cost_to_close - theoretical_mid_cost) / 2.0
+            mid_display, slip_display = f"{theoretical_mid_cost:.2f}", f"{exit_slippage_per_leg:.2f}"
         logger.info(
-            f"Fill quality {symbol} (exit): theoretical_cost={theoretical_cost:.2f}, "
+            f"Fill quality {symbol} (exit): theoretical_mid_cost={mid_display}, "
             f"actual_cost_to_close={actual_cost_to_close:.2f}, "
-            f"slippage_per_leg={exit_slippage_per_leg:.2f}"
+            f"slippage_per_leg={slip_display}"
         )
 
         gross_pnl = (initial_credit - actual_cost_to_close) * quantity
@@ -1456,6 +1491,8 @@ class WheelStateMachine:
 
             short_live_ask = short_contract_df.row(0, named=True).get("ask")
             long_live_bid = long_contract_df.row(0, named=True).get("bid")
+            short_live_bid = short_contract_df.row(0, named=True).get("bid")
+            long_live_ask = long_contract_df.row(0, named=True).get("ask")
 
             if short_live_ask is None or long_live_bid is None:
                 continue
@@ -1518,6 +1555,8 @@ class WheelStateMachine:
                     "quantity": quantity_shares,
                     "short_live_ask": short_live_ask,
                     "long_live_bid": long_live_bid,
+                    "short_live_bid": short_live_bid,
+                    "long_live_ask": long_live_ask,
                     "initial_credit": initial_credit,
                     "current_cost_to_close": current_cost_to_close,
                 })

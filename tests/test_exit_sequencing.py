@@ -295,13 +295,91 @@ class TestFillQualityCapture:
             "current_stage": "STAGE_1_CSP", "lifetime_realized_pnl": 0.0,
             "active_position": {}, "hedge_position": {},
         }
-        mock_client.get_order_fill_price.side_effect = [31.0, 9.0]  # ctc 22 vs 20 theoretical
+        # mid cost = ((28+30)/2) - ((10+11)/2) = 29.0 - 10.5 = 18.5
+        # actual_cost_to_close (real fills) = 31.0 - 9.0 = 22.0
+        # slippage = (22.0 - 18.5) / 2 = 1.75
+        mock_client.get_order_fill_price.side_effect = [31.0, 9.0]
         wheel._execute_exit("Nifty 50", "Take Profit", {
             "short_instrument_key": "S", "long_instrument_key": "L", "quantity": 65,
             "short_live_ask": 30.0, "long_live_bid": 10.0,
+            "short_live_bid": 28.0, "long_live_ask": 11.0,
             "initial_credit": 40.0, "current_cost_to_close": 20.0,
         })
-        assert captured["slippage"] == 1.0
+        assert captured["slippage"] == 1.75
+
+    @patch("time.sleep", return_value=None)
+    def test_exit_slippage_none_without_mid_quotes(self, mock_sleep, wheel, mock_client):
+        """No mid baseline available -> record no measurement, not a degraded number
+        that would read as real (the same flattering-zero problem PROF-022 exists to
+        catch, in a new shape)."""
+        captured = {}
+        wheel._archive_trade = lambda sym, reason, pnl, exit_slippage_per_leg=None: captured.update(
+            {"slippage": exit_slippage_per_leg}
+        )
+        wheel.state["Nifty 50"] = {
+            "current_stage": "STAGE_1_CSP", "lifetime_realized_pnl": 0.0,
+            "active_position": {}, "hedge_position": {},
+        }
+        mock_client.get_order_fill_price.side_effect = [31.0, 9.0]
+        wheel._execute_exit("Nifty 50", "Take Profit", {
+            "short_instrument_key": "S", "long_instrument_key": "L", "quantity": 65,
+            "short_live_ask": 30.0, "long_live_bid": 10.0,  # no short_live_bid/long_live_ask
+            "initial_credit": 40.0, "current_cost_to_close": 20.0,
+        })
+        assert captured["slippage"] is None
+
+    @patch("time.sleep", return_value=None)
+    def test_paper_exit_slippage_is_not_flattened_to_zero(self, mock_sleep, wheel, mock_client):
+        """PROF-022: paper exit must not record 0.00 by comparing natural against itself.
+
+        No fills (paper): actual_cost_to_close falls back to the natural ask/bid
+        snapshot (2.0 - 1.0 = 1.0), which is also what the old baseline used —
+        guaranteeing 0.00 every time. The fix benchmarks against mid (1.75 - 1.25 =
+        0.5) instead, so the real half-spread (0.25) survives to trade_history.
+        """
+        captured = {}
+        wheel._archive_trade = lambda sym, reason, pnl, exit_slippage_per_leg=None: captured.update(
+            {"slippage": exit_slippage_per_leg}
+        )
+        wheel.state["Nifty 50"] = {
+            "current_stage": "STAGE_1_CSP", "lifetime_realized_pnl": 0.0,
+            "active_position": {}, "hedge_position": {},
+        }
+        mock_client.get_order_fill_price.return_value = None  # paper: no real fills
+        wheel._execute_exit("Nifty 50", "Take Profit", {
+            "short_instrument_key": "S", "long_instrument_key": "L", "quantity": 65,
+            "short_live_ask": 2.0, "long_live_bid": 1.0,
+            "short_live_bid": 1.5, "long_live_ask": 1.5,
+            "initial_credit": 20.0, "current_cost_to_close": 1.0,
+        })
+        assert captured["slippage"] == 0.25
+
+    @patch("time.sleep", return_value=None)
+    def test_zero_bid_is_a_real_quote_not_a_missing_one(self, mock_sleep, wheel, mock_client):
+        """A resting bid of exactly 0.0 is routine on near-worthless TP puts near
+        expiry — it must average into mid, not be treated as "no quote available"
+        and silently fall back to the ask (which would understate slippage).
+
+        short: bid 0.0 / ask 0.50 -> mid 0.25. long: bid 0.0 / ask 0.10 -> mid 0.05.
+        mid cost = 0.25 - 0.05 = 0.20. natural (paper fallback) = 0.50 - 0.0 = 0.50.
+        slippage = (0.50 - 0.20) / 2 = 0.15.
+        """
+        captured = {}
+        wheel._archive_trade = lambda sym, reason, pnl, exit_slippage_per_leg=None: captured.update(
+            {"slippage": exit_slippage_per_leg}
+        )
+        wheel.state["Nifty 50"] = {
+            "current_stage": "STAGE_1_CSP", "lifetime_realized_pnl": 0.0,
+            "active_position": {}, "hedge_position": {},
+        }
+        mock_client.get_order_fill_price.return_value = None
+        wheel._execute_exit("Nifty 50", "Take Profit", {
+            "short_instrument_key": "S", "long_instrument_key": "L", "quantity": 65,
+            "short_live_ask": 0.50, "long_live_bid": 0.0,
+            "short_live_bid": 0.0, "long_live_ask": 0.10,
+            "initial_credit": 20.0, "current_cost_to_close": 0.50,
+        })
+        assert captured["slippage"] == 0.15
 
 
 def _quoted_chain():
@@ -351,6 +429,29 @@ class TestSpreadQualitySampler:
             "expiry": pl.Utf8, "bid": pl.Float64, "ask": pl.Float64, "last_price": pl.Float64
         })
         assert wheel.sample_spread_quality("Nifty 50") is None
+
+    def test_zero_ask_on_short_leg_is_a_real_quote(self, wheel, mock_client):
+        """A resting ask of exactly 0.0 on the short leg must average into mid, not
+        be silently treated as a missing quote and collapsed onto the bid alone.
+
+        Note: `_select_target_put`'s own `_leg_liquid` gate already rejects any
+        candidate with bid == 0 (on either leg) before it reaches this function, so
+        the reachable zero-quote case here is short_ask, not long_bid (bid == 0 is
+        unreachable from this function's only caller).
+
+        short 21700 (bid 50 / ask 0.0, mid 25.0), long 21600 (bid 30 / ask 31, mid
+        30.5): natural 50 - 31 = 19.0, mid 25.0 - 30.5 = -5.5, half-spread -12.25/leg
+        (a genuinely broken quote, correctly surfaced rather than masked as ~0.25 by
+        collapsing short_mid onto the bid).
+        """
+        expiry = (date.today() + timedelta(days=20)).isoformat()
+        mock_client.get_option_chain.return_value = pl.DataFrame([
+            {"instrument_key": "NSE_FO|NIFTY21700PE", "type": "PE", "strike": 21700.0,
+             "expiry": expiry, "bid": 50.0, "ask": 0.0, "last_price": 25.0},
+            {"instrument_key": "NSE_FO|NIFTY21600PE", "type": "PE", "strike": 21600.0,
+             "expiry": expiry, "bid": 30.0, "ask": 31.0, "last_price": 30.5},
+        ])
+        assert wheel.sample_spread_quality("Nifty 50") == -12.25
 
 
 class TestPaperFillsAreNotFree:
