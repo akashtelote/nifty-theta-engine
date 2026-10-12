@@ -29,6 +29,7 @@ import polars as pl
 from config.event_calendar import in_event_blackout
 from config.settings import (
     ALLOCATION_PCT_PER_TRADE,
+    TP_RESIDUAL_CREDIT_FRACTION,
     MAX_CAPITAL,
     lot_size_from_master,
     round_trip_fees,
@@ -65,7 +66,7 @@ def nifty_lot_size() -> int:
 
 @dataclass
 class PCSParams:
-    tp_residual: float = 0.50
+    tp_residual: float = TP_RESIDUAL_CREDIT_FRACTION
     sl_multiple: float = 2.0
     time_stop_weekday: int = -1  # disabled
     dte_manage: int = 7

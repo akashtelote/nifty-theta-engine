@@ -38,7 +38,7 @@ class Settings(BaseSettings):
 
     # --- Exit rules (PROF-006 / PROF-007 / PROF-017) ---
     # Take profit when cost_to_close <= TP_RESIDUAL_CREDIT_FRACTION * initial_credit
-    TP_RESIDUAL_CREDIT_FRACTION: float = Field(default=0.50, ge=0.0, le=1.0)
+    TP_RESIDUAL_CREDIT_FRACTION: float = Field(default=0.25, ge=0.0, le=1.0)
     # Stop loss when cost_to_close >= SL_CREDIT_MULTIPLE * initial_credit
     SL_CREDIT_MULTIPLE: float = Field(default=2.0, ge=1.0)
     # When True, stop out the moment spot touches the short strike (today's hardcoded

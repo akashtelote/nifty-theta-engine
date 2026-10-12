@@ -342,7 +342,7 @@ yfinance `^NSEI`/`^INDIAVIX` paths + VIX-calibrated BS; optional `data/option_ch
 
 | Param | Default |
 |-------|---------|
-| TP residual | **0.50** |
+| TP residual | **0.25** (was 0.50; retuned 2026-10-12, see PROF-017 note) |
 | Time stop | **disabled** (`TIME_STOP_WEEKDAY=-1`) |
 | DTE manage | **7** |
 | SL multiple | **2.0** |
@@ -731,7 +731,7 @@ return-on-account figures are further depressed by the single-position design �
 | Parameter | Pre-sweep code | Stage 6 default | Notes |
 |-----------|----------------|-----------------|-------|
 | Capital ceiling | Paper ₹50k hardcoded | ₹50,000 (`MAX_CAPITAL`/`PAPER_CAPITAL`) | Hard constraint |
-| TP residual credit | `0.25` | **`0.50`** | ~50% of credit — higher hit rate |
+| TP residual credit | `0.25` | **`0.25`** | Re-swept 2026-10-12 on parity-fixed harness: PF 1.12 vs 0.75 at 0.50; walk-forward OOS better in both folds (PF 1.06 / 5.04 vs 0.76 / 3.97). Supersedes the earlier 0.50 "higher hit rate" choice |
 | SL multiple | `2.0` | **`2.0`** | Unchanged |
 | Time stop | Thu ≥ 15:00 IST | **disabled** | DTE/delta manage instead |
 | DTE manage | off (−1) | **7** | Last week manage |
