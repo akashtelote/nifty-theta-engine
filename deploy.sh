@@ -16,10 +16,8 @@ main() {
     # Code Sync
     git pull
 
-    # Teardown
-    docker compose down
-
-    # Build
+    # Build first: a failed build must leave the running containers untouched.
+    # (up -d below recreates only what changed, so no explicit teardown.)
     docker compose build
 
     # Cleanup
