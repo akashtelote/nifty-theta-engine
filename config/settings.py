@@ -20,18 +20,18 @@ class Settings(BaseSettings):
     VIX_MAX_THRESHOLD: float = 22.0
 
     # Position sizing.
-    # 0.25 is the largest value that still buys exactly ONE lot at the ₹50k ceiling
-    # (12,500 / (100×65) = 1.92 → 1); 0.26 would buy a second and double per-trade risk.
-    # It is set here for drawdown runway, not size: one lot needs width×lot = ₹6,500 of
-    # budget, so at 0.15 the bot silently stops entering once live equity drops below
-    # ₹43,334 (a 13% drawdown bricks it). At 0.25 that floor is ₹26,000.
+    # Tuned at the old ₹50k ceiling, where 0.25 bought exactly ONE lot
+    # (12,500 / (100×65) = 1.92 → 1) and was chosen for drawdown runway, not size: one
+    # lot needs width×lot = ₹6,500 of budget, so at 0.15 the bot silently stops entering
+    # once live equity drops below ₹43,334. At the ₹200k ceiling 0.25 is a ₹50,000 budget
+    # = 7 lots (max loss ≈ ₹45.5k, ~23% of capital) — revisit if that is too much risk.
     # Paper mode cannot surface this — get_available_margin() returns a static
     # PAPER_CAPITAL that never decays. See stress.py::funding_cliff.
     ALLOCATION_PCT_PER_TRADE: float = 0.25
 
     # Capital ceiling (₹). Paper budget and live margin clamp — sizing must never exceed this.
-    MAX_CAPITAL: float = Field(default=50000.0, gt=0.0)
-    PAPER_CAPITAL: float = Field(default=50000.0, gt=0.0)
+    MAX_CAPITAL: float = Field(default=200000.0, gt=0.0)
+    PAPER_CAPITAL: float = Field(default=200000.0, gt=0.0)
 
     # Exit slippage buffer (percentage above ask / below bid for marketable-limit orders)
     EXIT_SLIPPAGE_BUFFER_PCT: float = Field(default=0.02, ge=0.0, le=0.10)

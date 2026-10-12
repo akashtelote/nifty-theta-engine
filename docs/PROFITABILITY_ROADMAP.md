@@ -2,9 +2,9 @@
 
 Staged tracker for expectancy improvements to the Nifty put credit spread engine.
 
-Last updated: 2026-08-07
+Last updated: 2026-10-12
 
-> **Capital constraint:** All sizing, backtests, and live/paper configs must operate within **₹50,000** total capital (`MAX_CAPITAL` / `PAPER_CAPITAL` in [`config/settings.py`](../config/settings.py); paper returns `PAPER_CAPITAL`, live clamps to `MAX_CAPITAL` in [`core/client.py`](../core/client.py)). One-lot margin check: `(spread_width × lot_size) ≤ 50000`.
+> **Capital constraint (raised 2026-10-12 from ₹50,000 to ₹200,000; the PROF-* sections below are the original ₹50k-era record, kept as history):** All sizing, backtests, and live/paper configs must operate within **₹200,000** total capital (`MAX_CAPITAL` / `PAPER_CAPITAL` in [`config/settings.py`](../config/settings.py); paper returns `PAPER_CAPITAL`, live clamps to `MAX_CAPITAL` in [`core/client.py`](../core/client.py)). One-lot margin check: `(spread_width × lot_size) ≤ 200000`.
 
 Related: bug/enhancement debt lives in [`ISSUE_LOG.md`](ISSUE_LOG.md). This file tracks profitability work only (`PROF-*`).
 
@@ -730,7 +730,7 @@ return-on-account figures are further depressed by the single-position design �
 
 | Parameter | Pre-sweep code | Stage 6 default | Notes |
 |-----------|----------------|-----------------|-------|
-| Capital ceiling | Paper ₹50k hardcoded | ₹50,000 (`MAX_CAPITAL`/`PAPER_CAPITAL`) | Hard constraint |
+| Capital ceiling | Paper ₹50k hardcoded | ₹200,000 (`MAX_CAPITAL`/`PAPER_CAPITAL`; was ₹50,000 until 2026-10-12) | Hard constraint; with allocation 0.25 buys 7 lots |
 | TP residual credit | `0.25` | **`0.25`** | Re-swept 2026-10-12 on parity-fixed harness: PF 1.12 vs 0.75 at 0.50; walk-forward OOS better in both folds (PF 1.06 / 5.04 vs 0.76 / 3.97). Supersedes the earlier 0.50 "higher hit rate" choice |
 | SL multiple | `2.0` | **`2.0`** | Unchanged |
 | Time stop | Thu ≥ 15:00 IST | **disabled** | DTE/delta manage instead |

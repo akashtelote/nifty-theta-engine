@@ -39,7 +39,7 @@ Detailed system architecture, data flow, and component documentation:
 - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture overview
 - [WHEEL_STRATEGY_MANUAL.md](WHEEL_STRATEGY_MANUAL.md) - Strategy operation manual
 - [docs/ISSUE_LOG.md](docs/ISSUE_LOG.md) - Known issues and technical debt
-- [docs/PROFITABILITY_ROADMAP.md](docs/PROFITABILITY_ROADMAP.md) - Staged profitability work (`PROF-*`, ₹50k capital constraint)
+- [docs/PROFITABILITY_ROADMAP.md](docs/PROFITABILITY_ROADMAP.md) - Staged profitability work (`PROF-*`; originally ₹50k, now ₹200k)
 
 ## State Machine
 
@@ -85,6 +85,28 @@ docker compose up -d --build
 
 Services: `db` (PostgreSQL), `upstox_wheel_bot` (trading daemon), `dashboard` (Streamlit UI on :8502).
 
+## Live deployment (Oracle server)
+
+**This project runs live on `ssh oracle` (100.65.198.84, user `ubuntu`) at `~/nifty-theta-engine`, branch `main`.**
+Dashboard: http://100.65.198.84:8502/ — containers `nifty_dashboard`, `nifty_wheel_bot`, `nifty_postgres_db`.
+
+**Read logs from the server, not local `logs/`** — local files are stale:
+
+```bash
+ssh oracle "docker logs --tail 200 nifty_wheel_bot"
+ssh oracle "docker logs --tail 100 nifty_dashboard"
+ssh oracle "docker ps --format '{{.Names}}\t{{.Status}}'"
+ssh oracle "tail -200 ~/nifty-theta-engine/logs/<file>"
+```
+
+**After pushing any code change, deploy it** (pull + rebuild + restart):
+
+```bash
+ssh oracle "cd ~/nifty-theta-engine && ./deploy.sh"
+```
+
+`deploy.sh` runs `git pull` itself, so push to `origin/main` first. The server's `.env` is not in git — never overwrite it. Verify after deploying with `ssh oracle "docker ps"` and check :8502 responds.
+
 ## Environment Variables
 
 Required in `.env` (see `.env.example`):
@@ -102,8 +124,8 @@ Required in `.env` (see `.env.example`):
 | `REDIS_URL` | Redis connection string |
 | `PAPER_TRADE` | `True` for paper, `False` for live |
 | `MOCK_MARKET` | `True` to use mock data |
-| `MAX_CAPITAL` | Live margin clamp / capital ceiling (default `50000`) |
-| `PAPER_CAPITAL` | Paper-trade budget (default `50000`) |
+| `MAX_CAPITAL` | Live margin clamp / capital ceiling (default `200000`) |
+| `PAPER_CAPITAL` | Paper-trade budget (default `200000`) |
 | `WEBHOOK_URL` | Discord webhook for alerts |
 
 ## Database
@@ -113,12 +135,12 @@ Tables `index_spread_state` (one row per symbol, upsert semantics) and `trade_hi
 ## Key Design Decisions
 
 - **Hedge-first execution:** Long put (hedge) fills before short put to prevent naked short exposure.
-- **₹50k capital ceiling:** `MAX_CAPITAL` / `PAPER_CAPITAL` (default 50000) in `config/settings.py`. Paper uses `PAPER_CAPITAL`; live Upstox margin is clamped to `MAX_CAPITAL`. Budget = `get_available_margin() * allocation_pct`.
+- **₹200k capital ceiling:** `MAX_CAPITAL` / `PAPER_CAPITAL` (default 200000, raised from 50000) in `config/settings.py`. Paper uses `PAPER_CAPITAL`; live Upstox margin is clamped to `MAX_CAPITAL`. Budget = `get_available_margin() * allocation_pct`.
 - **Friday-only entry (default):** New positions open Fridays at 15:15 IST. Optional mid-week entry via `ALLOW_MIDWEEK_ENTRY` (VIX band gated).
 - **Exit monitoring:** Hourly `check_exits` Mon–Fri 9:00–15:00 IST as backstop; WebSocket real-time exits in live and paper when market data is available (`MOCK_MARKET` skips WS).
 - **Exit rules:** TP at ≤`TP_RESIDUAL_CREDIT_FRACTION` residual credit (default 0.25); SL at ≥`SL_CREDIT_MULTIPLE`× credit (default 2.0) or spot ≤ short strike; time stop Thu ≥ 15:00 IST. VIX regimes scale OTM via `vix_regime_otm`; hard skip above `VIX_MAX_THRESHOLD` (25). Short put: target delta ≈0.18 + min credit/width; hedge width `HEDGE_WIDTH` (default 100).
-- **PCS backtest:** `uv run python backtest.py` (add `--sweep` for TP/SL grid). ₹50k capital; synthetic model documented in module docstring.
-- **Single-symbol focus:** Nifty 50 is the only symbol in `TARGET_SYMBOLS`. Sizing is `ALLOCATION_PCT_PER_TRADE` (default `0.15`), so the per-trade budget is ~₹7,500 of the ₹50k ceiling — not 100%.
+- **PCS backtest:** `uv run python backtest.py` (add `--sweep` for TP/SL grid). ₹200k capital; synthetic model documented in module docstring.
+- **Single-symbol focus:** Nifty 50 is the only symbol in `TARGET_SYMBOLS`. Sizing is `ALLOCATION_PCT_PER_TRADE` (default `0.25`), so the per-trade budget is ~₹50,000 of the ₹200k ceiling (7 lots at lot size 65, max loss ≈ ₹45.5k) — not 100%.
 - **Paper trade default:** `PAPER_TRADE=True` unless explicitly overridden.
 
 ## Conventions

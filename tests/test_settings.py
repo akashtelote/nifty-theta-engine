@@ -17,11 +17,11 @@ class TestSettingsValidation:
         assert settings.PAPER_TRADE is True
         assert settings.VIX_MAX_THRESHOLD == 22.0
         # 0.25, not 0.15: the largest allocation that still buys exactly one lot
-        # at the ₹50k ceiling, chosen for drawdown runway rather than size.
+        # at the old ₹50k ceiling (now ₹200k = 7 lots); chosen for drawdown runway.
         # See config/settings.py and tests/test_stress.py.
         assert settings.ALLOCATION_PCT_PER_TRADE == 0.25
-        assert settings.MAX_CAPITAL == 50000.0
-        assert settings.PAPER_CAPITAL == 50000.0
+        assert settings.MAX_CAPITAL == 200000.0
+        assert settings.PAPER_CAPITAL == 200000.0
         assert 0.0 <= settings.EXIT_SLIPPAGE_BUFFER_PCT <= 0.10
         assert settings.TP_RESIDUAL_CREDIT_FRACTION == 0.50
         assert settings.SL_CREDIT_MULTIPLE == 2.0
@@ -35,8 +35,8 @@ class TestSettingsValidation:
 
     def test_capital_exports(self):
         from config import settings as settings_mod
-        assert settings_mod.MAX_CAPITAL == 50000.0
-        assert settings_mod.PAPER_CAPITAL == 50000.0
+        assert settings_mod.MAX_CAPITAL == 200000.0
+        assert settings_mod.PAPER_CAPITAL == 200000.0
 
 
 class TestLotSizeFromMaster:

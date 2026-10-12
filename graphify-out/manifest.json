@@ -1,7 +1,7 @@
 {
   "backtest.py": {
-    "mtime": 1786171675.2807808,
-    "ast_hash": "70ea6ee94b3cbe4e75074e5f2f48bf4e",
+    "mtime": 1791819635.3445501,
+    "ast_hash": "ee9fb89649b4cc18e09db3429f402da6",
     "semantic_hash": ""
   },
   "config/__init__.py": {
@@ -15,8 +15,8 @@
     "semantic_hash": ""
   },
   "config/settings.py": {
-    "mtime": 1786171675.2807808,
-    "ast_hash": "a310a5b5c040689623ec991ac8bb7839",
+    "mtime": 1791819635.3420377,
+    "ast_hash": "ecd89b3f3b133b55cadc200f30b02120",
     "semantic_hash": ""
   },
   "core/__init__.py": {
@@ -75,8 +75,8 @@
     "semantic_hash": "2b22dbb880c61346f358fc557782e049"
   },
   "dashboard.py": {
-    "mtime": 1786551548.6418977,
-    "ast_hash": "525d03f2eb1063d7d9dbbbfed71dbdf7",
+    "mtime": 1789573158.0607848,
+    "ast_hash": "21466263de98df7b103f97c29874bf9a",
     "semantic_hash": ""
   },
   "deploy.ps1": {
@@ -85,8 +85,8 @@
     "semantic_hash": ""
   },
   "deploy.sh": {
-    "mtime": 1786551963.7003937,
-    "ast_hash": "863a0ba6e51996a7b67aadd904f0cbcd",
+    "mtime": 1786552912.4857283,
+    "ast_hash": "46de5e7fa36c21cf0012d8be2c0b02a6",
     "semantic_hash": ""
   },
   "init_nifty_schema.sql": {
@@ -110,8 +110,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "strategies/wheel_strategy.py": {
-    "mtime": 1786551532.1943982,
-    "ast_hash": "e21cea4ae06576ac28d8f706b3edac6a",
+    "mtime": 1791820056.3860593,
+    "ast_hash": "afd938a64e9089714ff7f19c33417507",
     "semantic_hash": ""
   },
   "tests/__init__.py": {
@@ -135,13 +135,13 @@
     "semantic_hash": ""
   },
   "tests/test_exit_sequencing.py": {
-    "mtime": 1786551564.1506834,
-    "ast_hash": "a5c64ff19d6dc75bcecf0410edaf90f1",
+    "mtime": 1789587957.8619654,
+    "ast_hash": "a62182f93e36fb1c61396bbbfeff4c5e",
     "semantic_hash": ""
   },
   "tests/test_profitability.py": {
-    "mtime": 1786551566.4319704,
-    "ast_hash": "5d4a300a1f4bde0f0a7787613cac51ff",
+    "mtime": 1791820061.237691,
+    "ast_hash": "9b43049a47879f308503bd7acaec2dd7",
     "semantic_hash": ""
   },
   "tests/test_scheduler.py": {
@@ -150,8 +150,8 @@
     "semantic_hash": "f3e09acfd7c28c2f95567ae697140243"
   },
   "tests/test_settings.py": {
-    "mtime": 1786171675.289768,
-    "ast_hash": "ef8c26dd37247ce0aead3fadbbba93a0",
+    "mtime": 1791819704.5096185,
+    "ast_hash": "40c5ebc1cddf1580209ba2b931cb95f0",
     "semantic_hash": ""
   },
   "tests/test_stage6.py": {
@@ -180,13 +180,13 @@
     "semantic_hash": ""
   },
   "ARCHITECTURE.md": {
-    "mtime": 1786551636.4976673,
-    "ast_hash": "23962a5d11889a9ca2cdee2846b8499b",
+    "mtime": 1791819704.5116296,
+    "ast_hash": "49c6f668284effa7b210481f4ac28955",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1786040640.3595896,
-    "ast_hash": "847aa5c19e81eb156292b9804a0521eb",
+    "mtime": 1791819704.5116296,
+    "ast_hash": "30a4cd008c9c262546151aa04a299969",
     "semantic_hash": ""
   },
   "README.md": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "WHEEL_STRATEGY_MANUAL.md": {
-    "mtime": 1785654851.4706142,
-    "ast_hash": "f0b5e1e86f5e528aa66c7cb43a275213",
+    "mtime": 1791819739.220894,
+    "ast_hash": "bdb8bc1cd87e09bf26b36325b400e60e",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -205,13 +205,13 @@
     "semantic_hash": ""
   },
   "docs/ISSUE_LOG.md": {
-    "mtime": 1785956000.1954505,
-    "ast_hash": "16f28088ffda50c3d645bc69704a1430",
+    "mtime": 1791819739.220894,
+    "ast_hash": "f6f7578a3e6f4fb7aa2f8baa46130a80",
     "semantic_hash": ""
   },
   "docs/PROFITABILITY_ROADMAP.md": {
-    "mtime": 1786083498.0603268,
-    "ast_hash": "475f3ce1055109abe0e302db668c85f8",
+    "mtime": 1791819739.2266269,
+    "ast_hash": "ba7ee666cec2cf748a72288255da6065",
     "semantic_hash": ""
   },
   ".claude/settings.json": {
@@ -235,8 +235,18 @@
     "semantic_hash": ""
   },
   "tests/test_stress.py": {
-    "mtime": 1786171675.289768,
-    "ast_hash": "fdda4395d8811eca7a00ffbcace8f36e",
+    "mtime": 1791819839.7300856,
+    "ast_hash": "efebcc042bb29fcc21979f52f2578d84",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/HANDOFF.md": {
+    "mtime": 1791819907.814048,
+    "ast_hash": "e9a196446f655d23ab00656d66724f88",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261012-211035.md": {
+    "mtime": 1791819635.5413804,
+    "ast_hash": "d4bb1979b96820333f78d5026217c0ea",
     "semantic_hash": ""
   }
 }

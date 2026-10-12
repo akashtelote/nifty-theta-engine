@@ -25,6 +25,9 @@ import stress
 from backtest import PCSParams, round_trip_fees, run_pcs_backtest
 from config.settings import ALLOCATION_PCT_PER_TRADE, MAX_CAPITAL
 
+# The 0.25-vs-0.15 equivalence only holds at the original ₹50k ceiling (production is now ₹200k).
+CAP_50K = 50_000.0
+
 SEEDS = (7, 11, 23, 42, 99, 2024)
 
 
@@ -154,7 +157,8 @@ def test_repeated_shocks_trip_the_cliff():
     """`ruin_proxy` alone cannot see a bricked account: once sizing returns zero
     lots the bot stops trading, drawdown flatlines, and the run reads as safe."""
     sc = next(s for s in stress.SCENARIOS if s.name == "rate_shock_repeat")
-    m = stress.run_scenario(sc, _params())
+    with stress.capital_ceiling(CAP_50K):
+        m = stress.run_scenario(sc, _params(initial_capital=CAP_50K))
     assert m["bricked_after"] is not None, "30 x -6% gaps should exhaust a ₹50k account"
     assert m["final_equity"] < m["cliff"]
 
@@ -172,18 +176,19 @@ def test_allocation_025_still_buys_exactly_one_lot():
     """The whole basis for the change: more drawdown runway, identical size."""
     p = _params()
     per_lot = p.hedge_width * p.lot_size
-    assert math.floor(MAX_CAPITAL * 0.25 / per_lot) == 1
-    assert math.floor(MAX_CAPITAL * 0.15 / per_lot) == 1
+    assert math.floor(CAP_50K * 0.25 / per_lot) == 1
+    assert math.floor(CAP_50K * 0.15 / per_lot) == 1
     # 0.26 is where a second lot appears and per-trade risk doubles.
-    assert math.floor(MAX_CAPITAL * 0.26 / per_lot) == 2
+    assert math.floor(CAP_50K * 0.26 / per_lot) == 2
 
 
 def test_allocation_025_does_not_change_risk():
     """At ₹50k the two allocations must produce identical trades, not merely
     similar ones — otherwise the change is not free."""
     covid = next(s for s in stress.SCENARIOS if s.name == "covid_crash")
-    a = stress.run_scenario(covid, _params(allocation_pct=0.15))
-    b = stress.run_scenario(covid, _params(allocation_pct=0.25))
+    with stress.capital_ceiling(CAP_50K):
+        a = stress.run_scenario(covid, _params(initial_capital=CAP_50K, allocation_pct=0.15))
+        b = stress.run_scenario(covid, _params(initial_capital=CAP_50K, allocation_pct=0.25))
     assert a["total_pnl"] == pytest.approx(b["total_pnl"])
     assert a["worst_trade"] == pytest.approx(b["worst_trade"])
 

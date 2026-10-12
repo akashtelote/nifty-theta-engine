@@ -190,7 +190,7 @@ class TestStrikeSelection:
         short, long = wheel._select_target_put(chain, 22000.0, otm_pct=0.01, vix=15.0, lot_size=25)
         assert short is not None and long is not None
         assert short["strike"] > long["strike"]
-        assert (short["strike"] - long["strike"]) * 25 <= 50000
+        assert (short["strike"] - long["strike"]) * 65 <= 200000
 
     def test_rejects_wide_bid_ask(self, wheel):
         expiry = (date.today() + timedelta(days=21)).isoformat()
@@ -205,7 +205,7 @@ class TestStrikeSelection:
 
     def test_hedge_width_over_capital_aborts(self, wheel, monkeypatch, caplog):
         from config import settings as settings_mod
-        monkeypatch.setattr(settings_mod.settings, "HEDGE_WIDTH", 3000.0)  # 3000*25=75k > 50k
+        monkeypatch.setattr(settings_mod.settings, "HEDGE_WIDTH", 10000.0)  # 10000*25=250k > 200k
         chain, _, _ = _liquid_chain()
         import logging
         with caplog.at_level(logging.ERROR):
@@ -253,7 +253,7 @@ class TestMidweekEntry:
 
 
 class TestPcsBacktest:
-    def test_runs_under_50k_and_reports_metrics(self):
+    def test_runs_under_capital_and_reports_metrics(self):
         df = synthetic_spot_path(n_days=260, seed=1)
         res = run_pcs_backtest(
             df, PCSParams(skip_low_ivr=False, trend_filter=False, event_blackout=False)
@@ -262,7 +262,7 @@ class TestPcsBacktest:
         assert 0.0 <= res.win_rate <= 100.0
         assert "max_drawdown" in res.as_dict()
         assert res.exit_reason_mix
-        assert res.final_equity <= 50000 + abs(res.total_pnl) + 1
+        assert res.final_equity <= 200000 + abs(res.total_pnl) + 1
 
     def test_rejects_over_budget_width(self):
         with pytest.raises(ValueError):
@@ -296,5 +296,5 @@ class TestSettingsProfitDefaults:
         assert s.TIME_STOP_HOUR == 15
         assert s.HEDGE_WIDTH == 100.0
         assert s.ALLOW_MIDWEEK_ENTRY is True
-        assert s.MAX_CAPITAL == 50000.0
-        assert s.HEDGE_WIDTH * 25 <= s.MAX_CAPITAL
+        assert s.MAX_CAPITAL == 200000.0
+        assert s.HEDGE_WIDTH * 65 <= s.MAX_CAPITAL

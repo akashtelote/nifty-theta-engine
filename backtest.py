@@ -5,7 +5,7 @@ or mid marks from ``data/option_chains/`` when parquet/CSV files are present.
 
 Not absolute live expectancy without true NSE chains — use for ranking + walk-forward.
 
-Capital ceiling: ₹50,000.
+Capital ceiling: ₹200,000.
 
 Run:
     uv run python backtest.py
@@ -38,7 +38,7 @@ from core.chain_loader import chain_files_available, load_option_chains
 from core.ivr import ivr_allows_entry
 from core.trend_filter import trend_allows_entry
 
-INITIAL_CAPITAL = 50_000.0
+INITIAL_CAPITAL = 200_000.0
 DEFAULT_HEDGE_WIDTH = 100.0
 
 
@@ -293,7 +293,7 @@ def _cost_to_close(spot: float, short_k: float, long_k: float, dte: int, vix: fl
 
 
 def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> BacktestResult:
-    """Simulate Friday PCS entries with Stage-6 exits/filters under ₹50k."""
+    """Simulate Friday PCS entries with Stage-6 exits/filters under the capital ceiling."""
     params = params or PCSParams()
     if params.hedge_width * params.lot_size > params.initial_capital:
         raise ValueError(
@@ -518,7 +518,7 @@ run_backtest = run_equity_wheel_backtest
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Nifty PCS backtest (₹50k capital)")
+    parser = argparse.ArgumentParser(description="Nifty PCS backtest (₹200k capital)")
     parser.add_argument("--sweep", action="store_true")
     parser.add_argument("--walk-forward", action="store_true")
     parser.add_argument("--from-yahoo", action="store_true", help="Use yfinance Nifty+VIX path")

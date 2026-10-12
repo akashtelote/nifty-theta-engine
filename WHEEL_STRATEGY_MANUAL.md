@@ -9,7 +9,7 @@ The bot operates on three core principles:
 2. **Defined Risk:** Every short put position is paired with a long put (a Put Credit Spread) to strictly cap maximum potential loss and drastically reduce the margin required.
 3. **The Wheel Loop:** If a short put is assigned, the bot seamlessly transitions into holding the equity (Inventory) and sells Covered Calls against it to continue generating yield until the shares are called away, completing the cycle.
 
-**Capital constraint:** All paper and live sizing is capped at **₹50,000** (`MAX_CAPITAL` / `PAPER_CAPITAL` in `config/settings.py`). Scheduler `allocation_pct` (Nifty 50 = 100%) therefore yields an effective budget ≤ ₹50,000.
+**Capital constraint:** All paper and live sizing is capped at **₹200,000** (`MAX_CAPITAL` / `PAPER_CAPITAL` in `config/settings.py`). `ALLOCATION_PCT_PER_TRADE` (default 25%) therefore yields a per-trade budget of ≈ ₹50,000.
 
 ---
 
@@ -64,13 +64,13 @@ stateDiagram-v2
 
 ## 3. Position Sizing & Capital Math
 
-The bot utilizes dynamic position sizing inside `execute_daily_cycle`, subject to the ₹50,000 capital ceiling.
+The bot utilizes dynamic position sizing inside `execute_daily_cycle`, subject to the ₹200,000 capital ceiling.
 
 ### Capital Allocation Formulas
 
 Let $C_{avail}$ be available margin from `client.get_available_margin()` (paper → `PAPER_CAPITAL`; live → Upstox margin **clamped to** `MAX_CAPITAL`), and $A_{pct}$ be the allocation percentage (production Nifty 50 uses `1.0`).
 
-$$ \text{Target Capital} (C_{target}) = C_{avail} \times A_{pct} \le 50000 $$
+$$ \text{Target Capital} (C_{target}) = C_{avail} \times A_{pct} \le 200000 $$
 
 For a Put Credit Spread, required margin is spread width × lot size ($L$):
 
@@ -80,18 +80,18 @@ $$ N_{lots} = \left\lfloor \frac{C_{target}}{C_{req}} \right\rfloor $$
 
 $$ Q_{final} = N_{lots} \times L $$
 
-### Example Scenario: Nifty 50 (₹50k ceiling)
+### Example Scenario: Nifty 50 (₹200k ceiling)
 
-*   **Available margin (clamped):** ₹50,000
-*   **Allocation Percentage:** 100%
-*   **Lot Size:** 25
+*   **Available margin (clamped):** ₹200,000
+*   **Allocation Percentage:** 25%
+*   **Lot Size:** 65
 *   **Spread Selected:** Short put / Long put with **100-point** hedge width
 
-$$ C_{target} = 50{,}000 \times 1.0 = 50{,}000 $$
-$$ C_{req} = 100 \times 25 = 2{,}500 $$
-$$ N_{lots} = \left\lfloor \frac{50{,}000}{2{,}500} \right\rfloor = 20 \text{ lots (subject to other guards)} $$
+$$ C_{target} = 200{,}000 \times 0.25 = 50{,}000 $$
+$$ C_{req} = 100 \times 65 = 6{,}500 $$
+$$ N_{lots} = \left\lfloor \frac{50{,}000}{6{,}500} \right\rfloor = 7 \text{ lots (subject to other guards)} $$
 
-In practice lot count may be lower depending on fills, liquidity, and runtime guards; the hard rule is $C_{target} \le 50000$.
+In practice lot count may be lower depending on fills, liquidity, and runtime guards; the hard rule is $C_{target} \le 200000$.
 
 ### Edge Case: Insufficient Funds
 

@@ -4,7 +4,7 @@ Known issues, bugs, technical debt, and planned enhancements in the Nifty Theta 
 
 Last updated: 2026-08-06
 
-Profitability / expectancy work is tracked separately in [`PROFITABILITY_ROADMAP.md`](PROFITABILITY_ROADMAP.md) (`PROF-*` stages under a ₹50,000 capital constraint).
+Profitability / expectancy work is tracked separately in [`PROFITABILITY_ROADMAP.md`](PROFITABILITY_ROADMAP.md) (`PROF-*` stages originally under a ₹50,000 capital constraint; raised to ₹200,000 on 2026-10-12).
 
 ---
 

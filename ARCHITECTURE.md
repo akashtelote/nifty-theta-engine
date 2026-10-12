@@ -35,10 +35,10 @@ This document serves as a living audit of the current production state of the co
 
 ## The Execution Engine (strategies/wheel_strategy.py)
 
-- **Treasury & Position Sizing Engine:** Positions scale from available margin × `allocation_pct`, subject to a hard **₹50,000** ceiling (`MAX_CAPITAL` / `PAPER_CAPITAL`):
-  1. **Capital Initialization:** `get_available_margin()` — mock returns a large simulated balance; paper returns `PAPER_CAPITAL` (default ₹50,000); live queries Upstox and **clamps to `MAX_CAPITAL`**.
-  2. **Target Capital:** `available_margin × allocation_pct` (production Nifty 50 uses `allocation_pct = 1.0`, so budget ≤ ₹50,000).
-  3. **Required Margin Per Lot:** (short_strike - long_strike) * lot_size (hedge width from HEDGE_WIDTH, default **100**; must satisfy width x lot <= MAX_CAPITAL; Nifty lot size **25**).
+- **Treasury & Position Sizing Engine:** Positions scale from available margin × `allocation_pct`, subject to a hard **₹200,000** ceiling (`MAX_CAPITAL` / `PAPER_CAPITAL`):
+  1. **Capital Initialization:** `get_available_margin()` — mock returns a large simulated balance; paper returns `PAPER_CAPITAL` (default ₹200,000); live queries Upstox and **clamps to `MAX_CAPITAL`**.
+  2. **Target Capital:** `available_margin × allocation_pct` (`ALLOCATION_PCT_PER_TRADE` default 0.25, so budget ≈ ₹50,000 of the ₹200,000 ceiling).
+  3. **Required Margin Per Lot:** (short_strike - long_strike) * lot_size (hedge width from HEDGE_WIDTH, default **100**; must satisfy width x lot <= MAX_CAPITAL; Nifty lot size **65**).
   4. **Lot Sizing:** math.floor(target_capital / required_per_lot).
   5. **Insufficient Capital:** If lots == 0, abort + Discord alert.
 - **VIX Regime Gate:** Skip when India VIX > VIX_MAX_THRESHOLD (default 25.0). Otherwise scale OTM: low VIX -> 1.2%, normal -> 1.0%, elevated -> 1.5%. Short put selected by target delta (~0.18) + min credit/width with liquidity guards.

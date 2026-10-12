@@ -827,7 +827,7 @@ class WheelStateMachine:
             logger.info(f"Attempting same-week re-entry for {symbol} after Take Profit.")
             self.execute_daily_cycle(
                 symbol=symbol,
-                symbol_config={"allocation_pct": 1.0, "entry_session": "midweek", "same_week_reentry": True},
+                symbol_config={"allocation_pct": ALLOCATION_PCT_PER_TRADE, "entry_session": "midweek", "same_week_reentry": True},
             )
 
     def execute_daily_cycle(self, symbol: str, symbol_config: dict):
