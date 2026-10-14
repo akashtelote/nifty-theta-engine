@@ -1,7 +1,7 @@
 import csv
 import os
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
 import redis
 
@@ -106,6 +106,7 @@ class Settings(BaseSettings):
 
     # Redis
     REDIS_URL: str = "redis://host.docker.internal:6379/0"
+    REDIS_PASSWORD: SecretStr | None = None  # .env only, hex; never put it in REDIS_URL (compose/deploy.ps1 override that)
 
     # Trading mode
     PAPER_TRADE: bool = True
@@ -187,7 +188,10 @@ _redis_client = None
 def get_redis_client() -> redis.Redis:
     global _redis_client
     if _redis_client is None:
-        _redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        pw = settings.REDIS_PASSWORD.get_secret_value() if settings.REDIS_PASSWORD else None
+        # username "default": two-arg AUTH also succeeds before the server sets requirepass, so it can be staged first
+        _redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True,
+                                       **({"username": "default", "password": pw} if pw else {}))
     return _redis_client
 
 

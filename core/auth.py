@@ -6,6 +6,8 @@ from datetime import datetime, timezone
 from filelock import FileLock
 from upstox_totp.client import UpstoxTOTP
 from dotenv import load_dotenv
+import redis
+
 from config.settings import get_redis_client
 
 logger = logging.getLogger(__name__)
@@ -41,6 +43,8 @@ def get_centralized_token() -> str | None:
         r = get_redis_client()
         token = r.get(REDIS_TOKEN_KEY)
         return token or None
+    except redis.exceptions.AuthenticationError:  # wrong/missing REDIS_PASSWORD: fail loud, never fall back to TOTP
+        raise
     except Exception as e:
         logger.error(f"Failed to connect to Redis or fetch token: {e}")
         return None
@@ -60,6 +64,8 @@ def _save_centralized_token(token: str) -> None:
     try:
         r = get_redis_client()
         r.set(REDIS_TOKEN_KEY, token, ex=REDIS_TOKEN_TTL_SECONDS)
+    except redis.exceptions.AuthenticationError:  # wrong/missing REDIS_PASSWORD: fail loud, never fall back to TOTP
+        raise
     except Exception as e:
         logger.error(f"Failed to connect to Redis or save token: {e}")
 
@@ -76,6 +82,8 @@ def _acquire_refresh_lock() -> bool:
         return bool(
             r.set(REDIS_REFRESH_LOCK_KEY, "1", nx=True, ex=REFRESH_LOCK_TTL_SECONDS)
         )
+    except redis.exceptions.AuthenticationError:  # wrong/missing REDIS_PASSWORD: fail loud, never fall back to TOTP
+        raise
     except Exception as e:
         # Redis down: a duplicate login beats having no token at all.
         logger.warning(f"Could not acquire Redis refresh lock ({e}); proceeding with TOTP.")

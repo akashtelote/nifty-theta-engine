@@ -131,3 +131,35 @@ class TestClientInitPrefersAuthResolver:
 
         auth_fn.assert_called_once_with(force_refresh=False)
         assert client.access_token == "from-auth"
+
+
+class TestRedisPassword:
+    def test_bad_redis_password_fails_loud_without_totp(self, tmp_path):
+        """A wrong/missing REDIS_PASSWORD must not look like an outage: the outage fallback runs TOTP and kills other bots' sessions."""
+        import pytest
+        import redis
+        from core import auth
+
+        bad = MagicMock()
+        bad.get.side_effect = bad.set.side_effect = redis.exceptions.AuthenticationError("Authentication required.")
+        with (
+            patch.object(auth, "TOKEN_FILE", str(tmp_path / "token.json")),
+            patch.object(auth, "LOCK_FILE", str(tmp_path / "token.json.lock")),
+            patch.object(auth, "get_redis_client", return_value=bad),
+            patch("core.auth.UpstoxTOTP") as totp_cls,
+        ):
+            for fn in (auth.get_centralized_token, auth._acquire_refresh_lock, lambda: auth._save_centralized_token("t")):
+                with pytest.raises(redis.exceptions.AuthenticationError):
+                    fn()
+            with pytest.raises(redis.exceptions.AuthenticationError):
+                auth.authenticate_and_save_token(force_refresh=True)
+        totp_cls.assert_not_called()
+
+    def test_client_sends_default_user_only_with_password(self):
+        from pydantic import SecretStr
+        from config import settings as s
+
+        for pw, want in ((SecretStr("abc123"), ("default", "abc123")), (None, (None, None))):
+            with patch.object(s.settings, "REDIS_PASSWORD", pw), patch.object(s, "_redis_client", None):
+                kw = s.get_redis_client().connection_pool.connection_kwargs
+                assert (kw.get("username"), kw.get("password")) == want
