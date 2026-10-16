@@ -104,11 +104,11 @@ def put_delta(f: float, k: float, t: float, price: float) -> float | None:
     return _ncdf(-(math.log(f / k) + 0.5 * v * v * t) / (v * math.sqrt(t)))
 
 
-def forward(day: pl.DataFrame, expiry: date, min_contracts: int = 50) -> float | None:
+def forward(day: pl.DataFrame, expiry: date, min_contracts: int = 50, col: str = "settle") -> float | None:
     """Parity forward for one expiry: median over the 5 liquid strikes with the smallest |ce - pe|."""
     e = day.filter((pl.col("expiry") == expiry) & (pl.col("contracts") >= min_contracts))
-    ce = e.filter(pl.col("opt_type") == "CE").select("strike", ce="settle")
-    pe = e.filter(pl.col("opt_type") == "PE").select("strike", pe="settle")
+    ce = e.filter(pl.col("opt_type") == "CE").select("strike", ce=col)
+    pe = e.filter(pl.col("opt_type") == "PE").select("strike", pe=col)
     j = ce.join(pe, on="strike")
     if j.height < 3:
         return None
@@ -154,15 +154,33 @@ def _px(day: pl.DataFrame, expiry: date, k: float, typ: str = "PE") -> float | N
     return float(r["settle"][0]) if r.height else None
 
 
+def underlying_settle(day: pl.DataFrame, expiry: date) -> float | None:
+    """Index settlement price on expiry day, or None if `settle` already holds option values. The bhavcopy `settle` of
+    every strike of an expiring series is (a) the index settle from 2020-02-06 (one number, mode > 1000), (b) 0.0 on
+    every row before that, so the index is taken from put-call parity on `close` (last-traded, ~intrinsic near expiry)."""
+    s = day.filter(pl.col("expiry") == expiry)["settle"]
+    if s.len() < 3:
+        return None
+    mode = s.mode().sort()[0]
+    if mode > 1000 and (s == mode).mean() >= 0.5:
+        return float(mode)
+    if s.max() <= 0:
+        return forward(day, expiry, 1, "close")
+    return None
+
+
 def _expiry_value(day: pl.DataFrame, expiry: date, k: float) -> tuple[float, float | None]:
-    """(put settlement value, underlying settlement price) on expiry day; falls back to parity when the row is absent."""
-    f = forward(day, expiry, 1)
+    """(put settlement value, underlying settlement price) on expiry day."""
+    s = underlying_settle(day, expiry)
+    if s is not None:
+        return max(k - s, 0.0), s
     p = _px(day, expiry, k)
     if p is None:
+        f = forward(day, expiry, 1)
         if f is None:
             raise ValueError(f"cannot value {k} put at expiry {expiry}")
         p = max(k - f, 0.0)
-    return p, f
+    return p, forward(day, expiry, 1)
 
 
 # ---------- engine ----------
@@ -262,6 +280,8 @@ def _walk(chain: Chain, cfg: Config, tr: Trade, se: float, le: float) -> None:
         day = chain.days[d]
         lab = ex if d == ex else tr.expiry
         sp, lp = _px(day, lab, tr.short_k), _px(day, lab, tr.long_k)
+        if d == ex and sp is not None and lp is not None:  # expiry-day rows hold the index settle, not option prices
+            sp, lp = max(_expiry_value(day, d, tr.short_k)[0], 0.05), max(_expiry_value(day, d, tr.long_k)[0], 0.05)
         if pending is not None and sp is not None and lp is not None:
             sx, lx = fill(sp, "buy", cfg.slip), fill(lp, "sell", cfg.slip)
             tr.exit, tr.reason, tr.exit_cost = d, pending, sx - lx

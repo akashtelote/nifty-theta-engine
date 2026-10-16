@@ -189,3 +189,26 @@ def test_holiday_shifted_expiry_settles_on_previous_trading_day():
     (tr,) = engine.run(Chain(df), CFG, *FIRST)
     assert tr.expiry == date(2023, 1, 12) and tr.exit == date(2023, 1, 11) and tr.reason == "expiry"
     assert tr.exit_cost == pytest.approx(0.0)  # flat spot: both legs worthless at intrinsic
+
+
+def test_expiry_day_settle_column_is_index_price_not_option_value():
+    # bhavcopy 2020+: on expiry day every strike's `settle` is the index settlement (21000), not the option value
+    base = make_chain(crash)
+    df = pl.concat(list(base.days.values())).with_columns(
+        settle=pl.when(pl.col("date") == pl.col("expiry")).then(pl.lit(21000.0)).otherwise(pl.col("settle")))
+    (tr,) = engine.run(Chain(df), CFG, *FIRST)
+    assert tr.reason == "expiry" and tr.exit_cost == pytest.approx(100.0)  # both puts ITM: full width lost
+    assert tr.pnl < 0
+    # a pending TP/stop executing on expiry day also prices off the index settle, not the raw column
+    (st,) = engine.run(Chain(df), replace(CFG, exit_mode="stop2x"), *FIRST)
+    assert st.exit_cost > 50
+
+
+def test_pre_feb_2020_zero_settle_expiry_uses_close_parity():
+    # bhavcopy before 2020-02-06: expiry-day `settle` is 0.0 on every row; index must come from parity on `close`
+    base = make_chain(crash)
+    df = pl.concat(list(base.days.values())).with_columns(close=pl.col("settle")).with_columns(
+        settle=pl.when(pl.col("date") == pl.col("expiry")).then(pl.lit(0.0)).otherwise(pl.col("settle")))
+    (tr,) = engine.run(Chain(df), CFG, *FIRST)
+    assert tr.reason == "expiry" and tr.exit_cost == pytest.approx(100.0, abs=1.0)  # both puts ITM
+    assert tr.pnl < 0
