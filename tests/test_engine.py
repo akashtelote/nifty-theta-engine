@@ -173,3 +173,19 @@ def test_sizing_equity_capped_at_equity0():
     cfg = replace(CFG, equity0=ml * 6.99 / 0.02)  # budget just under 7 lots; one profit would round up to 7 uncapped
     ts = engine.run(ch, cfg, *rng)
     assert len(ts) >= 3 and {t.lots for t in ts} == {6}
+
+
+def test_holiday_shifted_expiry_settles_on_previous_trading_day():
+    # series listed for Thu 2023-01-12; exchange closed that day, series relabelled 01-11 on its last day at intrinsic
+    base = make_chain(FLAT)
+    f = 22000.0
+    df = pl.concat(list(base.days.values())).filter(pl.col("date") != date(2023, 1, 12))
+    last = (pl.col("date") == date(2023, 1, 11)) & (pl.col("expiry") == date(2023, 1, 12))
+    intr = pl.when(pl.col("opt_type") == "CE").then((f - pl.col("strike")).clip(lower_bound=0.05)) \
+        .otherwise((pl.col("strike") - f).clip(lower_bound=0.05))
+    df = df.with_columns(
+        settle=pl.when(last).then(intr).otherwise(pl.col("settle")),
+        expiry=pl.when(last).then(pl.lit(date(2023, 1, 11))).otherwise(pl.col("expiry")))
+    (tr,) = engine.run(Chain(df), CFG, *FIRST)
+    assert tr.expiry == date(2023, 1, 12) and tr.exit == date(2023, 1, 11) and tr.reason == "expiry"
+    assert tr.exit_cost == pytest.approx(0.0)  # flat spot: both legs worthless at intrinsic

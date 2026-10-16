@@ -251,11 +251,17 @@ def run(chain: Chain, cfg: Config, start: date, end: date, dropped: list | None 
 
 
 def _walk(chain: Chain, cfg: Config, tr: Trade, se: float, le: float) -> None:
-    dates = [x for x in chain.dates if tr.entry < x <= tr.expiry]
+    # An expiry that falls on an exchange holiday is settled on the previous trading day, and the series is relabelled
+    # with that date in the bhavcopy (e.g. listed 2023-06-29, settled and relabelled 2023-06-28).
+    ex = tr.expiry
+    if ex not in chain.days and chain.dates[-1] > ex:
+        ex = max(x for x in chain.dates if x < ex)
+    dates = [x for x in chain.dates if tr.entry < x <= ex]
     pending: str | None = None
     for d in dates:
         day = chain.days[d]
-        sp, lp = _px(day, tr.expiry, tr.short_k), _px(day, tr.expiry, tr.long_k)
+        lab = ex if d == ex else tr.expiry
+        sp, lp = _px(day, lab, tr.short_k), _px(day, lab, tr.long_k)
         if pending is not None and sp is not None and lp is not None:
             sx, lx = fill(sp, "buy", cfg.slip), fill(lp, "sell", cfg.slip)
             tr.exit, tr.reason, tr.exit_cost = d, pending, sx - lx
@@ -263,7 +269,7 @@ def _walk(chain: Chain, cfg: Config, tr: Trade, se: float, le: float) -> None:
             tr.pnl = (tr.credit - tr.exit_cost) * tr.lot * tr.lots - tr.fees
             tr.worst_pnl = min(tr.worst_pnl, (tr.credit - (sp - lp)) * tr.lot * tr.lots)
             return
-        if d == tr.expiry:
+        if d == ex:
             sv, s_exp = _expiry_value(day, d, tr.short_k)
             lv, s2 = _expiry_value(day, d, tr.long_k)
             s_exp = s_exp if s_exp is not None else s2
@@ -284,8 +290,8 @@ def _walk(chain: Chain, cfg: Config, tr: Trade, se: float, le: float) -> None:
             pending = "stop"
         elif cfg.exit_mode == "mgmt":
             f = forward(day, tr.expiry)
-            dl = put_delta(f, tr.short_k, (tr.expiry - d).days / 365.0, sp) if f is not None else None
-            if (dl is not None and dl >= cfg.delta_manage) or (tr.expiry - d).days <= cfg.dte_manage:
+            dl = put_delta(f, tr.short_k, (ex - d).days / 365.0, sp) if f is not None else None
+            if (dl is not None and dl >= cfg.delta_manage) or (ex - d).days <= cfg.dte_manage:
                 pending = "manage"
     if chain.dates[-1] < tr.expiry:
         return  # still open at the end of the data: run() drops it

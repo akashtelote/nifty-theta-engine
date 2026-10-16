@@ -41,3 +41,6 @@ FAIL/INCONCLUSIVE → write up, recommend shutting the strategy down; no further
 
 ## 8. Limitations
 The credit gate is applied after slippage, so each slippage level trades a different entry set; "PF ≥ 1.2 at slip 1.0" is measured on that set, not on the slip-0.5 trades (as registered). As v1 §8, plus design-from-DEV contamination (§0). Lowering the credit floor means accepting thinner premium per unit of risk; the live bot's 0.15 floor would need a deliberate change if v2 passes.
+
+## 9. Amendment A2 (2026-10-17, mechanical, before any v2 result was produced)
+The first v2 DEV run crashed (`expiry day missing from data`) on expiry 2023-06-29 (Bakri Id holiday): NSE settles such a series on the previous trading day and the bhavcopy relabels it with that earlier date (2023-06-28). `research/engine.py::_walk` now settles on the last trading day before a non-trading listed expiry, reading the relabelled series. Rules, grid, gates, criteria and DEV/OOS split are unchanged; no result had been seen. v1 trades never hit this path (to be re-confirmed by re-running the v1 grid and diffing against `dev_grid.csv`). Test: `test_holiday_shifted_expiry_settles_on_previous_trading_day`.
