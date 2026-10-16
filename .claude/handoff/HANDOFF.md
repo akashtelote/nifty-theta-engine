@@ -2,20 +2,18 @@
 _Updated: 2026-10-16_
 
 ## Goal
-Plan phases 0-4 in 20261016_plan.md. Paper only; no deploy/.env change without asking; Phase 3 needs pre-reg approval before any result is read.
+Phases 0-4 of 20261016_plan.md. Paper only; no deploy/.env change without asking.
 
 ## Status
-- Phase 1 DONE: commit 5318f1f pushed AND deployed to Oracle (user approved); bot healthy, dashboard loopback-only (ssh -L 8502:127.0.0.1:8502 oracle). Not yet seen: first sizing decision on live data.
-- Phase 2 DONE, awaiting commit (195 tests pass): research/{bhavcopy,reference,quality,execution}.py, tests/test_bhavcopy.py, ISSUE_LOG ISS-R8..R11. Data at data/bhavcopy (gitignored; 1,932 days 2019-01-01..2026-10-16; coverage_report.txt). Legacy==UDiFF on overlap days. Lot rules: 75 (exp<=2021-07-22), 50 (to 2024-04-25), 25 from 2024-04-26; UDiFF rows carry lot. Parity noisy only at thin far strikes (10% bad at 20-29 DTE).
-- Slippage levels 0.25/0.5/1.0 pts per leg (research/execution.py).
-- NEXT Phase 3: write docs/plans/<ts>-real-chain-pcs-preregistration.md (DEV 2019-2023, OOS 2024->latest; grid width{100,200,300} x delta{.15,.20,.25} x exits{2x stop; no stop+delta/DTE mgmt; hold/TP} ; PASS criteria numbers) and GET USER APPROVAL before running any backtest or reading results. Need a real-chain backtest engine (research/engine.py) first - build/test it on synthetic fixtures only, not on results. Exercise STT must be wired into the engine.
+- Phases 1 (5318f1f, deployed), 2 (0713cc9, NOT pushed), 3 engine+prereg (d4dfd86) done.
+- Prereg APPROVED by user, amendment A1 (mechanical fixes) before any run.
+- DEV grid RUN (research/run_dev.py): NO eligible candidate -> FAIL per registered rule; OOS NOT run, never to be run under this registration.
+- Cause: min credit/width 0.15 gate leaves 0 trades at delta<=0.20; delta 0.25 hold best (n<=98, CAGR 3-4%). Details docs/plans/20261016-real-chain-pcs-dev-result.md (uncommitted until evaluator PASS).
+- User chose B and approved v2 pre-reg (docs/plans/20261017-...-v2.md, frozen). v2 runner: research/run_dev2.py (32 configs). NEXT: commit, run `python -m research.run_dev2` (DEV only), report. OOS only if a winner exists, once, with lock file OOS_RUN.lock (needs a small script; not written). If no winner: FAIL, no v3.
 
-## Gotchas
-- Before deploy: confirm server .env sets DATABASE_URL (now required, else bot crashes at start). ALLOCATION_PCT_PER_TRADE in server .env is now ignored (extra=ignore).
-- Compose now binds dashboard 127.0.0.1:8502 → user needs ssh tunnel after deploy.
-- Hedge width 300 at 2% needs ~₹1M equity.
+## Decisions
+- No rescue tuning; OOS untouched.
 
 ## Next
-1. Evaluator -> commit -> ask user to approve deploy.
-2. Phase 2: NSE bhavcopy loader (legacy + UDiFF), point-in-time lot sizes/expiries, data-quality report.
-3. Phase 3: pre-reg doc in docs/plans/, user approval, DEV, OOS once behind lock.
+1. Commit v1/v2 docs + run_dev/run_dev2 (keep 20261016_plan.md, HANDOFF.auto, history/, graphify-out out).
+2. Act on user's A/B decision. Phase 4 only on PASS.
