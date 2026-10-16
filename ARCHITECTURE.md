@@ -35,13 +35,13 @@ This document serves as a living audit of the current production state of the co
 
 ## The Execution Engine (strategies/wheel_strategy.py)
 
-- **Treasury & Position Sizing Engine:** Positions scale from available margin × `allocation_pct`, subject to a hard **₹200,000** ceiling (`MAX_CAPITAL` / `PAPER_CAPITAL`):
+- **Treasury & Position Sizing Engine:** Positions are sized by max-loss risk caps (`core/sizing.py`), subject to a hard **₹200,000** ceiling (`MAX_CAPITAL` / `PAPER_CAPITAL`):
   1. **Capital Initialization:** `get_available_margin()` — mock returns a large simulated balance; paper returns `PAPER_CAPITAL` (default ₹200,000); live queries Upstox and **clamps to `MAX_CAPITAL`**.
-  2. **Target Capital:** `available_margin × allocation_pct` (`ALLOCATION_PCT_PER_TRADE` default 0.25, so budget ≈ ₹50,000 of the ₹200,000 ceiling).
-  3. **Required Margin Per Lot:** (short_strike - long_strike) * lot_size (hedge width from HEDGE_WIDTH, default **100**; must satisfy width x lot <= MAX_CAPITAL; Nifty lot size **65**).
-  4. **Lot Sizing:** math.floor(target_capital / required_per_lot).
-  5. **Insufficient Capital:** If lots == 0, abort + Discord alert.
-- **VIX Regime Gate:** Skip when India VIX > VIX_MAX_THRESHOLD (default 25.0). Otherwise scale OTM: low VIX -> 1.2%, normal -> 1.0%, elevated -> 1.5%. Short put selected by target delta (~0.18) + min credit/width with liquidity guards.
+  2. **Risk budget:** `RISK_PER_TRADE_PCT` (3% paper) × equity per trade; `MAX_PORTFOLIO_RISK_PCT` (8%) across open spreads; paper equity = `min(PAPER_CAPITAL + realised P&L, MAX_CAPITAL)`.
+  3. **Max loss per lot:** (width − natural credit) × lot_size (hedge width from HEDGE_WIDTH, default **100**; must satisfy width x lot <= MAX_CAPITAL; Nifty lot size **65**).
+  4. **Lot Sizing:** `floor(min(equity×RISK_PER_TRADE_PCT, equity×MAX_PORTFOLIO_RISK_PCT − open_risk) / max_loss_per_lot)`.
+  5. **Cap breached:** If lots == 0, skip the entry; the binding cap is logged and sent as a Discord WARNING.
+- **VIX Regime Gate:** Skip when India VIX > VIX_MAX_THRESHOLD (default 22.0). Otherwise scale OTM: low VIX -> 1.2%, normal -> 1.0%, elevated -> 1.5%. Short put selected by target delta (~0.18) + min credit/width with liquidity guards.
 - **Slippage Guardrails:** Bid-ask ((ask - bid) / bid) must be <= MAX_BID_ASK_SPREAD_PCT (default 15%); missing/zero bid aborts.
 - **Exits (check_exits):** Take profit when cost_to_close <= TP_RESIDUAL_CREDIT_FRACTION x initial_credit (default **0.25**); stop loss when cost_to_close >= SL_CREDIT_MULTIPLE x initial_credit (default **2.0**) or spot <= short strike; time stop at TIME_STOP_WEEKDAY/TIME_STOP_HOUR (default Thu >= 15:00 IST). Hourly cron is the backstop; WebSocket tick exits run in live and paper when market data is available (MOCK_MARKET skips WS).
 

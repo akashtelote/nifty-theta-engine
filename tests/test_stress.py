@@ -23,7 +23,7 @@ import pytest
 import backtest
 import stress
 from backtest import PCSParams, round_trip_fees, run_pcs_backtest
-from config.settings import ALLOCATION_PCT_PER_TRADE, MAX_CAPITAL
+from config.settings import MAX_CAPITAL
 
 # The 0.25-vs-0.15 equivalence only holds at the original ₹50k ceiling (production is now ₹200k).
 CAP_50K = 50_000.0
@@ -32,6 +32,8 @@ SEEDS = (7, 11, 23, 42, 99, 2024)
 
 
 def _params(**kw) -> PCSParams:
+    # stress.py analyses the LEGACY notional allocation (funding cliff); live is risk-based now.
+    kw.setdefault("allocation_pct", 0.25)
     return PCSParams(**kw)
 
 
@@ -164,12 +166,6 @@ def test_repeated_shocks_trip_the_cliff():
 
 
 # ------------------------------------------------- the allocation decision itself
-
-
-def test_allocation_setting_is_live():
-    """Regression guard: `.env` shadows `settings.py`, so editing the dataclass
-    default alone is a silent no-op. This asserts the value actually in force."""
-    assert ALLOCATION_PCT_PER_TRADE == pytest.approx(0.25)
 
 
 def test_allocation_025_still_buys_exactly_one_lot():

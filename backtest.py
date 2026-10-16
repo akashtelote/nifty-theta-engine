@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import math
+from core.sizing import risk_lots
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import date, timedelta
@@ -28,7 +29,7 @@ import polars as pl
 
 from config.event_calendar import in_event_blackout
 from config.settings import (
-    ALLOCATION_PCT_PER_TRADE,
+    settings,
     TP_RESIDUAL_CREDIT_FRACTION,
     MAX_CAPITAL,
     lot_size_from_master,
@@ -76,7 +77,11 @@ class PCSParams:
     hedge_width: float = DEFAULT_HEDGE_WIDTH
     stop_on_touch: bool = True
     slippage_points: float = 1.5  # per-side bid-ask haircut vs the BS mid we price at
-    allocation_pct: float = ALLOCATION_PCT_PER_TRADE  # tracks scheduler ALLOCATION_PCT_PER_TRADE
+    # Risk-based sizing, same as live (core/sizing.py). allocation_pct is a LEGACY notional
+    # override kept only for stress.py's funding-cliff analysis; None = risk-based.
+    risk_per_trade_pct: float = settings.RISK_PER_TRADE_PCT
+    max_portfolio_risk_pct: float = settings.MAX_PORTFOLIO_RISK_PCT
+    allocation_pct: float | None = None
     target_delta: float = 0.18
     min_credit_width: float = 0.15
     entry_weekday: int = 4  # Friday
@@ -340,10 +345,12 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
             required_capital_per_lot = (short_k - long_k) * params.lot_size
             if required_capital_per_lot <= 0:
                 continue
-            budget = min(equity, MAX_CAPITAL) * params.allocation_pct
-            num_lots = math.floor(budget / required_capital_per_lot)
-            # <= 0, not == 0: floor() of a negative budget yields -1, which would flip a
-            # max-loss trade into a credit and quietly hide ruin.
+            if params.allocation_pct is not None:  # legacy notional sizing
+                num_lots = math.floor(min(equity, MAX_CAPITAL) * params.allocation_pct / required_capital_per_lot)
+            else:  # one position at a time, so open_risk is 0
+                num_lots, _ = risk_lots(short_k - long_k, credit, params.lot_size, min(equity, MAX_CAPITAL),
+                                        0.0, params.risk_per_trade_pct, params.max_portfolio_risk_pct)
+            # <= 0, not == 0: a negative budget would otherwise flip a max-loss trade into a credit.
             if num_lots <= 0:
                 continue
             entry_d = d
@@ -382,7 +389,7 @@ def run_pcs_backtest(df: pl.DataFrame, params: PCSParams | None = None) -> Backt
         # Nothing is traded to close when the spread expires worthless: no exit haircut.
         exit_traded = not (reason == "Expiry" and ctc <= 0.0)
         slippage = params.slippage_points * qty * (2 if exit_traded else 1)
-        pnl = market_pnl - slippage - round_trip_fees(credit, ctc, params.lot_size, num_lots)
+        pnl = market_pnl - slippage - round_trip_fees(credit, ctc, params.lot_size, num_lots, on=d)
         equity += pnl
         peak = max(peak, equity)
         max_dd = max(max_dd, peak - equity)
@@ -547,7 +554,7 @@ def main():
     chain_note = " + option_chains parquet" if chain_files_available() else ""
     print(
         f"PCS backtest | capital=INR {INITIAL_CAPITAL:,.0f} | lot={params.lot_size} | "
-        f"width={DEFAULT_HEDGE_WIDTH} | alloc={params.allocation_pct:.0%} | slippage={args.slippage}pt/side"
+        f"width={DEFAULT_HEDGE_WIDTH} | risk={params.risk_per_trade_pct:.1%}/trade | slippage={args.slippage}pt/side"
     )
     print(f"Model: {model}{chain_note}\n")
 

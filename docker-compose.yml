@@ -45,7 +45,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "8502:8501"
+      - "127.0.0.1:8502:8501"  # loopback only, no auth: reach via ssh -L 8502:127.0.0.1:8502 oracle
     environment:
       - REDIS_URL=redis://host.docker.internal:6379/0
       - PAPER_TRADE=True

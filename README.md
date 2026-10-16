@@ -46,7 +46,7 @@ Defined-risk entry utilizing an automated **two-leg execution sequence**. The sy
 
 ### 2. Treasury & Position Sizing Engine
 
-Live calculation of available cash limits via the Upstox Margin API to scale position lots based on localized risk constraints (**`allocation_pct`**) and exact option contract spread widths.
+Live calculation of available cash limits via the Upstox Margin API to scale position lots based on localized risk constraints (**`RISK_PER_TRADE_PCT`**, max loss per trade) and exact option contract spread widths.
 
 ### 3. Persistence Layer
 
@@ -98,9 +98,12 @@ UPSTOX_API_KEY=your_api_key_here
 UPSTOX_SECRET_KEY=your_secret_key_here
 UPSTOX_REDIRECT_URI=http://localhost:8000/callback
 
+# Required: Postgres connection (no default)
+DATABASE_URL=postgresql://user:password@db:5432/dbname
+
 # Risk Matrix & Treasury Parameters
-VIX_MAX_THRESHOLD=25.0
-ALLOCATION_PCT_PER_TRADE=0.15
+VIX_MAX_THRESHOLD=22.0
+RISK_PER_TRADE_PCT=0.03
 MOCK_MARKET=False
 
 # External Webhooks & Telemetry

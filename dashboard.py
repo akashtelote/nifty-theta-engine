@@ -10,7 +10,7 @@ st.title("Wheel Strategy Analytics Dashboard")
 @st.cache_data(ttl=60)
 def load_data() -> pl.DataFrame:
     try:
-        db_url = os.getenv("DATABASE_URL", "postgresql://wheelbot:securepassword@localhost:5432/wheeldb")
+        db_url = os.environ["DATABASE_URL"]
         conn = psycopg2.connect(db_url)
         query = "SELECT * FROM index_spread_state"
         df = pl.read_database(query, connection=conn)
@@ -64,7 +64,7 @@ def _fetch_cost_to_close(symbol: str, short_key: str, long_key: str, expiry: str
 @st.cache_data(ttl=60)
 def load_trade_history() -> pl.DataFrame:
     try:
-        db_url = os.getenv("DATABASE_URL", "postgresql://wheelbot:securepassword@localhost:5432/wheeldb")
+        db_url = os.environ["DATABASE_URL"]
         conn = psycopg2.connect(db_url)
         history_df = pl.read_database("SELECT * FROM trade_history ORDER BY closed_at DESC", connection=conn)
         conn.close()

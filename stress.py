@@ -383,7 +383,7 @@ def main() -> None:
     ap.add_argument("--verbose", action="store_true", help="print exit-reason mix")
     args = ap.parse_args()
 
-    base = PCSParams()
+    base = PCSParams(allocation_pct=0.25)  # legacy notional sizing: this tool studies the funding cliff
     if args.slippage is not None:
         base = replace(base, slippage_points=args.slippage)
 

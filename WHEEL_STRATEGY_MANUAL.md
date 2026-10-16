@@ -9,7 +9,7 @@ The bot operates on three core principles:
 2. **Defined Risk:** Every short put position is paired with a long put (a Put Credit Spread) to strictly cap maximum potential loss and drastically reduce the margin required.
 3. **The Wheel Loop:** If a short put is assigned, the bot seamlessly transitions into holding the equity (Inventory) and sells Covered Calls against it to continue generating yield until the shares are called away, completing the cycle.
 
-**Capital constraint:** All paper and live sizing is capped at **₹200,000** (`MAX_CAPITAL` / `PAPER_CAPITAL` in `config/settings.py`). `ALLOCATION_PCT_PER_TRADE` (default 25%) therefore yields a per-trade budget of ≈ ₹50,000.
+**Capital constraint:** All paper and live sizing is capped at **₹200,000** (`MAX_CAPITAL` / `PAPER_CAPITAL` in `config/settings.py`). Sizing is risk-based: `RISK_PER_TRADE_PCT` (default 3%) caps per-trade max loss at ≈ ₹6,000 (one 100-wide lot).
 
 ---
 

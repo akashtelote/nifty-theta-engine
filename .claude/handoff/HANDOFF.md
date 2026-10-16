@@ -1,21 +1,21 @@
-# HANDOFF — capital 50k -> 200k + doc refresh + push
-_Updated: 2026-10-12_
+# HANDOFF — 20261016_plan.md (PCS engine: evidence-backed or killed)
+_Updated: 2026-10-16_
 
 ## Goal
-Capital default 200000 in code/.env.example/docs/tests, refresh stale docs, commit everything (incl. user's staged graphify-out + CLAUDE.md), push, deploy safely.
+Plan phases 0-4 in 20261016_plan.md. Paper only; no deploy/.env change without asking; Phase 3 needs pre-reg approval before any result is read.
 
 ## Status
-- Done: settings.py/.env.example/backtest.py/tests/docs (CLAUDE, ARCHITECTURE, WHEEL manual, ROADMAP, ISSUE_LOG) edited; 162 tests pass; graphify updated.
-- In progress: independent-evaluator gate over all dirty files, then commit, push, deploy.
+- Phase 0 done (status note sent). Server: HEDGE_WIDTH 100, SL 2.0, delta .18, DTE 10-42, STT 0.001, midweek on; only 2 closed paper trades (−₹1,545 lifetime).
+- User decision: risk sizing 3% paper default (2% is the ramp rule); backtest should transfer to ~₹20L (option c).
+- Phase 1 code done, 183 tests pass, UNCOMMITTED: config/settings.py (date-aware fees, RISK_* settings, DATABASE_URL required), core/sizing.py, wheel_strategy sizing + _open_max_loss, backtest risk sizing, stress.py legacy allocation, dashboard env DB url, compose loopback bind, token.json git rm --cached, docs, tests/test_sizing.py, test_costs.py.
+- In progress: independent-evaluator gate, then commit (do NOT deploy; ask user).
 
-## Decisions
-- ALLOCATION_PCT_PER_TRADE stays 0.25 (server pins it): at 200k = ~50k budget = 7 lots (max loss ~45.5k). Flag to user.
-- test_stress 0.25-vs-0.15 equivalence + brick tests pinned to CAP_50K (only true at 50k).
-- Server .env already 200000/0.25/TP 0.25: no .env change.
+## Gotchas
+- Before deploy: confirm server .env sets DATABASE_URL (now required, else bot crashes at start). ALLOCATION_PCT_PER_TRADE in server .env is now ignored (extra=ignore).
+- Compose now binds dashboard 127.0.0.1:8502 → user needs ssh tunnel after deploy.
+- Hedge width 300 at 2% needs ~₹1M equity.
 
-## Commands
-- Deploy: `ssh oracle "cd ~/nifty-theta-engine && git pull && docker compose build && docker compose up -d"` (NOT deploy.sh: it downs before build)
-- Gate: evaluator needs `git diff HEAD -- <file>` per file; `git add -N` untracked.
-
-## Next step
-1. Evaluator PASS -> `git commit -a` (all) -> push -> deploy -> verify container settings + :8502.
+## Next
+1. Evaluator -> commit -> ask user to approve deploy.
+2. Phase 2: NSE bhavcopy loader (legacy + UDiFF), point-in-time lot sizes/expiries, data-quality report.
+3. Phase 3: pre-reg doc in docs/plans/, user approval, DEV, OOS once behind lock.

@@ -2,7 +2,7 @@
 
 Known issues, bugs, technical debt, and planned enhancements in the Nifty Theta Engine.
 
-Last updated: 2026-08-06
+Last updated: 2026-10-16
 
 Profitability / expectancy work is tracked separately in [`PROFITABILITY_ROADMAP.md`](PROFITABILITY_ROADMAP.md) (`PROF-*` stages originally under a ₹50,000 capital constraint; raised to ₹200,000 on 2026-10-12).
 
@@ -191,6 +191,14 @@ Profitability / expectancy work is tracked separately in [`PROFITABILITY_ROADMAP
 **Status:** Fixed — `UpstoxClient.get_order_fill_price()` reads `average_price` from `/v2/order/details`. `_execute_exit` computes P&L from actual fills when available; falls back to pre-trade cost-to-close for paper trades.
 
 ---
+
+## 2026-10-16 review fixes (plan: 20261016_plan.md, Phase 1)
+
+- **ISS-R1 sizing — FIXED:** `ALLOCATION_PCT_PER_TRADE` (0.25 → 7 lots, ~23% of capital at risk) replaced by risk-based `core/sizing.py`; paper equity is now `min(PAPER_CAPITAL + realised P&L, MAX_CAPITAL)` (drawdowns shrink size; gains are capped). Paper default 3% (2% target would never fit one lot at ₹200k).
+- **ISS-R2 stale STT — FIXED:** `round_trip_fees` is date-aware (STT 0.05%/0.0625%/0.1%/0.15%, `exercise_stt()` helper, txn, stamp, SEBI, IPFT); sources cited in `config/settings.py`. Live/paper callers still use the net-spread approximation (no per-leg exit prices) — understates statutory charges. Exercise STT (0.15% of intrinsic on a long put expiring ITM) is defined but NOT yet wired into paper expiry P&L or the backtest — Phase 2/3 engine must add it.
+- **ISS-R3 hedge width 100 — OPEN:** server still runs 100-wide (negative in every sweep cell); resolved by Phase 3 real-chain backtest, not by tuning.
+- **ISS-R7 ops — FIXED in repo, NOT DEPLOYED:** dashboard published on 127.0.0.1 only; hardcoded DB password default removed (`DATABASE_URL` now required); `config/token.json` untracked + ignored.
+- **ISS-R4/5/6 evidence, stops, power — OPEN:** Phases 2–3.
 
 ## Feature Gaps
 

@@ -88,7 +88,7 @@ Services: `db` (PostgreSQL), `upstox_wheel_bot` (trading daemon), `dashboard` (S
 ## Live deployment (Oracle server)
 
 **This project runs live on `ssh oracle` (100.65.198.84, user `ubuntu`) at `~/nifty-theta-engine`, branch `main`.**
-Dashboard: http://100.65.198.84:8502/ — containers `nifty_dashboard`, `nifty_wheel_bot`, `nifty_postgres_db`.
+Dashboard: bound to 127.0.0.1 on the server (no auth) — `ssh -L 8502:127.0.0.1:8502 oracle`, then http://localhost:8502/ — containers `nifty_dashboard`, `nifty_wheel_bot`, `nifty_postgres_db`.
 
 **Read logs from the server, not local `logs/`** — local files are stale:
 
@@ -135,12 +135,12 @@ Tables `index_spread_state` (one row per symbol, upsert semantics) and `trade_hi
 ## Key Design Decisions
 
 - **Hedge-first execution:** Long put (hedge) fills before short put to prevent naked short exposure.
-- **₹200k capital ceiling:** `MAX_CAPITAL` / `PAPER_CAPITAL` (default 200000, raised from 50000) in `config/settings.py`. Paper uses `PAPER_CAPITAL`; live Upstox margin is clamped to `MAX_CAPITAL`. Budget = `get_available_margin() * allocation_pct`.
+- **₹200k capital ceiling:** `MAX_CAPITAL` / `PAPER_CAPITAL` (default 200000, raised from 50000) in `config/settings.py`. Paper uses `PAPER_CAPITAL`; live Upstox margin is clamped to `MAX_CAPITAL`. Lots are risk-based (`core/sizing.py`): max loss `(width − credit) × lot × lots` ≤ `RISK_PER_TRADE_PCT` × equity (default 3% paper; 2% is a manual change once equity ≥ ~₹275k, which also needs `MAX_CAPITAL` raised) and total open max loss ≤ `MAX_PORTFOLIO_RISK_PCT` (8%). Paper equity = `min(PAPER_CAPITAL + realised P&L, MAX_CAPITAL)` (losses shrink size; gains don't raise it unless `MAX_CAPITAL` is raised).
 - **Friday-only entry (default):** New positions open Fridays at 15:15 IST. Optional mid-week entry via `ALLOW_MIDWEEK_ENTRY` (VIX band gated).
 - **Exit monitoring:** Hourly `check_exits` Mon–Fri 9:00–15:00 IST as backstop; WebSocket real-time exits in live and paper when market data is available (`MOCK_MARKET` skips WS).
-- **Exit rules:** TP at ≤`TP_RESIDUAL_CREDIT_FRACTION` residual credit (default 0.25); SL at ≥`SL_CREDIT_MULTIPLE`× credit (default 2.0) or spot ≤ short strike; time stop Thu ≥ 15:00 IST. VIX regimes scale OTM via `vix_regime_otm`; hard skip above `VIX_MAX_THRESHOLD` (25). Short put: target delta ≈0.18 + min credit/width; hedge width `HEDGE_WIDTH` (default 100).
+- **Exit rules:** TP at ≤`TP_RESIDUAL_CREDIT_FRACTION` residual credit (default 0.25); SL at ≥`SL_CREDIT_MULTIPLE`× credit (default 2.0) or spot ≤ short strike; time stop Thu ≥ 15:00 IST. VIX regimes scale OTM via `vix_regime_otm`; hard skip above `VIX_MAX_THRESHOLD` (22). Short put: target delta ≈0.18 + min credit/width; hedge width `HEDGE_WIDTH` (default 100).
 - **PCS backtest:** `uv run python backtest.py` (add `--sweep` for TP/SL grid). ₹200k capital; synthetic model documented in module docstring.
-- **Single-symbol focus:** Nifty 50 is the only symbol in `TARGET_SYMBOLS`. Sizing is `ALLOCATION_PCT_PER_TRADE` (default `0.25`), so the per-trade budget is ~₹50,000 of the ₹200k ceiling (7 lots at lot size 65, max loss ≈ ₹45.5k) — not 100%.
+- **Single-symbol focus:** Nifty 50 is the only symbol in `TARGET_SYMBOLS`. Sizing is risk-based (`RISK_PER_TRADE_PCT`, `MAX_PORTFOLIO_RISK_PCT`); at ₹200k and 3% that is one 100-wide lot. If even 1 lot breaches a cap the entry is skipped and logged.
 - **Paper trade default:** `PAPER_TRADE=True` unless explicitly overridden.
 
 ## Conventions

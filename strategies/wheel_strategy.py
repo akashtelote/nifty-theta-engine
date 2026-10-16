@@ -10,8 +10,8 @@ import polars as pl
 from core.client import UpstoxClient
 import math
 from core.notifier import Notifier
+from core.sizing import risk_lots
 from config.settings import (
-    ALLOCATION_PCT_PER_TRADE,
     EXIT_SLIPPAGE_BUFFER_PCT,
     MAX_CAPITAL,
     settings,
@@ -414,6 +414,16 @@ class WheelStateMachine:
         finally:
             if conn:
                 self._pool.putconn(conn)
+
+    def _open_max_loss(self) -> float:
+        """Total max loss (width x qty - credit received) across open spreads."""
+        total = 0.0
+        for st in self.state.values():
+            a, h = st.get("active_position") or {}, st.get("hedge_position") or {}
+            if st.get("current_stage") == "STAGE_1_CSP" and a and h:
+                qty = a.get("quantity") or h.get("quantity") or 0
+                total += (a["strike"] - h["strike"]) * qty - st.get("net_credit_received", 0.0)
+        return max(total, 0.0)
 
     def _unwind_hedge(self, symbol: str, long_instrument_key: str, quantity: int, long_order_id: str):
         msg = f"Unwinding dangling hedge for {symbol}: selling {quantity} of {long_instrument_key}"
@@ -827,7 +837,7 @@ class WheelStateMachine:
             logger.info(f"Attempting same-week re-entry for {symbol} after Take Profit.")
             self.execute_daily_cycle(
                 symbol=symbol,
-                symbol_config={"allocation_pct": ALLOCATION_PCT_PER_TRADE, "entry_session": "midweek", "same_week_reentry": True},
+                symbol_config={"entry_session": "midweek", "same_week_reentry": True},
             )
 
     def execute_daily_cycle(self, symbol: str, symbol_config: dict):
@@ -1007,14 +1017,12 @@ class WheelStateMachine:
                     f"exp {short_expiry}; mid credit {theoretical_mid:.2f}, natural {theoretical_natural:.2f}"
                 )
 
-                allocation_pct = symbol_config.get("allocation_pct", ALLOCATION_PCT_PER_TRADE)
                 available_margin = self.client.get_available_margin()
                 if available_margin is None or available_margin <= 0:
                     msg = f"Could not fetch available margin for {symbol}. Aborting."
                     logger.error(msg)
                     self.notifier.send_notification(title="Margin Fetch Failed", message=msg, level="ERROR")
                     return
-                budget = available_margin * allocation_pct
 
                 required_capital_per_lot = (short_strike - long_strike) * lot_size
                 if required_capital_per_lot <= 0:
@@ -1029,12 +1037,20 @@ class WheelStateMachine:
                     self.notifier.send_notification(title="Capital Ceiling", message=msg, level="ERROR")
                     return
 
-                num_lots = math.floor(budget / required_capital_per_lot)
+                # Paper margin is static, so add realised P&L: drawdowns must shrink size
+                # the way they would live. Size on the natural (worst-case) credit.
+                equity = available_margin
+                if self.client.is_paper_trade:
+                    equity = min(equity + sum(s.get("lifetime_realized_pnl", 0.0) for s in self.state.values()), MAX_CAPITAL)
+                num_lots, skip_reason = risk_lots(
+                    short_strike - long_strike, theoretical_natural, lot_size, equity,
+                    self._open_max_loss(), settings.RISK_PER_TRADE_PCT, settings.MAX_PORTFOLIO_RISK_PCT,
+                )
 
                 if num_lots == 0:
-                    msg = f"CRITICAL: Insufficient funds to trade {symbol}. Budget: {budget:.2f} (margin={available_margin:.2f} x {allocation_pct:.0%}), Required for 1 lot: {required_capital_per_lot}. Aborting."
-                    logger.critical(msg)
-                    self.notifier.send_notification(title="Insufficient Funds", message=msg, level="ERROR")
+                    msg = f"Skipping {symbol} entry: {skip_reason}"
+                    logger.warning(msg)
+                    self.notifier.send_notification(title="Entry Skipped (Risk Cap)", message=msg, level="WARNING")
                     return
 
                 final_quantity = num_lots * lot_size

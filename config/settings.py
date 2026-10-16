@@ -1,5 +1,6 @@
 import csv
 import os
+from datetime import date
 
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings
@@ -19,15 +20,15 @@ class Settings(BaseSettings):
     # VIX circuit breaker (hard skip above this) — Stage 6 tightened to 22
     VIX_MAX_THRESHOLD: float = 22.0
 
-    # Position sizing.
-    # Tuned at the old ₹50k ceiling, where 0.25 bought exactly ONE lot
-    # (12,500 / (100×65) = 1.92 → 1) and was chosen for drawdown runway, not size: one
-    # lot needs width×lot = ₹6,500 of budget, so at 0.15 the bot silently stops entering
-    # once live equity drops below ₹43,334. At the ₹200k ceiling 0.25 is a ₹50,000 budget
-    # = 7 lots (max loss ≈ ₹45.5k, ~23% of capital) — revisit if that is too much risk.
-    # Paper mode cannot surface this — get_available_margin() returns a static
-    # PAPER_CAPITAL that never decays. See stress.py::funding_cliff.
-    ALLOCATION_PCT_PER_TRADE: float = 0.25
+    # Risk-based sizing (replaces ALLOCATION_PCT_PER_TRADE, which sized off notional width
+    # and let a 0.25 allocation at the ₹200k ceiling take 7 lots = ~23% of capital at risk).
+    # Max loss of a spread is (width - credit) x lot x lots; lots are chosen so that it stays
+    # <= RISK_PER_TRADE_PCT x equity, and total open max loss <= MAX_PORTFOLIO_RISK_PCT x equity.
+    # Paper default is 3%, not the 2% target: at ₹200k, 2% = ₹4,000 < one 100-wide lot
+    # (~₹5.2k max loss), so the bot would never trade. Set 0.02 once equity >= ~₹275k
+    # (the ramp stages in the runbook). See sizing.py.
+    RISK_PER_TRADE_PCT: float = Field(default=0.03, gt=0.0, le=0.10)
+    MAX_PORTFOLIO_RISK_PCT: float = Field(default=0.08, gt=0.0, le=0.30)
 
     # Capital ceiling (₹). Paper budget and live margin clamp — sizing must never exceed this.
     MAX_CAPITAL: float = Field(default=200000.0, gt=0.0)
@@ -102,7 +103,7 @@ class Settings(BaseSettings):
     ENTRY_REQUOTE_STEP_PCT: float = Field(default=0.25, ge=0.0, le=1.0)
 
     # Database
-    DATABASE_URL: str = "postgresql://wheelbot:securepassword@localhost:5432/wheeldb"
+    DATABASE_URL: str  # required: no default, so a missing .env fails loudly instead of using a guessable password
 
     # Redis
     REDIS_URL: str = "redis://host.docker.internal:6379/0"
@@ -165,7 +166,6 @@ CONNECTION_TIMEOUT = settings.CONNECTION_TIMEOUT
 READ_TIMEOUT = settings.READ_TIMEOUT
 WEBHOOK_URL = settings.WEBHOOK_URL
 VIX_MAX_THRESHOLD = settings.VIX_MAX_THRESHOLD
-ALLOCATION_PCT_PER_TRADE = settings.ALLOCATION_PCT_PER_TRADE
 MAX_CAPITAL = settings.MAX_CAPITAL
 PAPER_CAPITAL = settings.PAPER_CAPITAL
 EXIT_SLIPPAGE_BUFFER_PCT = settings.EXIT_SLIPPAGE_BUFFER_PCT
@@ -214,14 +214,53 @@ def vix_regime_otm(vix: float | None) -> tuple[str, float]:
     return "enter", settings.VIX_ELEVATED_OTM_PCT
 
 
-# --- Trading friction (NSE F&O options, Upstox flat-fee schedule) ---
+# --- Trading friction (NSE index options, Upstox flat-fee schedule) ---
 # One credit spread round trip = 4 orders: buy hedge + sell short (entry),
 # buy-to-close short + sell-to-close hedge (exit).
+# Sources (verified 2026-10-16):
+#   STT: Finance Act 2023 (0.05% -> 0.0625% from 2023-04-01), Finance (No.2) Act 2024
+#     (0.0625% -> 0.1% from 2024-10-01), Finance Act 2026, assent 2026-03-30
+#     (option sale 0.1% -> 0.15%, exercise 0.125% -> 0.15%, from 2026-04-01):
+#     NSE circular FATAX73524, https://nsearchives.nseindia.com/content/circulars/FATAX73524.pdf
+#   NSE options txn charge: 0.053% -> 0.05% (2023-04-01) -> 0.0495% (2024-04-01) ->
+#     0.03503% (2024-10-01); NSE circulars via Zerodha bulletins (zerodha.com/marketintel/bulletin/
+#     347967, 373933, 391488).
+#   Stamp 0.003% buy side, SEBI Rs10/crore, IPFT Rs0.50/lakh premium (NSE), GST 18% on
+#     brokerage+txn+SEBI, brokerage flat Rs20/order: https://upstox.com/brokerage-charges/
+# Pre-2023 txn/STT history is from the same sources but only matters for 2019-2022 backtests.
 BROKERAGE_PER_ORDER = 20.0       # flat per order, NOT per lot
 ORDERS_PER_ROUND_TRIP = 4
-STT_SELL_PCT = 0.001             # 0.1% of sell-side option premium
-TXN_CHARGE_PCT = 0.0003503       # NSE exchange transaction charge on premium turnover
-GST_PCT = 0.18                   # on brokerage + transaction charges
+STAMP_BUY_PCT = 0.00003
+SEBI_PCT = 0.000001
+IPFT_PCT = 0.000005
+GST_PCT = 0.18                   # on brokerage + transaction charges + SEBI fee
+
+# (effective_from, rate) ascending; the last entry with effective_from <= date applies.
+_STT_SELL_SCHEDULE = [
+    (date(2000, 1, 1), 0.0005), (date(2023, 4, 1), 0.000625),
+    (date(2024, 10, 1), 0.001), (date(2026, 4, 1), 0.0015),
+]
+_STT_EXERCISE_SCHEDULE = [(date(2000, 1, 1), 0.00125), (date(2026, 4, 1), 0.0015)]
+_TXN_SCHEDULE = [
+    (date(2000, 1, 1), 0.00053), (date(2023, 4, 1), 0.0005),
+    (date(2024, 4, 1), 0.000495), (date(2024, 10, 1), 0.0003503),
+]
+
+
+def _rate(schedule, on: date | None) -> float:
+    """Rate in force on `on`; None means today (live / paper)."""
+    on = on or date.today()
+    return [r for d, r in schedule if d <= on][-1]
+
+
+def stt_sell_rate(on: date | None = None) -> float:
+    return _rate(_STT_SELL_SCHEDULE, on)
+
+
+def exercise_stt(intrinsic_value: float, on: date | None = None) -> float:
+    """STT paid by the BUYER of an option that expires ITM (cash-settled), on intrinsic value.
+    A spread's long put pays this when Nifty settles below its strike."""
+    return _rate(_STT_EXERCISE_SCHEDULE, on) * abs(intrinsic_value)
 
 
 def round_trip_fees(
@@ -229,29 +268,32 @@ def round_trip_fees(
     cost_to_close: float,
     lot_size: int,
     num_lots: int,
+    on: date | None = None,
+    legs: tuple[float, float, float, float] | None = None,
 ) -> float:
-    """Total rupee cost of one spread round trip: brokerage + STT + txn + GST.
+    """Total rupee cost of one spread round trip: brokerage + STT + txn + stamp + SEBI + IPFT + GST.
 
-    Excludes bid-ask slippage, which is modelled separately as a points haircut on
-    the credit and the cost to close (slippage scales with size; these fees mostly
-    do not, so they are kept distinct).
+    `on` is the trade date (selects the STT / txn regime; default today). `legs` =
+    (short_entry, long_entry, short_exit, long_exit) per-share premiums gives exact
+    per-leg bases: STT on both sells (short at entry, long at exit), stamp on both buys,
+    txn/SEBI/IPFT on all four. Without `legs`, bases are approximated from the net
+    credit / cost_to_close, which UNDERSTATES statutory charges (~38%).
 
-    Brokerage is flat per ORDER, so it amortizes across lots: at 20 lots it is
-    about ₹4/lot, at 1 lot it is ₹80/lot. This is why backtesting 1 lot while the
-    bot trades 20 gets the cost structure badly wrong.
+    Excludes bid-ask slippage (modelled separately as a points haircut) and exercise STT
+    (see exercise_stt; only when the long put expires ITM).
     """
     brokerage = BROKERAGE_PER_ORDER * ORDERS_PER_ROUND_TRIP
-
-    # ponytail: statutory charges approximated off NET spread value, not per-leg premium.
-    # This UNDERSTATES them by ~38%: STT is levied on sell-side leg premium and txn on all
-    # four legs' gross premium, and both bases are larger than the net spread. Measured
-    # error ~₹2/lot at 20 lots (true ~₹8/lot vs ~₹5.8/lot modelled) — small beside the
-    # ~₹75/lot slippage term, but it errs OPTIMISTIC on a strategy already suspected of
-    # negative expectancy. Pass per-leg premiums if fees stop being slippage-dominated.
-    turnover = (abs(credit) + abs(cost_to_close)) * abs(lot_size) * abs(num_lots)
-    stt = STT_SELL_PCT * turnover
-    txn_charges = TXN_CHARGE_PCT * turnover
-
-    gst = GST_PCT * (brokerage + txn_charges)
-
-    return brokerage + stt + txn_charges + gst
+    qty = abs(lot_size) * abs(num_lots)
+    if legs is not None:
+        se, le, sx, lx = (abs(x) for x in legs)
+        sell_prem, buy_prem = (se + lx) * qty, (le + sx) * qty
+    else:
+        net_in, net_out = abs(credit) * qty, abs(cost_to_close) * qty
+        # ponytail: net-spread approximation (legacy callers); pass `legs` for exact bases
+        sell_prem, buy_prem = net_in + net_out, net_out
+    turnover = sell_prem + buy_prem
+    stt = stt_sell_rate(on) * sell_prem
+    txn_charges = _rate(_TXN_SCHEDULE, on) * turnover
+    sebi = SEBI_PCT * turnover
+    gst = GST_PCT * (brokerage + txn_charges + sebi)
+    return brokerage + stt + txn_charges + STAMP_BUY_PCT * buy_prem + sebi + IPFT_PCT * turnover + gst

@@ -5,6 +5,8 @@ Task D.
 
 from datetime import date, timedelta
 
+from config.settings import exercise_stt, stt_sell_rate
+
 import polars as pl
 import pytest
 
@@ -13,9 +15,37 @@ from backtest import PCSParams, _round_strike, _select_strikes, run_pcs_backtest
 
 
 class TestRoundTripFees:
-    def test_known_value(self):
-        # Pinned regression value; exact float is 116.34232085000001, hence approx.
-        assert round_trip_fees(20.7, 10.35, 25, 20) == pytest.approx(116.34232085)
+    def test_known_value_per_leg(self):
+        """Independent hand calculation, 2026 regime, 1 lot of 65, exact per-leg bases."""
+        legs = (68.0, 52.0, 10.0, 5.0)  # short in, long in, short out, long out
+        qty = 65
+        sell, buy = (68.0 + 5.0) * qty, (52.0 + 10.0) * qty
+        gross = sell + buy
+        brokerage = 80.0
+        txn = 0.0003503 * gross
+        sebi = 1e-6 * gross
+        expected = (brokerage + 0.0015 * sell + txn + 0.00003 * buy + sebi
+                    + 5e-6 * gross + 0.18 * (brokerage + txn + sebi))
+        got = round_trip_fees(16.0, 5.0, 65, 1, on=date(2026, 6, 1), legs=legs)
+        assert got == pytest.approx(expected)
+
+    @pytest.mark.parametrize("on,rate", [
+        (date(2023, 3, 31), 0.0005), (date(2023, 4, 1), 0.000625),
+        (date(2024, 9, 30), 0.000625), (date(2024, 10, 1), 0.001),
+        (date(2026, 3, 31), 0.001), (date(2026, 4, 1), 0.0015),
+    ])
+    def test_stt_regime_boundaries(self, on, rate):
+        assert stt_sell_rate(on) == rate
+
+    def test_stt_regime_changes_fees(self):
+        legs = (68.0, 52.0, 10.0, 5.0)
+        old = round_trip_fees(16.0, 5.0, 65, 1, on=date(2026, 3, 31), legs=legs)
+        new = round_trip_fees(16.0, 5.0, 65, 1, on=date(2026, 4, 1), legs=legs)
+        assert new - old == pytest.approx(0.0005 * 73.0 * 65)
+
+    def test_exercise_stt(self):
+        assert exercise_stt(10_000, on=date(2026, 3, 31)) == pytest.approx(12.5)
+        assert exercise_stt(10_000, on=date(2026, 4, 1)) == pytest.approx(15.0)
 
     def test_brokerage_is_flat_not_per_lot(self):
         """Brokerage is a flat 4-order fee, so per-lot cost must collapse as size grows.
