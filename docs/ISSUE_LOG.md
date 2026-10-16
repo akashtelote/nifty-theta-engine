@@ -200,6 +200,14 @@ Profitability / expectancy work is tracked separately in [`PROFITABILITY_ROADMAP
 - **ISS-R7 ops — FIXED in repo, NOT DEPLOYED:** dashboard published on 127.0.0.1 only; hardcoded DB password default removed (`DATABASE_URL` now required); `config/token.json` untracked + ignored.
 - **ISS-R4/5/6 evidence, stops, power — OPEN:** Phases 2–3.
 
+## 2026-10-16 Phase 2: real option-chain data (`research/`)
+
+- **ISS-R8 real prices — DONE (data layer):** `research/bhavcopy.py` loads NSE F&O bhavcopy (legacy format to 2024-07-05, UDiFF from 2024-07-08) for Nifty options into `data/bhavcopy/nifty_options/year=*/<date>.parquet` (gitignored; rebuild with `uv run python -m research.bhavcopy 2019-01-01`). Coverage 2019-01-01..2026-10-16: 1,932 trading days (incl. 9 weekend special sessions), 4.07M rows, 0 download errors. Legacy and UDiFF agree exactly on the overlap days 2024-06-28 and 2024-07-05 (settle, OI, contracts: 0 mismatches over 1,660/1,634 rows).
+- **ISS-R9 reference data:** `research/reference.py` — lot size by (trade date, expiry) for the legacy era (75 → 50 by contract series in 2021: expiries ≤ 2021-07-22 stay 75, later series are 50 from at least 2021-06-14, everything 50 from 2021-07-23; far-dated series traded 2021-05-01..07-22 are ambiguous and return None, so consumers filter dte ≤ 45; 50 → 25 on 2024-04-26), UDiFF rows carry their own lot (25 → 75 on 2024-11-22, 75 → 65 on 2025-10-29). Weekly expiry weekday Thursday → Tuesday from 2025-09-02 (confirmed from the data). Expiries are always taken from the data (holiday shifts), never computed. The 2021 change is verified from data only, not a circular number; the Tuesday-switch circular number is unconfirmed.
+- **ISS-R10 data quality** (`uv run python -m research.quality`, report in `data/bhavcopy/coverage_report.txt`): weekday gaps: none; weekend special sessions (Budget Saturdays, Muhurat) are fetched too (found in review; 404 → holiday); 1.7% rows have settle ≤ 0 (23k of them with OI > 0); 6,044 liquid rows have a stale settle; no strike-grid gaps within ±5% of forward. Put-call parity (pairs with ≥ 50 contracts each leg): ATM forwards disagree by > 15 pts in 0.7% of 0–9 DTE pairs, 2.4% at 10–19 DTE, 10.2% at 20–29 DTE. Thin strikes carry an NSE-model settle, so backtests must trade liquid strikes and use the high slippage level for far expiries. Underlying spot is only in UDiFF rows (≥ 2024-07-08); earlier spot must come from parity/yfinance (conditioning only).
+- **ISS-R11 execution cost:** `research/execution.py` — fills = settle ± slip per leg at 0.25/0.5/1.0 index pts (low/mid/high). Phase 0 measured only ~0.09 pt entry slippage in paper, which is not a real fill, so the bracket is deliberately wider. Settle (15:30) is a proxy for the 15:15 entry price.
+- Tests: `tests/test_bhavcopy.py` (offline parse of both formats, URL switch, lot rule boundaries, fill model).
+
 ## Feature Gaps
 
 These are not bugs but missing capabilities worth tracking:

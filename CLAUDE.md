@@ -30,6 +30,7 @@ config/
 execution/               Reserved for execution manager (currently empty)
 dashboard.py             Streamlit analytics dashboard
 backtest.py              Offline historical simulation (Polars + yfinance)
+research/                Phase 2 real-chain data: bhavcopy loader, reference, quality, execution model
 ```
 
 ## Architecture
