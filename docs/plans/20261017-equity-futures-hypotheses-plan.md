@@ -76,7 +76,7 @@ they in (§A0)._
 | # | Task | Needed by | Done when |
 |---|---|---|---|
 | A1 | **Equity bhavcopy loader**, 2005 → 2026-09, EQ and BE series, legacy plus UDiFF. Same pattern as `research/bhavcopy.py`, saved to `data/equity/`. Each stock gets a **permanent stock ID** built from its ISIN. The legacy files carry the ISIN from about 2011, and earlier rows are mapped through NSE's symbol-change list. A face-value split issues a new ISIN, so ISINs are **chained**: a new ISIN continues an old one when its first session is the old ISIN's next session after the last, it has the same issuer and security-type code (ISIN characters 3–9, e.g. `E009A01` in INE009A01021), and it has the same symbol or a symbol linked in the symbol-change list. Every chain link is listed in the coverage report. This keeps a rename or split from looking like a delisting, and history carries across it. | E1 E2 E4 | manifest complete; coverage report; gap days listed |
-| A2 | **Corporate-action adjustment** (splits, bonuses, rights). First choice: NSE corporate-action history through a browser session. Fallback: flag a day where open/prevclose is within 1.5% of a standard ratio (1:1, 1:2, 2:1, 5:1, 10:1, …), then confirm it against NSE or BSE corporate-action filings (never Yahoo, which is the gate's reference). If any adjusted event in the gate sample is confirmed only by Yahoo, the gate is **not run**. Dividends are **not** added back (this is conservative: the TRI benchmarks include them). | E1 E2 E4 | Checked on the first 50 stocks of the fixed sample defined below. Gate: the test days are the split/bonus events in yfinance's `splits` series (Yahoo records Indian bonuses as splits) for those stocks. On those days, the adjusted daily return from the A2 series must be within 0.1 percentage points of the return from Yahoo's split-adjusted `Close` on **≥ 95% of the days**. Yahoo's dividend adjustment is not used. An unadjusted loader fails this by construction. At least 20 test days are needed: below that, more survivors are drawn from the same sequence, 10 at a time, until there are 20 test days. The sample is fixed in advance: survivors (stocks listed on both 2010-01-04 and 2026-09-30), sorted by permanent stock ID and shuffled with `random.Random(20261017)`, taken in that order, with no redraws; and if 20 still can't be found the gate is **not run, which is not a pass**. The match rate over all days is reported, not gated. |
+| A2 | **Corporate-action adjustment** (splits, bonuses, rights). First choice: NSE corporate-action history through a browser session. Fallback: flag a day where open/prevclose is within 1.5% of a standard ratio (1:1, 1:2, 2:1, 5:1, 10:1, …), then confirm it against NSE or BSE corporate-action filings (never Yahoo, which is the gate's reference). A flagged day that no filing confirms is not adjusted. It is marked (`ca_flag`), and so are event sessions whose ex-day gap the factor leaves more than 25% off, sessions with an unresolved rights issue, gaps over 10% near an NSE demerger/scheme filing, and resumptions more than 20 sessions after the stock's previous row. E1, E2 and E4 drop any stock's return window that spans a marked session. Unmatched events have no session to mark (amendment 3). If any adjusted event in the gate sample is confirmed only by Yahoo, the gate is **not run**. Dividends are **not** added back (this is conservative: the TRI benchmarks include them). | E1 E2 E4 | Checked on the first 50 stocks of the fixed sample defined below. Gate: the test days are the split/bonus events in yfinance's `splits` series (Yahoo records Indian bonuses as splits) for those stocks. On those days, the adjusted daily return from the A2 series must be within 0.1 percentage points of the return from Yahoo's split-adjusted `Close` on **≥ 95% of the days**. Yahoo's dividend adjustment is not used. An unadjusted loader fails this by construction. At least 20 test days are needed: below that, more survivors are drawn from the same sequence, 10 at a time, until there are 20 test days. The sample is fixed in advance: survivors (stocks listed on both 2010-01-04 and 2026-09-30), sorted by permanent stock ID and shuffled with `random.Random(20261017)`, taken in that order, with no redraws; and if 20 still can't be found the gate is **not run, which is not a pass**. The match rate over all days is reported, not gated. |
 | A3 | **Benchmarks:** Nifty 50 TRI, Nifty 500 TRI and Nifty200 Momentum 30 TRI, daily, from the niftyindices historical download. 91-day T-bill yield from RBI. Nifty 500 **price-index** daily open and close from NSE's daily index snapshot (`ind_close_all`), for the E1/E4 event windows. | all | no gaps on trading days |
 | A4 | **Index-change archive** from niftyindices press releases, 2010 →, for Nifty 50, Nifty Next 50, Nifty Midcap 150 (Midcap 100 before it existed) and Nifty 500. Columns: announce date and time, effective date, index, symbol, add/remove, scheduled review or ad hoc, source URL. | E1 | every row has a source; scheduled semi-annual reviews are complete for DEV (checked against the review count) |
 | A5 | **Futures data:** extend `bhavcopy.parse` to keep FUTIDX (NIFTY, BANKNIFTY) in a new output. MCX (primary for E3): script the bhavcopy form, or find an archive, and record each contract's first trading date. CDS loader (USDINR from 2008-08; EURINR, GBPINR, JPYINR from 2010-02) for the E3 secondary only. Build continuous series that roll 5 sessions before expiry, **additively** back-adjusted for the signal (ratio adjustment breaks on negative prices such as MCX crude on 2020-04-20), and using real contracts for P&L. Record lot size and tick per contract and date. | E3 | NSE + CDS series without gaps; MCX either loaded or declared unavailable (see E3 universe rule) |
@@ -287,9 +287,10 @@ risk-free that is lowly correlated with Nifty, especially in Nifty sell-offs.
   On a DEV PASS, it moves to OOS only after the user says go.
 - No live money, deploy or `.env` change comes out of this plan without asking. The paper bot is not touched.
 
-## Amendments (data sources only; no rule, window or gate changes)
+## Amendments
 
-Both were made on 2026-10-17, during Phase A and before any E1–E4 result had been computed.
+Amendments 1–2 change data sources only (no rule, window or gate change). Amendment 3 adds a data-exclusion rule;
+the user approved it. All were made on 2026-10-17, during Phase A and before any E1–E4 result had been computed.
 
 1. **Nifty 500 price-index open and close (A3, E1, E4).** NSE's `ind_close_all` snapshot starts in about 2013
    and returns 404 for 2010–2012. The same series (price-index OHLC from NSE Indices Ltd) is taken from
@@ -312,3 +313,25 @@ Both were made on 2026-10-17, during Phase A and before any E1–E4 result had b
      same-month rate, not one known in advance. That is fine for a hurdle and Sharpe input, since no trading
      decision uses it. Gate 1's Sharpe and gate 2's excess are both computed on returns minus this rate.
      This is a secondary-market yield, not an auction cut-off; the two are close for on-the-run bills.
+3. **Sessions A2 cannot adjust safely (A2; E1, E2, E4). User-approved rule change, two parts, both 2026-10-17.**
+   None of the sessions below is (re)adjusted; each is flagged (`ca_flag`).
+   - **Unconfirmed detector hits (59).** These are standard-ratio gaps that no NSE or BSE split/bonus/rights filing
+     confirms. BSE's per-scrip history starts around 2008-10, so earlier hits cannot be checked there.
+   - **Ex-day outliers (8).** These are event sessions whose gap is still more than 25% off after the factor is
+     applied (|open / (prev close × f) − 1| > 0.25), so the factor may be wrong.
+   - **Unresolved rights (16).** These rights issues have no premium or prev close, so no factor can be computed.
+   - **Demergers and schemes (165).** These sessions gap more than 10% after any applied factor, and an NSE
+     demerger / scheme / arrangement / amalgamation filing of the stock is ex-dated within 10 days before. This is a
+     value transfer, not a move.
+   - **Resumptions (876).** The stock's previous row is more than 20 sessions back (suspension or illiquidity), so
+     the prev close is stale.
+   - **Totals:** 1,110 sessions across 504 stocks, with some sessions in more than one group.
+   - **Not flagged:** the 29 unmatched events (no session of the stock within 10 days of the ex-date) have no
+     session to flag. 134 other large gaps (open/prev close < 0.6 or > 1.8, prev close ≥ 10, no event) are left in
+     as real moves, so real crashes stay in the data. They are listed in the report; the ones from 2009 on are mostly
+     ETF unit splits slightly off a standard ratio.
+   - **Rule:** E1, E2 and E4 drop any stock's return window (t0, t1] that contains a flagged session, i.e. where
+     the per-stock running count `ca_flag_n` is higher at t1 than at t0. For E2's 12−1 signal this window is the
+     signal window; for holding returns it is the holding period.
+   - **Where to see it:** every group is listed in `data/equity/ca_report.txt`
+     (`uv run python -m research.corp_actions report`). The A2 gate is unchanged, and still passes (rerun 2026-10-17: 45 test days, match rate 0.978).
