@@ -286,3 +286,25 @@ risk-free that is lowly correlated with Nifty, especially in Nifty sell-offs.
 - After each hypothesis's DEV gate: report PASS/FAIL. On a DEV FAIL that hypothesis stops (no rule changes).
   On a DEV PASS, it moves to OOS only after the user says go.
 - No live money, deploy or `.env` change comes out of this plan without asking. The paper bot is not touched.
+
+## Amendments (data sources only; no rule, window or gate changes)
+
+Both were made on 2026-10-17, during Phase A and before any E1–E4 result had been computed.
+
+1. **Nifty 500 price-index open and close (A3, E1, E4).** NSE's `ind_close_all` snapshot starts in about 2013
+   and returns 404 for 2010–2012. The same series (price-index OHLC from NSE Indices Ltd) is taken from
+   niftyindices.com instead, for 2005 to now (`research/benchmarks.py`). It has no gaps on 2011–2026 F&O trading days.
+   2005–2010 (which includes the 2010 start of E1/E4 DEV) is **not yet checked**. It is checked against equity
+   bhavcopy trading days once A1 completes, and no E1/E4 run happens before that check passes.
+2. **Risk-free rate (A3, E3).** The DBIE export of RBI's 91-day auction table rounds the price and yield to whole
+   numbers, so it is unusable. The Handbook spreadsheet holds only the last year. The Nifty 91-day T-bill index
+   (launched 2018) is not served by the niftyindices data endpoint.
+   - **Replacement:** RBI's monthly "Yield of SGL transactions in Treasury Bills", 15–91 day bucket (DBIE SDMX
+     `YIELD_TB_RN`). It is complete for 2005-01 to 2026-06.
+   - **Missing months:** July–September 2026 are not yet published. They take the June 2026 value, carried
+     forward. If RBI publishes them before the E3 OOS run, the published values are used instead.
+   - **Use:** risk-free return for calendar month m = `yield_pct` of the row dated the last day of m ÷ 1200
+     (`yield_pct` is percent p.a.; simple, not compounded). The row is RBI's average over month m, so it is the
+     same-month rate, not one known in advance. That is fine for a hurdle and Sharpe input, since no trading
+     decision uses it. Gate 1's Sharpe and gate 2's excess are both computed on returns minus this rate.
+     This is a secondary-market yield, not an auction cut-off; the two are close for on-the-run bills.

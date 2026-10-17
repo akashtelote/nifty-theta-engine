@@ -11,6 +11,10 @@ Source note: the plan names NSE's ind_close_all snapshot for the Nifty 500 price
 archive starts ~2013 (404 for 2010-2012). niftyindices (same index provider, NSE Indices Ltd) serves the price
 OHLC back to 2005, so it is used for the whole span; `check_gaps` tests it against trading days.
 
+Risk-free (plan amendment 2): RBI monthly SGL T-bill yield, 15-91 day bucket, DBIE SDMX YIELD_TB_RN via
+  https://data-api.dbie.rbihub.in/api/tables/financial_markets/yield_tb_rn/rows (paged, limit/offset).
+  The DBIE 91-day *auction* tables are integer-rounded (price "99", yield "05") and unusable.
+
 Layout: data/benchmarks/<kind>_<slug>.parquet with columns date + open/high/low/close (price) or tri (TRI).
 CLI: uv run python -m research.benchmarks [end-year]
 """
@@ -88,6 +92,48 @@ def fetch(kind: str, name: str, last_year: int, pause: float = 1.0) -> pl.DataFr
     return df
 
 
+TBILL_URL = "https://data-api.dbie.rbihub.in/api/tables/financial_markets/yield_tb_rn/rows"
+TBILL_PATH = ROOT / "tbill_15to91_monthly.parquet"
+TBILL_FROM = date(2005, 1, 31)  # earliest month any E-hypothesis uses; RBI gaps 2001-08 and 2004-10 lie before it
+
+
+def parse_tbill(columns: list[str], rows: list[list]) -> pl.DataFrame:
+    """Month-end date + yield in percent p.a. for the 15-91 day bucket."""
+    df = pl.DataFrame(rows, schema=columns, orient="row", infer_schema_length=None)
+    out = df.filter(pl.col("mat_term_d_rn") == "15TO91").select(
+        pl.col("time_period").cast(pl.Utf8).str.strptime(pl.Date, "%Y-%m-%d").alias("date"),
+        pl.col("obs_value").cast(pl.Float64).alias("yield_pct"))
+    if out["date"].is_duplicated().any() or out["yield_pct"].null_count():
+        raise ValueError("T-bill series has duplicate months or null yields")
+    out = out.sort("date")
+    used = out.filter(pl.col("date") >= TBILL_FROM)["date"].to_list()
+    months = [d.year * 12 + d.month for d in used]
+    if not months or months != list(range(months[0], months[0] + len(months))) or used[0].month != TBILL_FROM.month             or used[0].year != TBILL_FROM.year:
+        raise ValueError(f"T-bill series not contiguous monthly from {TBILL_FROM:%Y-%m}")
+    return out
+
+
+def fetch_tbill() -> pl.DataFrame:
+    s = requests.Session()
+    s.headers.update({"User-Agent": HEADERS["User-Agent"]})
+    rows, off, cols = [], 0, None
+    while True:
+        r = s.get(TBILL_URL, params={"limit": 1000, "offset": off}, timeout=60)
+        r.raise_for_status()
+        d = r.json()
+        cols = d["columns"]
+        rows += d["rows"]
+        off += d["returned"]
+        if d["returned"] < 1000:
+            break
+    if not rows:  # hiccup / schema change -> never overwrite the stored series with nothing
+        raise RuntimeError("T-bill API returned no rows")
+    df = parse_tbill(cols, rows)
+    ROOT.mkdir(parents=True, exist_ok=True)
+    df.write_parquet(TBILL_PATH)
+    return df
+
+
 def load(kind: str, name: str) -> pl.DataFrame:
     return pl.read_parquet(path(kind, name))
 
@@ -105,3 +151,4 @@ if __name__ == "__main__":
         print("price", n, fetch("price", n, last).height)
     for n in TRI:
         print("tri", n, fetch("tri", n, last).height)
+    print("tbill", fetch_tbill().height)
