@@ -87,12 +87,12 @@ def parse(raw_csv: bytes, d: date) -> pl.DataFrame:
     ).cast(SCHEMA)
 
 
-def fetch_day(d: date, session: requests.Session) -> str:
-    """Download+store one day. Returns 'ok' | 'holiday' | 'error'."""
+def fetch_day(d: date, session: requests.Session, *, url=url_for, parser=parse, out: Path = OUT) -> str:
+    """Download+store one day. Returns 'ok' | 'holiday' | 'error'. Keyword args let other archives reuse it."""
     n404 = 0
     for attempt in range(3):
         try:
-            r = session.get(url_for(d), headers=_HEADERS, timeout=30)
+            r = session.get(url(d), headers=_HEADERS, timeout=30)
         except requests.RequestException:
             time.sleep(2 * (attempt + 1))
             continue
@@ -108,13 +108,13 @@ def fetch_day(d: date, session: requests.Session) -> str:
             continue
         try:
             with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-                df = parse(z.read(z.namelist()[0]), d)
+                df = parser(z.read(z.namelist()[0]), d)
         except zipfile.BadZipFile:
             time.sleep(2 * (attempt + 1))
             continue
         if df.is_empty():
             return "error"
-        path = OUT / f"year={d.year}" / f"{d:%Y-%m-%d}.parquet"
+        path = out / f"year={d.year}" / f"{d:%Y-%m-%d}.parquet"
         path.parent.mkdir(parents=True, exist_ok=True)
         df.write_parquet(path)
         return "ok"
@@ -122,33 +122,33 @@ def fetch_day(d: date, session: requests.Session) -> str:
     return "holiday" if n404 == 3 and d < date.today() - timedelta(days=2) else "error"
 
 
-def _load_manifest() -> dict[str, str]:
-    if not MANIFEST.exists():
+def _load_manifest(manifest: Path = MANIFEST) -> dict[str, str]:
+    if not manifest.exists():
         return {}
-    return dict(line.split(",") for line in MANIFEST.read_text().split()[1:])
+    return dict(line.split(",") for line in manifest.read_text().split()[1:])
 
 
-def run(start: date, end: date, pause: float = 0.3) -> None:
-    ROOT.mkdir(parents=True, exist_ok=True)
-    done = _load_manifest()
+def run(start: date, end: date, pause: float = 0.3, *, manifest: Path = MANIFEST, **fetch_kw) -> None:
+    manifest.parent.mkdir(parents=True, exist_ok=True)
+    done = _load_manifest(manifest)
     sess = requests.Session()
     d, n = start, 0
     while d <= end:
         key = f"{d:%Y-%m-%d}"
         # weekends included: special sessions (Budget Saturdays, Muhurat) are published; 404 -> holiday
         if done.get(key) not in ("ok", "holiday"):
-            done[key] = fetch_day(d, sess)
+            done[key] = fetch_day(d, sess, **fetch_kw)
             time.sleep(pause)
             n += 1
             if n % 50 == 0:
-                _save(done)
+                _save(done, manifest)
                 print(key, flush=True)
         d += timedelta(days=1)
-    _save(done)
+    _save(done, manifest)
 
 
-def _save(done: dict[str, str]) -> None:
-    MANIFEST.write_text("date,status\n" + "\n".join(f"{k},{v}" for k, v in sorted(done.items())) + "\n")
+def _save(done: dict[str, str], manifest: Path = MANIFEST) -> None:
+    manifest.write_text("date,status\n" + "\n".join(f"{k},{v}" for k, v in sorted(done.items())) + "\n")
 
 
 def load(start: date | None = None, end: date | None = None) -> pl.DataFrame:
