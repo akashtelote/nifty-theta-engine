@@ -1,0 +1,31 @@
+from datetime import date
+
+import pytest
+
+from research.benchmarks import check_gaps, parse
+
+
+def test_parse_price_and_tri():
+    p = parse([{"HistoricalDate": "03 Jan 2005", "OPEN": "1,818.55", "HIGH": "1836.65", "LOW": "1816.60",
+                "CLOSE": "1834.75", "INDEX_NAME": "Nifty 500"},
+               {"HistoricalDate": "03 Jan 2005", "OPEN": "1818.55", "HIGH": "1836.65", "LOW": "1816.60",
+                "CLOSE": "1834.75", "INDEX_NAME": "Nifty 500"}], "price")
+    assert p.height == 1 and p.row(0) == (date(2005, 1, 3), 1818.55, 1836.65, 1816.6, 1834.75)
+    t = parse([{"Date": "04 Jan 2005", "TotalReturnsIndex": "-"},
+               {"Date": "03 Jan 2005", "TotalReturnsIndex": "2282.29"}], "tri")
+    assert t["date"].to_list() == [date(2005, 1, 3), date(2005, 1, 4)] and t["tri"].to_list() == [2282.29, None]
+    assert parse([], "tri").columns == ["date", "tri"]
+
+
+def test_parse_rejects_conflicting_duplicates():
+    with pytest.raises(ValueError):
+        parse([{"Date": "03 Jan 2005", "TotalReturnsIndex": "100"},
+               {"Date": "03 Jan 2005", "TotalReturnsIndex": "101"}], "tri")
+
+
+def test_check_gaps_flags_missing_null_head_and_tail():
+    t = parse([{"Date": "03 Jan 2005", "TotalReturnsIndex": "1"}, {"Date": "04 Jan 2005", "TotalReturnsIndex": "-"},
+               {"Date": "06 Jan 2005", "TotalReturnsIndex": "2"}], "tri")
+    days = [date(2004, 12, 31)] + [date(2005, 1, d) for d in (3, 4, 5, 6, 7)]
+    assert check_gaps(t, days, "tri") == [date(2004, 12, 31), date(2005, 1, 4), date(2005, 1, 5), date(2005, 1, 7)]
+    assert check_gaps(parse([], "tri"), [date(2005, 1, 3)], "tri") == [date(2005, 1, 3)]
