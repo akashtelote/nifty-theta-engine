@@ -90,6 +90,25 @@ Graph ingests untracked handoff history notes into graph.json (pre-existing, not
 - Nothing committed yet. Next: read run1, sanity-check, evaluator round 1 (diff settings.py, test_costs.py, new files),
   commit + graphify + push, report DEV PASS/FAIL to user. OOS only on user's go.
 
+- **E1 DONE: DEV FAIL** (net mean -2.09%, 98.75% CI [-4.22%, +0.47%], gross CI spans 0). Pushed 96cdc63 + graphify 8657e67.
+  Stopped per plan; waiting on user for E2. No OOS.
+
+## E2 (user "proceed" 2026-10-18) — plan lines 128-168
+- Writing research/e2_momentum.py (DEV only, rows <= 2018-12-31) + tests/test_e2_momentum.py.
+- Data: corp_actions.build()["rows"] joined with equity.load() series/value on (date, symbol) (both keys unique).
+  Benchmarks data/benchmarks/tri_nifty_500.parquet, tri_nifty200_momentum_30.parquet (date, tri).
+- Interpretations: monthly returns month-end close to month-end close (NAV0 = Rs2L at Dec-2009 close); held stock's
+  flagged session return neutralised (units rescaled) = amendment-3 "drop" inside a portfolio; liquidity median pads
+  missing sessions with 0; tax: STCG/LTCG per FY with set-off + carry-forward, paid first session on/after Apr 1,
+  final liquidation taxed; cash earns 0; 6-month secondary = t-7m..t-1m month-ends (same skip month).
+
+- run1 (scratchpad/e2_run1.txt; data/e2/dev_report.txt): **DEV FAIL on all 3 gates** — CAGR +10.84% vs N500 TRI
+  +9.94% / Mom30 TRI +17.98%; excess CI [-1.235%, +1.655%]; MDD 41.9% (peak 2010-11, trough 2013-12, regime whipsaw).
+  Secondary: no-regime +18.14% CI [-0.47%, +2.14%] MDD 34.6%; 6m +6.02%; semi-annual +12.82% MDD 31.0%.
+  Neutralised sessions 0 (ca_flag = 693 anomaly rows in DEV, splits already in adj) — checked, plausible.
+  Refill candidates restricted to rank <= keep (else a name sold for rank > keep was rebought same session).
+
 ## Next step
-1. E1 (plan order: E1→E2→A6→E4→A5→E3). Use changes.parquet; one event per add filed under the highest index
+0. Evaluator on E2 diff, commit+graphify+push, report DEV FAIL to user. Stop; A6 next only on user's go. No OOS.
+1. (done) E1 (plan order: E1→E2→A6→E4→A5→E3). Use changes.parquet; one event per add filed under the highest index
    (N50>Next50>Midcap>N500), Next50→N50 = one N50 add, ad hoc reported separately; drop windows with ca_flag rise.
