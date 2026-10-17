@@ -61,8 +61,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "backtest_backtestresult",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "backtestresult"
     },
     {
@@ -73,8 +73,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backtest_backtestresult_as_dict",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": ".as_dict()"
     },
     {
@@ -84,8 +84,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "any",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "any"
     },
     {
@@ -143,8 +143,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backtest_py_dataframe",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "dataframe"
     },
     {
@@ -155,8 +155,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backtest_fetch_nifty_vix_path",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "fetch_nifty_vix_path()"
     },
     {
@@ -167,8 +167,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backtest_round_strike",
-      "community": 47,
-      "community_name": "PCSParams",
+      "community": 79,
+      "community_name": "backtest.py",
       "norm_label": "_round_strike()"
     },
     {
@@ -179,8 +179,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backtest_select_strikes",
-      "community": 47,
-      "community_name": "PCSParams",
+      "community": 79,
+      "community_name": "backtest.py",
       "norm_label": "_select_strikes()"
     },
     {
@@ -190,8 +190,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "backtest_py_date",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "date"
     },
     {
@@ -214,8 +214,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backtest_run_pcs_backtest",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "run_pcs_backtest()"
     },
     {
@@ -226,8 +226,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backtest_sweep_exit_params",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "sweep_exit_params()"
     },
     {
@@ -238,8 +238,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backtest_walk_forward",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "walk_forward()"
     },
     {
@@ -250,8 +250,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backtest_fetch_historical_data",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "fetch_historical_data()"
     },
     {
@@ -286,8 +286,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "backtest_main",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "main()"
     },
     {
@@ -330,8 +330,8 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "backtest_rationale_189",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "yfinance ^nsei + ^indiavix daily closes."
     },
     {
@@ -341,8 +341,8 @@
       "source_location": "L301",
       "_origin": "ast",
       "id": "backtest_rationale_301",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "simulate friday pcs entries with stage-6 exits/filters under the capital..."
     },
     {
@@ -352,8 +352,8 @@
       "source_location": "L425",
       "_origin": "ast",
       "id": "backtest_rationale_425",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "sweep the untested levers: touch-stop x hedge width x take-profit (18 cells)...."
     },
     {
@@ -363,8 +363,8 @@
       "source_location": "L465",
       "_origin": "ast",
       "id": "backtest_rationale_465",
-      "community": 79,
-      "community_name": "backtest.py",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "expanding/rolling walk-forward: train window unused for fit (rules fixed);..."
     },
     {
@@ -490,7 +490,7 @@
       "_origin": "ast",
       "id": "config_settings_get_redis_client",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "get_redis_client()"
     },
     {
@@ -501,7 +501,7 @@
       "_origin": "ast",
       "id": "redis",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "redis"
     },
     {
@@ -512,8 +512,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "config_settings_vix_regime_otm",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 100,
+      "community_name": "vix_regime_otm",
       "norm_label": "vix_regime_otm()"
     },
     {
@@ -605,8 +605,8 @@
       "source_location": "L199",
       "_origin": "ast",
       "id": "config_settings_rationale_199",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 100,
+      "community_name": "vix_regime_otm",
       "norm_label": "map vix \u2192 (action, otm_pct). action: 'enter' | 'skip' - none vix \u2192 enter at..."
     },
     {
@@ -672,7 +672,7 @@
       "_origin": "ast",
       "id": "core_auth",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "auth.py"
     },
     {
@@ -684,7 +684,7 @@
       "_origin": "ast",
       "id": "core_auth_get_current_timestamp",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "get_current_timestamp()"
     },
     {
@@ -696,7 +696,7 @@
       "_origin": "ast",
       "id": "core_auth_get_centralized_token",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "get_centralized_token()"
     },
     {
@@ -708,7 +708,7 @@
       "_origin": "ast",
       "id": "core_auth_delete_centralized_token",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "_delete_centralized_token()"
     },
     {
@@ -720,7 +720,7 @@
       "_origin": "ast",
       "id": "core_auth_save_centralized_token",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "_save_centralized_token()"
     },
     {
@@ -732,7 +732,7 @@
       "_origin": "ast",
       "id": "core_auth_acquire_refresh_lock",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "_acquire_refresh_lock()"
     },
     {
@@ -744,7 +744,7 @@
       "_origin": "ast",
       "id": "core_auth_release_refresh_lock",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "_release_refresh_lock()"
     },
     {
@@ -756,7 +756,7 @@
       "_origin": "ast",
       "id": "core_auth_wait_for_new_token",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "_wait_for_new_token()"
     },
     {
@@ -768,7 +768,7 @@
       "_origin": "ast",
       "id": "core_auth_mirror_token_locally",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "_mirror_token_locally()"
     },
     {
@@ -780,7 +780,7 @@
       "_origin": "ast",
       "id": "core_auth_read_local_token",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "_read_local_token()"
     },
     {
@@ -790,7 +790,7 @@
       "source_location": "",
       "_origin": "ast",
       "id": "datetime",
-      "community": 77,
+      "community": 7,
       "community_name": "datetime",
       "norm_label": "datetime"
     },
@@ -803,7 +803,7 @@
       "_origin": "ast",
       "id": "core_auth_authenticate_and_save_token",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "authenticate_and_save_token()"
     },
     {
@@ -814,7 +814,7 @@
       "_origin": "ast",
       "id": "core_auth_rationale_41",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "fetch the active token from the shared redis bus."
     },
     {
@@ -825,7 +825,7 @@
       "_origin": "ast",
       "id": "core_auth_rationale_54",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "delete the active token from the shared redis bus."
     },
     {
@@ -836,7 +836,7 @@
       "_origin": "ast",
       "id": "core_auth_rationale_63",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "publish token to the shared redis bus with ttl."
     },
     {
@@ -847,7 +847,7 @@
       "_origin": "ast",
       "id": "core_auth_rationale_74",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "claim the right to run totp. every totp login kills the other bot's session, so..."
     },
     {
@@ -858,7 +858,7 @@
       "_origin": "ast",
       "id": "core_auth_rationale_101",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "poll the bus for the token the lock holder is about to publish."
     },
     {
@@ -869,7 +869,7 @@
       "_origin": "ast",
       "id": "core_auth_rationale_112",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "keep local token.json in sync with the shared bus."
     },
     {
@@ -880,7 +880,7 @@
       "_origin": "ast",
       "id": "core_auth_rationale_138",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "resolve an upstox access token in priority order: 1. shared redis bus..."
     },
     {
@@ -970,7 +970,7 @@
       "_origin": "ast",
       "id": "core_client",
       "community": 7,
-      "community_name": "auth.py",
+      "community_name": "datetime",
       "norm_label": "client.py"
     },
     {
@@ -994,7 +994,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "core_client_upstoxclient",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": "upstoxclient"
     },
@@ -1007,7 +1007,7 @@
       "_origin": "ast",
       "id": "core_client_upstoxclient_init",
       "community": 1,
-      "community_name": "UpstoxClient",
+      "community_name": ".__init__",
       "norm_label": ".__init__()"
     },
     {
@@ -1030,8 +1030,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_client_upstoxclient_ensure_instrument_master",
-      "community": 8,
-      "community_name": "._get_instrument_token",
+      "community": 93,
+      "community_name": "lot_size_from_master",
       "norm_label": "._ensure_instrument_master()"
     },
     {
@@ -1042,8 +1042,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_client_upstoxclient_get_lot_size",
-      "community": 8,
-      "community_name": "._get_instrument_token",
+      "community": 93,
+      "community_name": "lot_size_from_master",
       "norm_label": ".get_lot_size()"
     },
     {
@@ -1208,7 +1208,7 @@
       "_origin": "ast",
       "id": "core_client_rationale_42",
       "community": 1,
-      "community_name": "UpstoxClient",
+      "community_name": ".__init__",
       "norm_label": "initialize with redis-first token resolution (see authenticate_and_save_token)...."
     },
     {
@@ -1229,8 +1229,8 @@
       "source_location": "L131",
       "_origin": "ast",
       "id": "core_client_rationale_131",
-      "community": 8,
-      "community_name": "._get_instrument_token",
+      "community": 93,
+      "community_name": "lot_size_from_master",
       "norm_label": "download/refresh the upstox nse instruments master (24h ttl, lock-protected)...."
     },
     {
@@ -1240,8 +1240,8 @@
       "source_location": "L184",
       "_origin": "ast",
       "id": "core_client_rationale_184",
-      "community": 8,
-      "community_name": "._get_instrument_token",
+      "community": 93,
+      "community_name": "lot_size_from_master",
       "norm_label": "current f&o lot size for `symbol`, straight from the instruments master. there..."
     },
     {
@@ -1533,8 +1533,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "core_loader",
-      "community": 6,
-      "community_name": "SmartMoneyFilter",
+      "community": 102,
+      "community_name": "smart_money.py",
       "norm_label": "loader.py"
     },
     {
@@ -1545,8 +1545,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_loader_get_nifty500_tickers",
-      "community": 6,
-      "community_name": "SmartMoneyFilter",
+      "community": 102,
+      "community_name": "smart_money.py",
       "norm_label": "get_nifty500_tickers()"
     },
     {
@@ -1556,8 +1556,8 @@
       "source_location": "L6",
       "_origin": "ast",
       "id": "core_loader_rationale_6",
-      "community": 6,
-      "community_name": "SmartMoneyFilter",
+      "community": 102,
+      "community_name": "smart_money.py",
       "norm_label": "fetches the latest nifty 500 tickers from nse indices csv."
     },
     {
@@ -1567,8 +1567,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "core_notifier",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "notifier.py"
     },
     {
@@ -1580,8 +1580,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "core_notifier_notifier",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "notifier"
     },
     {
@@ -1592,8 +1592,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_notifier_notifier_init",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": ".__init__()"
     },
     {
@@ -1604,8 +1604,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_notifier_notifier_send_notification",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": ".send_notification()"
     },
     {
@@ -1615,8 +1615,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "core_scheduler",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "scheduler.py"
     },
     {
@@ -1627,8 +1627,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_notify_ws_fallback",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_notify_ws_fallback()"
     },
     {
@@ -1639,8 +1639,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_on_ws_runtime_error",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_on_ws_runtime_error()"
     },
     {
@@ -1651,8 +1651,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_on_ws_connected",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_on_ws_connected()"
     },
     {
@@ -1663,8 +1663,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_stop_ws_monitor",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_stop_ws_monitor()"
     },
     {
@@ -1675,8 +1675,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_live_access_token",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_live_access_token()"
     },
     {
@@ -1687,8 +1687,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_start_ws_monitor",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_start_ws_monitor()"
     },
     {
@@ -1699,8 +1699,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_restart_ws_monitor",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_restart_ws_monitor()"
     },
     {
@@ -1711,8 +1711,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_refresh_realtime_state",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_refresh_realtime_state()"
     },
     {
@@ -1723,8 +1723,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_run_daily_wheel",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_run_daily_wheel()"
     },
     {
@@ -1735,8 +1735,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_run_midweek_wheel",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_run_midweek_wheel()"
     },
     {
@@ -1747,8 +1747,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_run_spread_sample",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_run_spread_sample()"
     },
     {
@@ -1759,8 +1759,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_run_exits",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_run_exits()"
     },
     {
@@ -1771,8 +1771,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_check_missed_entry",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "_check_missed_entry()"
     },
     {
@@ -1783,8 +1783,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_scheduler_start_scheduler",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "start_scheduler()"
     },
     {
@@ -1794,8 +1794,8 @@
       "source_location": "L27",
       "_origin": "ast",
       "id": "core_scheduler_rationale_27",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "discord warning on ws fallback; one alert per failure episode."
     },
     {
@@ -1805,8 +1805,8 @@
       "source_location": "L42",
       "_origin": "ast",
       "id": "core_scheduler_rationale_42",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "callback when the streamer gives up reconnecting \u2014 alert once, keep hourly poll."
     },
     {
@@ -1816,8 +1816,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "core_scheduler_rationale_47",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "socket came back (auto-reconnect or restart) \u2014 re-arm the fallback alert."
     },
     {
@@ -1827,8 +1827,8 @@
       "source_location": "L60",
       "_origin": "ast",
       "id": "core_scheduler_rationale_60",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "tear down the live streamer and clear long-lived ws state."
     },
     {
@@ -1838,8 +1838,8 @@
       "source_location": "L72",
       "_origin": "ast",
       "id": "core_scheduler_rationale_72",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "access token proven live by one authenticated rest call. upstox tokens die..."
     },
     {
@@ -1849,8 +1849,8 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "core_scheduler_rationale_87",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "start real-time exit monitor when market data is available. runs in live and..."
     },
     {
@@ -1860,8 +1860,8 @@
       "source_location": "L130",
       "_origin": "ast",
       "id": "core_scheduler_rationale_130",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "tear down and reconnect with a fresh token. scheduled mon\u2013fri 08:55 ist..."
     },
     {
@@ -1871,8 +1871,8 @@
       "source_location": "L142",
       "_origin": "ast",
       "id": "core_scheduler_rationale_142",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "refresh the ws monitor's thresholds and subscriptions after position changes."
     },
     {
@@ -1882,8 +1882,8 @@
       "source_location": "L182",
       "_origin": "ast",
       "id": "core_scheduler_rationale_182",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "optional mid-week entry path (prof-011); no-op unless allow_midweek_entry."
     },
     {
@@ -1893,8 +1893,8 @@
       "source_location": "L189",
       "_origin": "ast",
       "id": "core_scheduler_rationale_189",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "prof-022: record the quoted half-spread daily, whether or not an entry fires...."
     },
     {
@@ -1904,8 +1904,8 @@
       "source_location": "L233",
       "_origin": "ast",
       "id": "core_scheduler_rationale_233",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "catch missed friday (and optional mid-week) entries after restart; never..."
     },
     {
@@ -1960,8 +1960,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "core_smart_money",
-      "community": 6,
-      "community_name": "SmartMoneyFilter",
+      "community": 102,
+      "community_name": "smart_money.py",
       "norm_label": "smart_money.py"
     },
     {
@@ -2032,8 +2032,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "core_smart_money_smartmoneyfilter_refresh_metadata",
-      "community": 6,
-      "community_name": "SmartMoneyFilter",
+      "community": 102,
+      "community_name": "smart_money.py",
       "norm_label": "._refresh_metadata()"
     },
     {
@@ -2171,8 +2171,8 @@
       "source_location": "L106",
       "_origin": "ast",
       "id": "core_smart_money_rationale_106",
-      "community": 6,
-      "community_name": "SmartMoneyFilter",
+      "community": 102,
+      "community_name": "smart_money.py",
       "norm_label": "fetches nifty 500 metadata from yfinance and caches it."
     },
     {
@@ -2710,8 +2710,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "main",
-      "community": 7,
-      "community_name": "auth.py",
+      "community": 103,
+      "community_name": "main.py",
       "norm_label": "main.py"
     },
     {
@@ -2722,8 +2722,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "main_run_trade",
-      "community": 7,
-      "community_name": "auth.py",
+      "community": 103,
+      "community_name": "main.py",
       "norm_label": "run_trade()"
     },
     {
@@ -2734,8 +2734,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "main_main",
-      "community": 7,
-      "community_name": "auth.py",
+      "community": 103,
+      "community_name": "main.py",
       "norm_label": "main()"
     },
     {
@@ -2745,8 +2745,8 @@
       "source_location": "L23",
       "_origin": "ast",
       "id": "main_rationale_23",
-      "community": 7,
-      "community_name": "auth.py",
+      "community": 103,
+      "community_name": "main.py",
       "norm_label": "run a simulated paper trade or live trade."
     },
     {
@@ -3980,14 +3980,337 @@
       "norm_label": "each review splits a fixed rs2l equally across its kept adds in whole shares (a..."
     },
     {
+      "label": "e2_momentum.py",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "research_e2_momentum",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "e2_momentum.py"
+    },
+    {
+      "label": "months_back()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L63",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_months_back",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "months_back()"
+    },
+    {
+      "label": "date",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "research_e2_momentum_py_date",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "date"
+    },
+    {
+      "label": "median_padded()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L68",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_median_padded",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "median_padded()"
+    },
+    {
+      "label": "month_bounds()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L74",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_month_bounds",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "month_bounds()"
+    },
+    {
+      "label": "_last_on()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L83",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_last_on",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "_last_on()"
+    },
+    {
+      "label": "DataFrame",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "research_e2_momentum_py_dataframe",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "dataframe"
+    },
+    {
+      "label": "Series",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "series",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "series"
+    },
+    {
+      "label": "universe()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L88",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_universe",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "universe()"
+    },
+    {
+      "label": "regime()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L109",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_regime",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "regime()"
+    },
+    {
+      "label": "fy_tax()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L123",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_fy_tax",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "fy_tax()"
+    },
+    {
+      "label": "Pos",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L147",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_pos",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "pos"
+    },
+    {
+      "label": "_plus_year()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L158",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_plus_year",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "_plus_year()"
+    },
+    {
+      "label": "simulate()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L162",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_simulate",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "simulate()"
+    },
+    {
+      "label": "stationary_ci()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L274",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_stationary_ci",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "stationary_ci()"
+    },
+    {
+      "label": "metrics()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L289",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_metrics",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "metrics()"
+    },
+    {
+      "label": "load()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L309",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_load",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "load()"
+    },
+    {
+      "label": "run()",
+      "file_type": "code",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L317",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "research_e2_momentum_run",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "run()"
+    },
+    {
+      "label": "E2: cross-sectional 12-1 momentum, DEV only (plan 20261017-equity-futures-\u2026",
+      "file_type": "rationale",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "research_e2_momentum_rationale_1",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "e2: cross-sectional 12-1 momentum, dev only (plan 20261017-equity-futures-..."
+    },
+    {
+      "label": "Median of n sessions' traded value, where the len(v) traded sessions are padded\u2026",
+      "file_type": "rationale",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L69",
+      "_origin": "ast",
+      "id": "research_e2_momentum_rationale_69",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "median of n sessions' traded value, where the len(v) traded sessions are padded..."
+    },
+    {
+      "label": "month key (year * 12 + month - 1) -> (first session, last session).",
+      "file_type": "rationale",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L75",
+      "_origin": "ast",
+      "id": "research_e2_momentum_rationale_75",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "month key (year * 12 + month - 1) -> (first session, last session)."
+    },
+    {
+      "label": "Universe for trading month m with liq_rank, medval, sig12/sig6 and rank12/rank6\u2026",
+      "file_type": "rationale",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L89",
+      "_origin": "ast",
+      "id": "research_e2_momentum_rationale_89",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "universe for trading month m with liq_rank, medval, sig12/sig6 and rank12/rank6..."
+    },
+    {
+      "label": "date -> universe index >= its SMA-session average (True when the average is not\u2026",
+      "file_type": "rationale",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L110",
+      "_origin": "ast",
+      "id": "research_e2_momentum_rationale_110",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "date -> universe index >= its sma-session average (true when the average is not..."
+    },
+    {
+      "label": "Tax for financial year fy (Apr fy .. Mar fy+1) on net short / long-term gains.\u2026",
+      "file_type": "rationale",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L124",
+      "_origin": "ast",
+      "id": "research_e2_momentum_rationale_124",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "tax for financial year fy (apr fy .. mar fy+1) on net short / long-term gains...."
+    },
+    {
+      "label": "book: rebalance session -> (universe frame, regime on). px: perm_id -> date ->\u2026",
+      "file_type": "rationale",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L164",
+      "_origin": "ast",
+      "id": "research_e2_momentum_rationale_164",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "book: rebalance session -> (universe frame, regime on). px: perm_id -> date ->..."
+    },
+    {
+      "label": "Two-sided CONF CI of the mean, stationary bootstrap (Politis-Romano) with mean\u2026",
+      "file_type": "rationale",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L275",
+      "_origin": "ast",
+      "id": "research_e2_momentum_rationale_275",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "two-sided conf ci of the mean, stationary bootstrap (politis-romano) with mean..."
+    },
+    {
+      "label": "mends: month-end sessions from t0 (NAV = CAPITAL, before any trade) to the last\u2026",
+      "file_type": "rationale",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L290",
+      "_origin": "ast",
+      "id": "research_e2_momentum_rationale_290",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "mends: month-end sessions from t0 (nav = capital, before any trade) to the last..."
+    },
+    {
+      "label": "A2 rows + series/value, DEV and earlier only (OOS rows never loaded).",
+      "file_type": "rationale",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L310",
+      "_origin": "ast",
+      "id": "research_e2_momentum_rationale_310",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "a2 rows + series/value, dev and earlier only (oos rows never loaded)."
+    },
+    {
       "label": "engine.py",
       "file_type": "code",
       "source_file": "research/engine.py",
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_engine",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "engine.py"
     },
     {
@@ -3999,8 +4322,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "research_engine_config",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "config"
     },
     {
@@ -4012,8 +4335,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "research_engine_trade",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "trade"
     },
     {
@@ -4060,8 +4383,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_engine_forward",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "forward()"
     },
     {
@@ -4071,8 +4394,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_engine_py_dataframe",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "dataframe"
     },
     {
@@ -4082,8 +4405,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_engine_py_date",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "date"
     },
     {
@@ -4095,8 +4418,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "research_engine_chain",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "chain"
     },
     {
@@ -4107,8 +4430,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_engine_chain_init",
-      "community": 43,
-      "community_name": "bhavcopy.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": ".__init__()"
     },
     {
@@ -4119,8 +4442,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_engine_chain_spot",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": ".spot()"
     },
     {
@@ -4131,8 +4454,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_engine_chain_sma",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": ".sma()"
     },
     {
@@ -4155,8 +4478,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_engine_underlying_settle",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "underlying_settle()"
     },
     {
@@ -4167,8 +4490,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_engine_expiry_value",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "_expiry_value()"
     },
     {
@@ -4179,8 +4502,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_engine_entry_days",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "entry_days()"
     },
     {
@@ -4191,8 +4514,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_engine_select",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "_select()"
     },
     {
@@ -4203,8 +4526,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_engine_fees",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "_fees()"
     },
     {
@@ -4227,8 +4550,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_engine_walk",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "_walk()"
     },
     {
@@ -4238,8 +4561,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_engine_rationale_1",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "real-chain bull put credit spread backtest engine (phase 3). built and tested..."
     },
     {
@@ -4260,8 +4583,8 @@
       "source_location": "L108",
       "_origin": "ast",
       "id": "research_engine_rationale_108",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "parity forward for one expiry: median over the 5 liquid strikes with the..."
     },
     {
@@ -4271,8 +4594,8 @@
       "source_location": "L121",
       "_origin": "ast",
       "id": "research_engine_rationale_121",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "per-day frames of liquid-enough nifty options with point-in-time lot sizes; dte..."
     },
     {
@@ -4282,8 +4605,8 @@
       "source_location": "L136",
       "_origin": "ast",
       "id": "research_engine_rationale_136",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "parity-forward of the nearest expiry with dte >= 2 (proxy for spot; only used..."
     },
     {
@@ -4293,8 +4616,8 @@
       "source_location": "L158",
       "_origin": "ast",
       "id": "research_engine_rationale_158",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "index settlement price on expiry day, or none if `settle` already holds option..."
     },
     {
@@ -4304,8 +4627,8 @@
       "source_location": "L176",
       "_origin": "ast",
       "id": "research_engine_rationale_176",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "(put settlement value, underlying settlement price) on expiry day."
     },
     {
@@ -4315,8 +4638,8 @@
       "source_location": "L191",
       "_origin": "ast",
       "id": "research_engine_rationale_191",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "last trading day of each iso week."
     },
     {
@@ -4326,8 +4649,8 @@
       "source_location": "L199",
       "_origin": "ast",
       "id": "research_engine_rationale_199",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "pick expiry, strikes and natural credit for an entry on d, or (none, reason)."
     },
     {
@@ -4337,8 +4660,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_equity",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "equity.py"
     },
     {
@@ -4349,8 +4672,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_equity_url_for",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "url_for()"
     },
     {
@@ -4360,8 +4683,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_equity_py_date",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "date"
     },
     {
@@ -4372,8 +4695,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_equity_f",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "_f()"
     },
     {
@@ -4383,8 +4706,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_equity_py_expr",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "expr"
     },
     {
@@ -4395,8 +4718,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_equity_parse",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "parse()"
     },
     {
@@ -4406,8 +4729,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_equity_py_dataframe",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "dataframe"
     },
     {
@@ -4418,8 +4741,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_equity_run",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "run()"
     },
     {
@@ -4430,8 +4753,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_equity_load",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "load()"
     },
     {
@@ -4441,8 +4764,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_equity_rationale_1",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "nse equity (cm) bhavcopy -> partitioned parquet of eq and be series (plan..."
     },
     {
@@ -4452,8 +4775,8 @@
       "source_location": "L47",
       "_origin": "ast",
       "id": "research_equity_rationale_47",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "normalise one day's csv (either format, auto-detected from header) to schema,..."
     },
     {
@@ -4611,8 +4934,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_events",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 95,
+      "community_name": "events.py",
       "norm_label": "events.py"
     },
     {
@@ -4623,8 +4946,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_events_load",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 95,
+      "community_name": "events.py",
       "norm_label": "load()"
     },
     {
@@ -4634,8 +4957,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_events_py_dataframe",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 95,
+      "community_name": "events.py",
       "norm_label": "dataframe"
     },
     {
@@ -4646,8 +4969,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_events_with_session",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 95,
+      "community_name": "events.py",
       "norm_label": "with_session()"
     },
     {
@@ -4657,8 +4980,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_events_py_date",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 95,
+      "community_name": "events.py",
       "norm_label": "date"
     },
     {
@@ -4668,8 +4991,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_events_rationale_1",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 95,
+      "community_name": "events.py",
       "norm_label": "point-in-time macro event calendar (phase a5 of docs/plans/20261017-next-..."
     },
     {
@@ -4679,8 +5002,8 @@
       "source_location": "L35",
       "_origin": "ast",
       "id": "research_events_rationale_35",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 95,
+      "community_name": "events.py",
       "norm_label": "add `session`: the first nse trading day whose close reflects the event (null..."
     },
     {
@@ -4690,8 +5013,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_execution",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "execution.py"
     },
     {
@@ -4702,8 +5025,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_execution_fill",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "fill()"
     },
     {
@@ -4713,8 +5036,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_execution_rationale_1",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "explicit per-leg execution-cost model for bhavcopy-priced backtests (phase 2)...."
     },
     {
@@ -4724,8 +5047,8 @@
       "source_location": "L14",
       "_origin": "ast",
       "id": "research_execution_rationale_14",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "fill price for one option leg. side: 'buy' | 'sell'."
     },
     {
@@ -5255,8 +5578,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_iv_constant_maturity",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 60,
+      "community_name": "iv.py",
       "norm_label": "constant_maturity()"
     },
     {
@@ -5310,8 +5633,8 @@
       "source_location": "L103",
       "_origin": "ast",
       "id": "research_iv_rationale_103",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 60,
+      "community_name": "iv.py",
       "norm_label": "atm iv at a fixed horizon by linear interpolation in total variance (v^2 t)..."
     },
     {
@@ -5321,8 +5644,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_metrics",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "metrics.py"
     },
     {
@@ -5333,8 +5656,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_metrics_profit_factor",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "profit_factor()"
     },
     {
@@ -5345,8 +5668,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_metrics_bootstrap_ci",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "bootstrap_ci()"
     },
     {
@@ -5357,8 +5680,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_metrics_max_drawdown",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "max_drawdown()"
     },
     {
@@ -5369,8 +5692,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_metrics_fy",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "_fy()"
     },
     {
@@ -5380,8 +5703,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_metrics_py_date",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "date"
     },
     {
@@ -5392,8 +5715,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_metrics_after_tax_pnl",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "after_tax_pnl()"
     },
     {
@@ -5404,8 +5727,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_metrics_worst_period",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "worst_period()"
     },
     {
@@ -5416,8 +5739,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_metrics_cagr",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "_cagr()"
     },
     {
@@ -5428,8 +5751,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_metrics_summarize",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "summarize()"
     },
     {
@@ -5440,8 +5763,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_metrics_window",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "window()"
     },
     {
@@ -5452,8 +5775,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_metrics_benchmark_cagr",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "benchmark_cagr()"
     },
     {
@@ -5463,8 +5786,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_metrics_rationale_1",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "performance metrics for research.engine trades (phase 3). pure functions,..."
     },
     {
@@ -5474,8 +5797,8 @@
       "source_location": "L17",
       "_origin": "ast",
       "id": "research_metrics_rationale_17",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "percentile bootstrap ci (i.i.d. trades) of stat(list). seed fixed so reruns are..."
     },
     {
@@ -5485,8 +5808,8 @@
       "source_location": "L30",
       "_origin": "ast",
       "id": "research_metrics_rationale_30",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "max peak-to-trough fall (fraction of peak) incl. each trade's worst intratrade..."
     },
     {
@@ -5496,8 +5819,8 @@
       "source_location": "L87",
       "_origin": "ast",
       "id": "research_metrics_rationale_87",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "trades whose position was open at any time in [start, end] (for stress windows)."
     },
     {
@@ -6047,8 +6370,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_run_dev",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "run_dev.py"
     },
     {
@@ -6059,8 +6382,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_run_dev_grid",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "grid()"
     },
     {
@@ -6071,8 +6394,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_run_dev_evaluate",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "evaluate()"
     },
     {
@@ -6083,8 +6406,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_run_dev_eligible",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "eligible()"
     },
     {
@@ -6094,8 +6417,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_run_dev_rationale_1",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "pre-registered dev grid (docs/plans/20261016-real-chain-pcs-preregistration.md..."
     },
     {
@@ -6105,8 +6428,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_run_dev2",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "run_dev2.py"
     },
     {
@@ -6117,8 +6440,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_run_dev2_grid",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "grid()"
     },
     {
@@ -6129,8 +6452,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_run_dev2_stress_loss",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "stress_loss()"
     },
     {
@@ -6140,8 +6463,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_run_dev2_rationale_1",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "pre-registered v2 dev grid (docs/plans/20261017-real-chain-pcs-..."
     },
     {
@@ -6151,8 +6474,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_run_oos",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "run_oos.py"
     },
     {
@@ -6163,8 +6486,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_run_oos_index_series",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "index_series()"
     },
     {
@@ -6174,8 +6497,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_run_oos_rationale_1",
-      "community": 77,
-      "community_name": "datetime",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "one-shot v2 oos run (docs/plans/20261017-real-chain-pcs-preregistration-v2.md..."
     },
     {
@@ -6185,8 +6508,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "research_run_oos_rationale_19",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "(date, parity-forward of the nearest expiry) daily; price-only index proxy..."
     },
     {
@@ -6196,8 +6519,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_rv",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "rv.py"
     },
     {
@@ -6208,8 +6531,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_rv_fetch",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "fetch()"
     },
     {
@@ -6219,8 +6542,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_rv_py_dataframe",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "dataframe"
     },
     {
@@ -6231,8 +6554,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_rv_nse_day",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "_nse_day()"
     },
     {
@@ -6242,8 +6565,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_rv_py_date",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "date"
     },
     {
@@ -6254,8 +6577,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_rv_patch_from_nse",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "patch_from_nse()"
     },
     {
@@ -6266,8 +6589,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_rv_load",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "load()"
     },
     {
@@ -6278,8 +6601,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_rv_add_rv",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "add_rv()"
     },
     {
@@ -6290,8 +6613,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_rv_har_frame",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "_har_frame()"
     },
     {
@@ -6302,8 +6625,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_rv_har_fit",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "har_fit()"
     },
     {
@@ -6313,8 +6636,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "research_rv_py_ndarray",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "ndarray"
     },
     {
@@ -6325,8 +6648,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_rv_har_forecast",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "har_forecast()"
     },
     {
@@ -6337,8 +6660,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "research_rv_validate_against_bhavcopy",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "validate_against_bhavcopy()"
     },
     {
@@ -6348,8 +6671,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "research_rv_rationale_1",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "nifty index close, india vix and realised-vol forecasts (phase a3/a4 of..."
     },
     {
@@ -6359,8 +6682,8 @@
       "source_location": "L41",
       "_origin": "ast",
       "id": "research_rv_rationale_41",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "(nifty close, india vix) from nse's ind_close_all file; nones where the archive..."
     },
     {
@@ -6370,8 +6693,8 @@
       "source_location": "L52",
       "_origin": "ast",
       "id": "research_rv_rationale_52",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "yahoo drops some nse sessions (e.g. the 2020-02-01 budget saturday) and some..."
     },
     {
@@ -6381,8 +6704,8 @@
       "source_location": "L79",
       "_origin": "ast",
       "id": "research_rv_rationale_79",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "date, close, vix (vix in vol points, e.g. 14.0), plus r = log return and r2 =..."
     },
     {
@@ -6392,8 +6715,8 @@
       "source_location": "L85",
       "_origin": "ast",
       "id": "research_rv_rationale_85",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "trailing annualised close-to-close rv, known at that day's close."
     },
     {
@@ -6403,8 +6726,8 @@
       "source_location": "L97",
       "_origin": "ast",
       "id": "research_rv_rationale_97",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "ols coefficients [b0, b1, b5, b22]. targets must end inside [start, end], so..."
     },
     {
@@ -6414,8 +6737,8 @@
       "source_location": "L107",
       "_origin": "ast",
       "id": "research_rv_rationale_107",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "date, harvol{h} = annualised vol forecast for the next h days, known at that..."
     },
     {
@@ -6425,8 +6748,8 @@
       "source_location": "L114",
       "_origin": "ast",
       "id": "research_rv_rationale_114",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "per-day |yahoo close - bhavcopy underlying| in index points (udiff rows only..."
     },
     {
@@ -6631,8 +6954,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "strategies_wheel_strategy",
-      "community": 3,
-      "community_name": "WheelStateMachine",
+      "community": 51,
+      "community_name": "scheduler.py",
       "norm_label": "wheel_strategy.py"
     },
     {
@@ -7223,8 +7546,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "stress_capital_ceiling",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "capital_ceiling()"
     },
     {
@@ -7330,8 +7653,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "stress_scenario",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "scenario"
     },
     {
@@ -7498,8 +7821,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "stress_run_scenario",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "run_scenario()"
     },
     {
@@ -7544,8 +7867,8 @@
       "source_location": "L40",
       "_origin": "ast",
       "id": "stress_rationale_40",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "temporarily raise the ceiling `run_pcs_backtest` sizes against. `backtest`..."
     },
     {
@@ -7903,7 +8226,7 @@
       "_origin": "ast",
       "id": "tests_test_auth",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": "test_auth.py"
     },
     {
@@ -7916,7 +8239,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testauthenticateprefersredis",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": "testauthenticateprefersredis"
     },
     {
@@ -7928,7 +8251,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testauthenticateprefersredis_test_returns_redis_token_without_totp",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": ".test_returns_redis_token_without_totp()"
     },
     {
@@ -7940,7 +8263,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testauthenticateprefersredis_test_totp_fallback_when_redis_empty_publishes_to_redis",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": ".test_totp_fallback_when_redis_empty_publishes_to_redis()"
     },
     {
@@ -7953,7 +8276,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testcrossbotrefreshlock",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": "testcrossbotrefreshlock"
     },
     {
@@ -7965,7 +8288,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testcrossbotrefreshlock_test_loser_waits_for_winners_token_instead_of_second_totp",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": ".test_loser_waits_for_winners_token_instead_of_second_totp()"
     },
     {
@@ -7977,7 +8300,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testcrossbotrefreshlock_test_local_file_reused_is_published_to_redis",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": ".test_local_file_reused_is_published_to_redis()"
     },
     {
@@ -7990,7 +8313,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testclientinitprefersauthresolver",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": "testclientinitprefersauthresolver"
     },
     {
@@ -8002,7 +8325,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testclientinitprefersauthresolver_test_init_calls_authenticate_not_local_file_first",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": ".test_init_calls_authenticate_not_local_file_first()"
     },
     {
@@ -8015,7 +8338,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testredispassword",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": "testredispassword"
     },
     {
@@ -8027,7 +8350,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testredispassword_test_bad_redis_password_fails_loud_without_totp",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": ".test_bad_redis_password_fails_loud_without_totp()"
     },
     {
@@ -8039,7 +8362,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_testredispassword_test_client_sends_default_user_only_with_password",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": ".test_client_sends_default_user_only_with_password()"
     },
     {
@@ -8050,7 +8373,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_rationale_1",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": "redis-first upstox token resolution."
     },
     {
@@ -8061,7 +8384,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_rationale_71",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": "two bots share one upstox login \u2014 a second totp would kill the winner's session."
     },
     {
@@ -8072,7 +8395,7 @@
       "_origin": "ast",
       "id": "tests_test_auth_rationale_138",
       "community": 26,
-      "community_name": "test_auth.py",
+      "community_name": "UpstoxClient",
       "norm_label": "a wrong/missing redis_password must not look like an outage: the outage..."
     },
     {
@@ -8294,7 +8617,7 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_client",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": "test_client.py"
     },
@@ -8307,7 +8630,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_client_testpaperorderids",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": "testpaperorderids"
     },
@@ -8319,7 +8642,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_client_testpaperorderids_test_unique_ids",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": ".test_unique_ids()"
     },
@@ -8332,7 +8655,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_client_testordertype",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": "testordertype"
     },
@@ -8344,7 +8667,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_client_testordertype_test_market_order_when_price_zero",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": ".test_market_order_when_price_zero()"
     },
@@ -8356,7 +8679,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_client_testordertype_test_limit_order_when_price_nonzero",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": ".test_limit_order_when_price_nonzero()"
     },
@@ -8369,7 +8692,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_client_testorderstatuswithdynamicids",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": "testorderstatuswithdynamicids"
     },
@@ -8381,7 +8704,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_client_testorderstatuswithdynamicids_test_paper_prefix_returns_complete",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": ".test_paper_prefix_returns_complete()"
     },
@@ -8631,8 +8954,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_costs",
-      "community": 47,
-      "community_name": "PCSParams",
+      "community": 79,
+      "community_name": "backtest.py",
       "norm_label": "test_costs.py"
     },
     {
@@ -8752,8 +9075,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_costs_teststrikebandparity",
-      "community": 47,
-      "community_name": "PCSParams",
+      "community": 79,
+      "community_name": "backtest.py",
       "norm_label": "teststrikebandparity"
     },
     {
@@ -8764,8 +9087,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_costs_teststrikebandparity_test_backtest_floor_matches_live_floor",
-      "community": 47,
-      "community_name": "PCSParams",
+      "community": 79,
+      "community_name": "backtest.py",
       "norm_label": ".test_backtest_floor_matches_live_floor()"
     },
     {
@@ -8812,8 +9135,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_costs_rationale_1",
-      "community": 47,
-      "community_name": "PCSParams",
+      "community": 79,
+      "community_name": "backtest.py",
       "norm_label": "tests for the round-trip cost model (config/settings.round_trip_fees) and the..."
     },
     {
@@ -8845,8 +9168,8 @@
       "source_location": "L78",
       "_origin": "ast",
       "id": "tests_test_costs_rationale_78",
-      "community": 47,
-      "community_name": "PCSParams",
+      "community": 79,
+      "community_name": "backtest.py",
       "norm_label": "the backtest's strike search must scan the same otm band as the live bot's..."
     },
     {
@@ -8895,6 +9218,88 @@
       "community": 52,
       "community_name": "e1_inclusion.py",
       "norm_label": "test_bootstrap_resamples_reviews()"
+    },
+    {
+      "label": "test_e2_momentum.py",
+      "file_type": "code",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "tests_test_e2_momentum",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "test_e2_momentum.py"
+    },
+    {
+      "label": "test_months_back_and_median_padded()",
+      "file_type": "code",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L10",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_e2_momentum_test_months_back_and_median_padded",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "test_months_back_and_median_padded()"
+    },
+    {
+      "label": "test_fy_tax_set_off_and_carry_forward()",
+      "file_type": "code",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L17",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_e2_momentum_test_fy_tax_set_off_and_carry_forward",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "test_fy_tax_set_off_and_carry_forward()"
+    },
+    {
+      "label": "test_stationary_ci_deterministic()",
+      "file_type": "code",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L29",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_e2_momentum_test_stationary_ci_deterministic",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "test_stationary_ci_deterministic()"
+    },
+    {
+      "label": "_uni()",
+      "file_type": "code",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L35",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_e2_momentum_uni",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "_uni()"
+    },
+    {
+      "label": "DataFrame",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "tests_test_e2_momentum_py_dataframe",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "dataframe"
+    },
+    {
+      "label": "test_simulate_keep_sell_regime_and_rule7()",
+      "file_type": "code",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L40",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "tests_test_e2_momentum_test_simulate_keep_sell_regime_and_rule7",
+      "community": 0,
+      "community_name": "e2_momentum.py",
+      "norm_label": "test_simulate_keep_sell_regime_and_rule7()"
     },
     {
       "label": "test_engine.py",
@@ -9035,8 +9440,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_engine_test_metrics",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "test_metrics()"
     },
     {
@@ -9083,8 +9488,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_engine_test_bootstrap_all_winners_returns_nan",
-      "community": 63,
-      "community_name": "metrics.py",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "test_bootstrap_all_winners_returns_nan()"
     },
     {
@@ -9143,8 +9548,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_engine_test_zero_settle_expiry_without_parity_pairs_raises",
-      "community": 0,
-      "community_name": "Chain",
+      "community": 81,
+      "community_name": "test_engine.py",
       "norm_label": "test_zero_settle_expiry_without_parity_pairs_raises()"
     },
     {
@@ -9165,8 +9570,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_equity",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "test_equity.py"
     },
     {
@@ -9177,8 +9582,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_equity_test_parse_legacy_keeps_eq_be_and_null_isin",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "test_parse_legacy_keeps_eq_be_and_null_isin()"
     },
     {
@@ -9189,8 +9594,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_equity_test_parse_legacy_with_isin_and_udiff",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "test_parse_legacy_with_isin_and_udiff()"
     },
     {
@@ -9201,8 +9606,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_equity_test_url_switches_format_after_legacy_end",
-      "community": 95,
-      "community_name": "equity.py",
+      "community": 56,
+      "community_name": "report",
       "norm_label": "test_url_switches_format_after_legacy_end()"
     },
     {
@@ -9247,8 +9652,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_events",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 95,
+      "community_name": "events.py",
       "norm_label": "test_events.py"
     },
     {
@@ -9259,8 +9664,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_events_test_calendar_loads_and_is_sane",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 95,
+      "community_name": "events.py",
       "norm_label": "test_calendar_loads_and_is_sane()"
     },
     {
@@ -9271,8 +9676,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_events_test_session_mapping",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 95,
+      "community_name": "events.py",
       "norm_label": "test_session_mapping()"
     },
     {
@@ -9282,8 +9687,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_exit_sequencing",
-      "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community": 26,
+      "community_name": "UpstoxClient",
       "norm_label": "test_exit_sequencing.py"
     },
     {
@@ -9319,8 +9724,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testexitlegsequencing",
-      "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community": 26,
+      "community_name": "UpstoxClient",
       "norm_label": "testexitlegsequencing"
     },
     {
@@ -9355,8 +9760,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testbtcfailureleavesspreadintact",
-      "community": 5,
-      "community_name": "patch",
+      "community": 26,
+      "community_name": "UpstoxClient",
       "norm_label": "testbtcfailureleavesspreadintact"
     },
     {
@@ -9404,8 +9809,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_teststcfailureafterbtcfill",
-      "community": 5,
-      "community_name": "patch",
+      "community": 26,
+      "community_name": "UpstoxClient",
       "norm_label": "teststcfailureafterbtcfill"
     },
     {
@@ -9441,8 +9846,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testrealfillpnl",
-      "community": 5,
-      "community_name": "patch",
+      "community": 26,
+      "community_name": "UpstoxClient",
       "norm_label": "testrealfillpnl"
     },
     {
@@ -9478,7 +9883,7 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testgetorderfillprice",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": "testgetorderfillprice"
     },
@@ -9490,7 +9895,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testgetorderfillprice_test_paper_trade_returns_none",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": ".test_paper_trade_returns_none()"
     },
@@ -9502,7 +9907,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testgetorderfillprice_test_live_returns_average_price",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": ".test_live_returns_average_price()"
     },
@@ -9514,7 +9919,7 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testgetorderfillprice_test_live_returns_none_on_api_failure",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": ".test_live_returns_none_on_api_failure()"
     },
@@ -9587,8 +9992,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testfillqualitycapture_test_exit_slippage_none_without_mid_quotes",
-      "community": 98,
-      "community_name": "TestFillQualityCapture",
+      "community": 5,
+      "community_name": "patch",
       "norm_label": ".test_exit_slippage_none_without_mid_quotes()"
     },
     {
@@ -9599,8 +10004,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testfillqualitycapture_test_paper_exit_slippage_is_not_flattened_to_zero",
-      "community": 5,
-      "community_name": "patch",
+      "community": 98,
+      "community_name": "TestFillQualityCapture",
       "norm_label": ".test_paper_exit_slippage_is_not_flattened_to_zero()"
     },
     {
@@ -9624,7 +10029,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_quoted_chain",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": "_quoted_chain()"
     },
     {
@@ -9637,7 +10042,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testspreadqualitysampler",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": "testspreadqualitysampler"
     },
     {
@@ -9649,7 +10054,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testspreadqualitysampler_test_returns_half_the_mid_natural_gap",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": ".test_returns_half_the_mid_natural_gap()"
     },
     {
@@ -9661,7 +10066,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testspreadqualitysampler_test_places_no_orders",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": ".test_places_no_orders()"
     },
     {
@@ -9673,7 +10078,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testspreadqualitysampler_test_samples_even_when_vix_would_block_entry",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": ".test_samples_even_when_vix_would_block_entry()"
     },
     {
@@ -9685,7 +10090,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testspreadqualitysampler_test_returns_none_without_a_target_spread",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": ".test_returns_none_without_a_target_spread()"
     },
     {
@@ -9697,7 +10102,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testspreadqualitysampler_test_zero_ask_on_short_leg_is_a_real_quote",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": ".test_zero_ask_on_short_leg_is_a_real_quote()"
     },
     {
@@ -9710,7 +10115,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testpaperfillsarenotfree",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": "testpaperfillsarenotfree"
     },
     {
@@ -9722,7 +10127,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_testpaperfillsarenotfree_test_paper_entry_records_the_half_spread",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": ".test_paper_entry_records_the_half_spread()"
     },
     {
@@ -9732,8 +10137,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_1",
-      "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community": 26,
+      "community_name": "UpstoxClient",
       "norm_label": "tests for sequenced exit legs (cover-first) and real-fill p&l accuracy. exit..."
     },
     {
@@ -9765,8 +10170,8 @@
       "source_location": "L57",
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_57",
-      "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community": 26,
+      "community_name": "UpstoxClient",
       "norm_label": "verify exits place btc (buy short) first, then stc (sell hedge)."
     },
     {
@@ -9787,8 +10192,8 @@
       "source_location": "L92",
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_92",
-      "community": 5,
-      "community_name": "patch",
+      "community": 26,
+      "community_name": "UpstoxClient",
       "norm_label": "when buy-to-close fails, the intact spread must remain (no naked short)."
     },
     {
@@ -9831,8 +10236,8 @@
       "source_location": "L142",
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_142",
-      "community": 5,
-      "community_name": "patch",
+      "community": 26,
+      "community_name": "UpstoxClient",
       "norm_label": "when btc fills but stc fails, short is covered \u2014 only a benign long put remains."
     },
     {
@@ -9864,8 +10269,8 @@
       "source_location": "L181",
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_181",
-      "community": 5,
-      "community_name": "patch",
+      "community": 26,
+      "community_name": "UpstoxClient",
       "norm_label": "p&l must use actual fill prices, not theoretical pre-trade quotes."
     },
     {
@@ -9897,7 +10302,7 @@
       "source_location": "L235",
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_235",
-      "community": 1,
+      "community": 26,
       "community_name": "UpstoxClient",
       "norm_label": "tests for upstoxclient.get_order_fill_price()."
     },
@@ -9919,8 +10324,8 @@
       "source_location": "L312",
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_312",
-      "community": 98,
-      "community_name": "TestFillQualityCapture",
+      "community": 5,
+      "community_name": "patch",
       "norm_label": "no mid baseline available -> record no measurement, not a degraded number that..."
     },
     {
@@ -9930,8 +10335,8 @@
       "source_location": "L333",
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_333",
-      "community": 5,
-      "community_name": "patch",
+      "community": 98,
+      "community_name": "TestFillQualityCapture",
       "norm_label": "prof-022: paper exit must not record 0.00 by comparing natural against itself...."
     },
     {
@@ -9953,7 +10358,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_386",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": "chain whose target spread has a known mid/natural gap. short 21700 (bid 50 /..."
     },
     {
@@ -9964,7 +10369,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_401",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": "prof-022: the half-spread must be observable without an entry firing."
     },
     {
@@ -9975,7 +10380,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_434",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": "a resting ask of exactly 0.0 on the short leg must average into mid, not be..."
     },
     {
@@ -9986,7 +10391,7 @@
       "_origin": "ast",
       "id": "tests_test_exit_sequencing_rationale_458",
       "community": 94,
-      "community_name": "test_exit_sequencing.py",
+      "community_name": "TestSpreadQualitySampler",
       "norm_label": "prof-022: paper entry must not record 0.00 slippage by measuring mid against..."
     },
     {
@@ -10313,8 +10718,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_profitability",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "test_profitability.py"
     },
     {
@@ -10325,8 +10730,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_profitability_liquid_chain",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 101,
+      "community_name": "TestStrikeSelection",
       "norm_label": "_liquid_chain()"
     },
     {
@@ -10338,8 +10743,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_profitability_testvixregimemapping",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 100,
+      "community_name": "vix_regime_otm",
       "norm_label": "testvixregimemapping"
     },
     {
@@ -10350,8 +10755,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_profitability_testvixregimemapping_test_skip_above_max",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 100,
+      "community_name": "vix_regime_otm",
       "norm_label": ".test_skip_above_max()"
     },
     {
@@ -10362,8 +10767,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_profitability_testvixregimemapping_test_low_wider_otm",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 100,
+      "community_name": "vix_regime_otm",
       "norm_label": ".test_low_wider_otm()"
     },
     {
@@ -10374,8 +10779,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_profitability_testvixregimemapping_test_normal_otm",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 100,
+      "community_name": "vix_regime_otm",
       "norm_label": ".test_normal_otm()"
     },
     {
@@ -10386,8 +10791,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_profitability_testvixregimemapping_test_elevated_defensive_otm",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 100,
+      "community_name": "vix_regime_otm",
       "norm_label": ".test_elevated_defensive_otm()"
     },
     {
@@ -10398,8 +10803,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_profitability_testvixregimemapping_test_none_fail_open",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 100,
+      "community_name": "vix_regime_otm",
       "norm_label": ".test_none_fail_open()"
     },
     {
@@ -10519,8 +10924,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_profitability_teststrikeselection",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 101,
+      "community_name": "TestStrikeSelection",
       "norm_label": "teststrikeselection"
     },
     {
@@ -10531,8 +10936,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_profitability_teststrikeselection_test_selects_liquid_delta_credit_pair",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 101,
+      "community_name": "TestStrikeSelection",
       "norm_label": ".test_selects_liquid_delta_credit_pair()"
     },
     {
@@ -10543,8 +10948,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_profitability_teststrikeselection_test_rejects_wide_bid_ask",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 101,
+      "community_name": "TestStrikeSelection",
       "norm_label": ".test_rejects_wide_bid_ask()"
     },
     {
@@ -10555,8 +10960,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_profitability_teststrikeselection_test_hedge_width_over_capital_aborts",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 101,
+      "community_name": "TestStrikeSelection",
       "norm_label": ".test_hedge_width_over_capital_aborts()"
     },
     {
@@ -10567,8 +10972,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_profitability_teststrikeselection_test_configurable_hedge_width",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 101,
+      "community_name": "TestStrikeSelection",
       "norm_label": ".test_configurable_hedge_width()"
     },
     {
@@ -10701,8 +11106,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_profitability_rationale_1",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 47,
+      "community_name": "PCSParams",
       "norm_label": "tests for prof-005..014 profitability stages."
     },
     {
@@ -10712,8 +11117,8 @@
       "source_location": "L19",
       "_origin": "ast",
       "id": "tests_test_profitability_rationale_19",
-      "community": 42,
-      "community_name": "Settings",
+      "community": 101,
+      "community_name": "TestStrikeSelection",
       "norm_label": "synthetic pe chain around ~1% otm with tight spreads and meaningful credit."
     },
     {
@@ -10734,8 +11139,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_rv",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "test_rv.py"
     },
     {
@@ -10746,8 +11151,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_rv_idx",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "_idx()"
     },
     {
@@ -10757,8 +11162,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_rv_py_dataframe",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "dataframe"
     },
     {
@@ -10769,8 +11174,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_rv_test_rv_is_trailing_annualised",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "test_rv_is_trailing_annualised()"
     },
     {
@@ -10781,8 +11186,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_rv_test_har_on_constant_variance_forecasts_that_variance",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "test_har_on_constant_variance_forecasts_that_variance()"
     },
     {
@@ -10793,8 +11198,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_rv_test_har_fit_ignores_targets_after_end",
-      "community": 41,
-      "community_name": "phase_b.py",
+      "community": 63,
+      "community_name": "rv.py",
       "norm_label": "test_har_fit_ignores_targets_after_end()"
     },
     {
@@ -11091,8 +11496,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_settings_testsettingsvalidation",
-      "community": 93,
-      "community_name": "lot_size_from_master",
+      "community": 42,
+      "community_name": "Settings",
       "norm_label": "testsettingsvalidation"
     },
     {
@@ -11103,8 +11508,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_settings_testsettingsvalidation_test_default_values",
-      "community": 93,
-      "community_name": "lot_size_from_master",
+      "community": 42,
+      "community_name": "Settings",
       "norm_label": ".test_default_values()"
     },
     {
@@ -11115,8 +11520,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_settings_testsettingsvalidation_test_capital_exports",
-      "community": 93,
-      "community_name": "lot_size_from_master",
+      "community": 42,
+      "community_name": "Settings",
       "norm_label": ".test_capital_exports()"
     },
     {
@@ -11806,8 +12211,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_stress",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_stress.py"
     },
     {
@@ -11818,8 +12223,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_params",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "_params()"
     },
     {
@@ -11829,8 +12234,8 @@
       "source_location": "",
       "_origin": "ast",
       "id": "tests_test_stress_py_parametrize",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "parametrize"
     },
     {
@@ -11841,8 +12246,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_warmup_places_no_trades",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_warmup_places_no_trades()"
     },
     {
@@ -11865,8 +12270,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_scenarios_are_distinct",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_scenarios_are_distinct()"
     },
     {
@@ -11877,8 +12282,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_capital_ceiling_actually_resizes",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_capital_ceiling_actually_resizes()"
     },
     {
@@ -11889,8 +12294,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_capital_ceiling_restores_on_exit",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_capital_ceiling_restores_on_exit()"
     },
     {
@@ -11901,8 +12306,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_loss_never_exceeds_structural_max",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_loss_never_exceeds_structural_max()"
     },
     {
@@ -11913,8 +12318,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_gap_through_hedge_actually_hurts",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_gap_through_hedge_actually_hurts()"
     },
     {
@@ -11925,8 +12330,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_downtrend_blocks_all_entries",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_downtrend_blocks_all_entries()"
     },
     {
@@ -11937,8 +12342,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_calm_market_is_profitable",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_calm_market_is_profitable()"
     },
     {
@@ -11949,8 +12354,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_funding_cliff_matches_sizing_rule",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_funding_cliff_matches_sizing_rule()"
     },
     {
@@ -11961,8 +12366,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_repeated_shocks_trip_the_cliff",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_repeated_shocks_trip_the_cliff()"
     },
     {
@@ -11973,8 +12378,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_allocation_025_still_buys_exactly_one_lot",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_allocation_025_still_buys_exactly_one_lot()"
     },
     {
@@ -11985,8 +12390,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_allocation_025_does_not_change_risk",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_allocation_025_does_not_change_risk()"
     },
     {
@@ -11997,8 +12402,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_stress_test_allocation_025_extends_runway",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "test_allocation_025_extends_runway()"
     },
     {
@@ -12008,8 +12413,8 @@
       "source_location": "L1",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_1",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "invariants for the adversarial scenario harness (`stress.py`). most of these..."
     },
     {
@@ -12019,8 +12424,8 @@
       "source_location": "L45",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_45",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "the warmup exists only to fill the ivr/sma windows. if it trades, every..."
     },
     {
@@ -12041,8 +12446,8 @@
       "source_location": "L63",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_63",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "guards the regression where every scenario returned the same numbers."
     },
     {
@@ -12052,8 +12457,8 @@
       "source_location": "L74",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_74",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "without patching `backtest.max_capital`, a \u20b9200k run silently returns a \u20b950k..."
     },
     {
@@ -12063,8 +12468,8 @@
       "source_location": "L98",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_98",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "the hedge is the only thing bounding a short put. no trade \u2014 in a 6% gap clean..."
     },
     {
@@ -12074,8 +12479,8 @@
       "source_location": "L122",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_122",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "counterpart to the bound above: confirm the scenario is adversarial at all. a..."
     },
     {
@@ -12085,8 +12490,8 @@
       "source_location": "L133",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_133",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "the sma50 trend gate should refuse to sell puts into a sustained bleed."
     },
     {
@@ -12096,8 +12501,8 @@
       "source_location": "L139",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_139",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "sanity anchor. if the control loses money the scenarios are not measuring tail..."
     },
     {
@@ -12107,8 +12512,8 @@
       "source_location": "L150",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_150",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "cliff must equal the equity at which floor(budget / width x lot) hits 0."
     },
     {
@@ -12118,8 +12523,8 @@
       "source_location": "L159",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_159",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "`ruin_proxy` alone cannot see a bricked account: once sizing returns zero lots..."
     },
     {
@@ -12129,8 +12534,8 @@
       "source_location": "L172",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_172",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "the whole basis for the change: more drawdown runway, identical size."
     },
     {
@@ -12140,8 +12545,8 @@
       "source_location": "L182",
       "_origin": "ast",
       "id": "tests_test_stress_rationale_182",
-      "community": 51,
-      "community_name": "test_stress.py",
+      "community": 46,
+      "community_name": "stress.py",
       "norm_label": "at \u20b950k the two allocations must produce identical trades, not merely similar..."
     },
     {
@@ -12250,8 +12655,8 @@
       "_callable_class": true,
       "_origin": "ast",
       "id": "tests_test_wheel_strategy_testpositionsizing",
-      "community": 10,
-      "community_name": "test_wheel_strategy.py",
+      "community": 32,
+      "community_name": "patch",
       "norm_label": "testpositionsizing"
     },
     {
@@ -12285,8 +12690,8 @@
       "_callable": true,
       "_origin": "ast",
       "id": "tests_test_wheel_strategy_testpositionsizing_test_aborts_on_margin_failure",
-      "community": 10,
-      "community_name": "test_wheel_strategy.py",
+      "community": 32,
+      "community_name": "patch",
       "norm_label": ".test_aborts_on_margin_failure()"
     },
     {
@@ -12945,61 +13350,6 @@
       "norm_label": "if exit is already running for a symbol, skip further ticks."
     },
     {
-      "label": "HANDOFF.auto.md",
-      "file_type": "document",
-      "source_file": ".claude/handoff/HANDOFF.auto.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "claude_handoff_handoff_auto",
-      "community": 100,
-      "community_name": "AUTO SNAPSHOT (fallback: Claude did not write a handoff this cycle)",
-      "norm_label": "handoff.auto.md"
-    },
-    {
-      "label": "AUTO SNAPSHOT (fallback: Claude did not write a handoff this cycle)",
-      "file_type": "document",
-      "source_file": ".claude/handoff/HANDOFF.auto.md",
-      "source_location": "L1",
-      "_origin": "ast",
-      "id": "claude_handoff_handoff_auto_auto_snapshot_fallback_claude_did_not_write_a_handoff_this_cycle",
-      "community": 100,
-      "community_name": "AUTO SNAPSHOT (fallback: Claude did not write a handoff this cycle)",
-      "norm_label": "auto snapshot (fallback: claude did not write a handoff this cycle)"
-    },
-    {
-      "label": "Recent user requests (newest first)",
-      "file_type": "document",
-      "source_file": ".claude/handoff/HANDOFF.auto.md",
-      "source_location": "L5",
-      "_origin": "ast",
-      "id": "claude_handoff_handoff_auto_recent_user_requests_newest_first",
-      "community": 100,
-      "community_name": "AUTO SNAPSHOT (fallback: Claude did not write a handoff this cycle)",
-      "norm_label": "recent user requests (newest first)"
-    },
-    {
-      "label": "Files modified this cycle",
-      "file_type": "document",
-      "source_file": ".claude/handoff/HANDOFF.auto.md",
-      "source_location": "L22",
-      "_origin": "ast",
-      "id": "claude_handoff_handoff_auto_files_modified_this_cycle",
-      "community": 100,
-      "community_name": "AUTO SNAPSHOT (fallback: Claude did not write a handoff this cycle)",
-      "norm_label": "files modified this cycle"
-    },
-    {
-      "label": "Last assistant message",
-      "file_type": "document",
-      "source_file": ".claude/handoff/HANDOFF.auto.md",
-      "source_location": "L27",
-      "_origin": "ast",
-      "id": "claude_handoff_handoff_auto_last_assistant_message",
-      "community": 100,
-      "community_name": "AUTO SNAPSHOT (fallback: Claude did not write a handoff this cycle)",
-      "norm_label": "last assistant message"
-    },
-    {
       "label": "HANDOFF.md",
       "file_type": "document",
       "source_file": ".claude/handoff/HANDOFF.md",
@@ -13132,10 +13482,21 @@
       "norm_label": "e1 (started 2026-10-18 after user \"proceed\")"
     },
     {
+      "label": "E2 (user \"proceed\" 2026-10-18) \u2014 plan lines 128-168",
+      "file_type": "document",
+      "source_file": ".claude/handoff/HANDOFF.md",
+      "source_location": "L96",
+      "_origin": "ast",
+      "id": "claude_handoff_handoff_e2_user_proceed_2026_10_18_plan_lines_128_168",
+      "community": 48,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "e2 (user \"proceed\" 2026-10-18) \u2014 plan lines 128-168"
+    },
+    {
       "label": "Next step",
       "file_type": "document",
       "source_file": ".claude/handoff/HANDOFF.md",
-      "source_location": "L93",
+      "source_location": "L111",
       "_origin": "ast",
       "id": "claude_handoff_handoff_next_step",
       "community": 48,
@@ -15152,6 +15513,160 @@
       "_origin": "ast",
       "id": "claude_handoff_history_handoff_20261018_012826_next_step",
       "community": 96,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "next step"
+    },
+    {
+      "label": "HANDOFF-20261018-014149.md",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "handoff-20261018-014149.md"
+    },
+    {
+      "label": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "handoff \u2014 phase a of e1\u2013e4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)"
+    },
+    {
+      "label": "Goal",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_goal",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "goal"
+    },
+    {
+      "label": "Status",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_status",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "status"
+    },
+    {
+      "label": "Decisions",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_decisions",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "decisions"
+    },
+    {
+      "label": "Tried and failed",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L32",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_tried_and_failed",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "tried and failed"
+    },
+    {
+      "label": "Commands",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L38",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_commands",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "commands"
+    },
+    {
+      "label": "Round 3 (aa7a555a6326acdec) = FINDINGS \u2192 review cap reached; STOPPED, reported to user, nothing committed",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L42",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_round_3_aa7a555a6326acdec_findings_review_cap_reached_stopped_reported_to_user_nothing_committed",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "round 3 (aa7a555a6326acdec) = findings \u2192 review cap reached; stopped, reported to user, nothing committed"
+    },
+    {
+      "label": "User said \"proceed\" \u2192 fixing round-3 findings, then round 4 (user-approved beyond cap)",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L53",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_user_said_proceed_fixing_round_3_findings_then_round_4_user_approved_beyond_cap",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "user said \"proceed\" \u2192 fixing round-3 findings, then round 4 (user-approved beyond cap)"
+    },
+    {
+      "label": "Round 4 (a6ce901bf4dba0199) = FINDINGS (round-3 items all verified fixed) \u2192 STOPPED, asked user",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L64",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_round_4_a6ce901bf4dba0199_findings_round_3_items_all_verified_fixed_stopped_asked_user",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "round 4 (a6ce901bf4dba0199) = findings (round-3 items all verified fixed) \u2192 stopped, asked user"
+    },
+    {
+      "label": "User said \"proceed\" \u2192 round-4 fixes + round 5 (approved beyond cap)",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L71",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_user_said_proceed_round_4_fixes_round_5_approved_beyond_cap",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "user said \"proceed\" \u2192 round-4 fixes + round 5 (approved beyond cap)"
+    },
+    {
+      "label": "E1 (started 2026-10-18 after user \"proceed\")",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L83",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_e1_started_2026_10_18_after_user_proceed",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "e1 (started 2026-10-18 after user \"proceed\")"
+    },
+    {
+      "label": "E2 (user \"proceed\" 2026-10-18) \u2014 plan lines 128-168",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L96",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_e2_user_proceed_2026_10_18_plan_lines_128_168",
+      "community": 77,
+      "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
+      "norm_label": "e2 (user \"proceed\" 2026-10-18) \u2014 plan lines 128-168"
+    },
+    {
+      "label": "Next step",
+      "file_type": "document",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L105",
+      "_origin": "ast",
+      "id": "claude_handoff_history_handoff_20261018_014149_next_step",
+      "community": 77,
       "community_name": "HANDOFF \u2014 Phase A of E1\u2013E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)",
       "norm_label": "next step"
     },
@@ -20144,6 +20659,18 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "config_settings",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "research/engine.py",
       "source_location": "L31",
       "weight": 1.0,
@@ -21492,6 +22019,30 @@
       "relation": "imports",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L43",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "config_settings_equity_delivery_fees",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L181",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_simulate",
+      "target": "config_settings_equity_delivery_fees",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "tests/test_costs.py",
       "source_location": "L146",
       "weight": 1.0,
@@ -22028,6 +22579,18 @@
       "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L37",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "datetime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
       "source_file": "research/engine.py",
       "source_location": "L27",
       "weight": 1.0,
@@ -22273,6 +22836,18 @@
       "weight": 1.0,
       "_origin": "ast",
       "source": "tests_test_e1_inclusion",
+      "target": "datetime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
       "target": "datetime",
       "confidence_score": 1.0
     },
@@ -27551,6 +28126,18 @@
     },
     {
       "relation": "imports_from",
+      "context": "submodule_import",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_corp_actions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
       "context": "import",
       "confidence": "EXTRACTED",
       "source_file": "tests/test_corp_actions.py",
@@ -28495,6 +29082,18 @@
       "target": "research_corp_actions_build"
     },
     {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L311",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_load",
+      "target": "research_corp_actions_build"
+    },
+    {
       "relation": "rationale_for",
       "confidence": "EXTRACTED",
       "source_file": "research/corp_actions.py",
@@ -29296,6 +29895,774 @@
       "_origin": "ast",
       "source": "research_e1_inclusion_run",
       "target": "research_stock_id_sessions"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L123",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_fy_tax",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_last_on",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L309",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_load",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L68",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_median_padded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L289",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_metrics",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L74",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_month_bounds",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L63",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_months_back",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L158",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_plus_year",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L147",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_pos",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L109",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_regime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L317",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_run",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L162",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_simulate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L274",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_stationary_ci",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_e2_momentum_universe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "submodule_import",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_equity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "submodule_import",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum",
+      "target": "research_stock_id",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_rationale_1",
+      "target": "research_e2_momentum",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "research_e2_momentum",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L63",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_months_back",
+      "target": "research_e2_momentum_py_date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L92",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_universe",
+      "target": "research_e2_momentum_months_back",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "research_e2_momentum_months_back",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum_test_months_back_and_median_padded",
+      "target": "research_e2_momentum_months_back",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_last_on",
+      "target": "research_e2_momentum_py_date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L309",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_load",
+      "target": "research_e2_momentum_py_date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L289",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_metrics",
+      "target": "research_e2_momentum_py_date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L74",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_month_bounds",
+      "target": "research_e2_momentum_py_date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L158",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_plus_year",
+      "target": "research_e2_momentum_py_date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L109",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_regime",
+      "target": "research_e2_momentum_py_date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L321",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_run",
+      "target": "research_e2_momentum_py_date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L162",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_simulate",
+      "target": "research_e2_momentum_py_date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_universe",
+      "target": "research_e2_momentum_py_date",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L69",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_rationale_69",
+      "target": "research_e2_momentum_median_padded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L96",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_universe",
+      "target": "research_e2_momentum_median_padded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "research_e2_momentum_median_padded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum_test_months_back_and_median_padded",
+      "target": "research_e2_momentum_median_padded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L75",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_rationale_75",
+      "target": "research_e2_momentum_month_bounds",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L320",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_run",
+      "target": "research_e2_momentum_month_bounds",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_last_on",
+      "target": "research_e2_momentum_py_dataframe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_last_on",
+      "target": "series",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L101",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_universe",
+      "target": "research_e2_momentum_last_on",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L309",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_load",
+      "target": "research_e2_momentum_py_dataframe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "parameter_type",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L289",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_metrics",
+      "target": "research_e2_momentum_py_dataframe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L109",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_regime",
+      "target": "research_e2_momentum_py_dataframe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "generic_arg",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L162",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_simulate",
+      "target": "research_e2_momentum_py_dataframe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L88",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_universe",
+      "target": "research_e2_momentum_py_dataframe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L89",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_rationale_89",
+      "target": "research_e2_momentum_universe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L323",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_run",
+      "target": "research_e2_momentum_universe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L110",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_rationale_110",
+      "target": "research_e2_momentum_regime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L324",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_run",
+      "target": "research_e2_momentum_regime",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L124",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_rationale_124",
+      "target": "research_e2_momentum_fy_tax",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "research_e2_momentum_fy_tax",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum_test_fy_tax_set_off_and_carry_forward",
+      "target": "research_e2_momentum_fy_tax",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L260",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_simulate",
+      "target": "research_e2_momentum_pos",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L164",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_rationale_164",
+      "target": "research_e2_momentum_simulate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L350",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_run",
+      "target": "research_e2_momentum_simulate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "research_e2_momentum_simulate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L47",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum_test_simulate_keep_sell_regime_and_rule7",
+      "target": "research_e2_momentum_simulate",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L298",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_metrics",
+      "target": "research_e2_momentum_stationary_ci",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L275",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_rationale_275",
+      "target": "research_e2_momentum_stationary_ci",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "research_e2_momentum_stationary_ci",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L31",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum_test_stationary_ci_deterministic",
+      "target": "research_e2_momentum_stationary_ci",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L290",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_rationale_290",
+      "target": "research_e2_momentum_metrics",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L351",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_run",
+      "target": "research_e2_momentum_metrics",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L314",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_load",
+      "target": "research_stock_id_sessions"
+    },
+    {
+      "relation": "rationale_for",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L310",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_rationale_310",
+      "target": "research_e2_momentum_load",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "research/e2_momentum.py",
+      "source_location": "L318",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "research_e2_momentum_run",
+      "target": "research_e2_momentum_load",
+      "confidence_score": 1.0
     },
     {
       "relation": "contains",
@@ -39560,6 +40927,85 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "tests_test_e2_momentum_test_fy_tax_set_off_and_carry_forward",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "tests_test_e2_momentum_test_months_back_and_median_padded",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L40",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "tests_test_e2_momentum_test_simulate_keep_sell_regime_and_rule7",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L29",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "tests_test_e2_momentum_test_stationary_ci_deterministic",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum",
+      "target": "tests_test_e2_momentum_uni",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L44",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum_test_simulate_keep_sell_regime_and_rule7",
+      "target": "tests_test_e2_momentum_uni",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "context": "return_type",
+      "confidence": "EXTRACTED",
+      "source_file": "tests/test_e2_momentum.py",
+      "source_location": "L35",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tests_test_e2_momentum_uni",
+      "target": "tests_test_e2_momentum_py_dataframe",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
       "source_file": "tests/test_engine.py",
       "source_location": "L15",
       "weight": 1.0,
@@ -44752,50 +46198,6 @@
     {
       "relation": "contains",
       "confidence": "EXTRACTED",
-      "source_file": ".claude/handoff/HANDOFF.auto.md",
-      "source_location": "L1",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "claude_handoff_handoff_auto",
-      "target": "claude_handoff_handoff_auto_auto_snapshot_fallback_claude_did_not_write_a_handoff_this_cycle",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/handoff/HANDOFF.auto.md",
-      "source_location": "L22",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "claude_handoff_handoff_auto_auto_snapshot_fallback_claude_did_not_write_a_handoff_this_cycle",
-      "target": "claude_handoff_handoff_auto_files_modified_this_cycle",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/handoff/HANDOFF.auto.md",
-      "source_location": "L27",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "claude_handoff_handoff_auto_auto_snapshot_fallback_claude_did_not_write_a_handoff_this_cycle",
-      "target": "claude_handoff_handoff_auto_last_assistant_message",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
-      "source_file": ".claude/handoff/HANDOFF.auto.md",
-      "source_location": "L5",
-      "weight": 1.0,
-      "_origin": "ast",
-      "source": "claude_handoff_handoff_auto_auto_snapshot_fallback_claude_did_not_write_a_handoff_this_cycle",
-      "target": "claude_handoff_handoff_auto_recent_user_requests_newest_first",
-      "confidence_score": 1.0
-    },
-    {
-      "relation": "contains",
-      "confidence": "EXTRACTED",
       "source_file": ".claude/handoff/HANDOFF.md",
       "source_location": "L1",
       "weight": 1.0,
@@ -44841,6 +46243,17 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/handoff/HANDOFF.md",
+      "source_location": "L96",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_handoff_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_handoff_e2_user_proceed_2026_10_18_plan_lines_128_168",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/HANDOFF.md",
       "source_location": "L4",
       "weight": 1.0,
       "_origin": "ast",
@@ -44852,7 +46265,7 @@
       "relation": "contains",
       "confidence": "EXTRACTED",
       "source_file": ".claude/handoff/HANDOFF.md",
-      "source_location": "L93",
+      "source_location": "L111",
       "weight": 1.0,
       "_origin": "ast",
       "source": "claude_handoff_handoff_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
@@ -46672,6 +48085,149 @@
       "_origin": "ast",
       "source": "claude_handoff_history_handoff_20261018_012826_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
       "target": "claude_handoff_history_handoff_20261018_012826_user_said_proceed_round_4_fixes_round_5_approved_beyond_cap",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149",
+      "target": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L38",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_commands",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L26",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_decisions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_e1_started_2026_10_18_after_user_proceed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L96",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_e2_user_proceed_2026_10_18_plan_lines_128_168",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_goal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L105",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_next_step",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L42",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_round_3_aa7a555a6326acdec_findings_review_cap_reached_stopped_reported_to_user_nothing_committed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L64",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_round_4_a6ce901bf4dba0199_findings_round_3_items_all_verified_fixed_stopped_asked_user",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_status",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L32",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_tried_and_failed",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L53",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_user_said_proceed_fixing_round_3_findings_then_round_4_user_approved_beyond_cap",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": ".claude/handoff/history/HANDOFF-20261018-014149.md",
+      "source_location": "L71",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "claude_handoff_history_handoff_20261018_014149_handoff_phase_a_of_e1_e4_plan_docs_plans_20261017_equity_futures_hypotheses_plan_md",
+      "target": "claude_handoff_history_handoff_20261018_014149_user_said_proceed_round_4_fixes_round_5_approved_beyond_cap",
       "confidence_score": 1.0
     },
     {
@@ -49393,5 +50949,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "96cdc6311cd328c7da1ea75192e8727dc963a76d"
+  "built_at_commit": "7b9d1eff750b0ce662af52f3b597c1210b21e44d"
 }

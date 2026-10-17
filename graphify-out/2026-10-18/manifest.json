@@ -15,8 +15,8 @@
     "semantic_hash": ""
   },
   "config/settings.py": {
-    "mtime": 1792211488.0104313,
-    "ast_hash": "21e8ee40305eb72f4ac8d7c1a2fee85c",
+    "mtime": 1792266946.6718533,
+    "ast_hash": "39a521ba11b7538d40d29a795d09cc53",
     "semantic_hash": ""
   },
   "core/__init__.py": {
@@ -225,8 +225,8 @@
     "semantic_hash": ""
   },
   "tests/test_costs.py": {
-    "mtime": 1792211488.0127218,
-    "ast_hash": "c600545c1543b256140a4ee8da09edb5",
+    "mtime": 1792266409.546899,
+    "ast_hash": "5d8a9a39c774ec79ac6b6442d317ccb7",
     "semantic_hash": ""
   },
   "stress.py": {
@@ -240,8 +240,8 @@
     "semantic_hash": ""
   },
   ".claude/handoff/HANDOFF.md": {
-    "mtime": 1792262653.6016772,
-    "ast_hash": "479a6deee77ccc98eb7b4e2374f15adf",
+    "mtime": 1792266579.8029988,
+    "ast_hash": "a396aa182ca2a1d0ebbbd10462119959",
     "semantic_hash": ""
   },
   ".claude/handoff/history/HANDOFF-20261012-211035.md": {
@@ -562,6 +562,31 @@
   ".claude/handoff/history/HANDOFF-20261017-235556.md": {
     "mtime": 1792261556.8609686,
     "ast_hash": "77c18bf780de69944c75018ab99b494f",
+    "semantic_hash": ""
+  },
+  "research/e1_inclusion.py": {
+    "mtime": 1792267009.2666824,
+    "ast_hash": "4d5de624dbcab18fe2edbf7950b4e95e",
+    "semantic_hash": ""
+  },
+  "tests/test_e1_inclusion.py": {
+    "mtime": 1792266547.2763064,
+    "ast_hash": "efd6234ec3b79bc70c42c416838a4d06",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/HANDOFF.auto.md": {
+    "mtime": 1792267106.3860981,
+    "ast_hash": "a55f69860b5fb634d5df2be7092662ae",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261018-011334.md": {
+    "mtime": 1792266214.9932678,
+    "ast_hash": "f9345ea1be610d6fc25b330e0a89f978",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261018-012826.md": {
+    "mtime": 1792267106.369554,
+    "ast_hash": "073bc8b91b98475ae20f7f9e257872d6",
     "semantic_hash": ""
   }
 }
