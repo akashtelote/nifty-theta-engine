@@ -212,3 +212,12 @@ def test_pre_feb_2020_zero_settle_expiry_uses_close_parity():
     (tr,) = engine.run(Chain(df), CFG, *FIRST)
     assert tr.reason == "expiry" and tr.exit_cost == pytest.approx(100.0, abs=1.0)  # both puts ITM
     assert tr.pnl < 0
+
+
+def test_zero_settle_expiry_without_parity_pairs_raises():
+    # all-zero expiry-day settle and no CE/PE pairs on `close` -> must fail loudly, not value the spread at 0
+    ex = date(2019, 6, 27)
+    day = pl.DataFrame({"expiry": [ex] * 3, "strike": [10000.0, 10100.0, 10200.0], "opt_type": ["PE"] * 3,
+                        "settle": [0.0] * 3, "close": [5.0, 6.0, 7.0], "contracts": [100] * 3})
+    with pytest.raises(ValueError, match="zero-settle"):
+        engine.underlying_settle(day, ex)

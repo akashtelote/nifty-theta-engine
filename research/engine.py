@@ -165,7 +165,10 @@ def underlying_settle(day: pl.DataFrame, expiry: date) -> float | None:
     if mode > 1000 and (s == mode).mean() >= 0.5:
         return float(mode)
     if s.max() <= 0:
-        return forward(day, expiry, 1, "close")
+        f = forward(day, expiry, 1, "close")
+        if f is None:
+            raise ValueError(f"zero-settle expiry {expiry}: no close-parity forward, cannot value options")
+        return f
     return None
 
 
