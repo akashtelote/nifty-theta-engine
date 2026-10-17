@@ -75,6 +75,21 @@ full-listing scan (scratchpad/full_listing.csv) found only 13112013/23032020/250
 skipped releases, all now handled by hand. run8 backup: scratchpad/changes_run8.parquet; run9 → scratchpad/run9.txt.
 Expect: ~95 voided rows, 2020-H1 still complete via 2020-06-10, 4 rows 2013-11-07 effective 11-18.
 
+run9: 3642 rows, DEV 18/18, 2019+ 16/16; vs run8 only 95 voided rows gone + 4 rows 2013-11-07 → eff 11-18.
+Round 5 (acdb0014a747261d8) PASS. **A4 pushed: 1730cd1 + graphify 4f33a65.**
+Gate quirk: evaluator must print raw `diff --git` lines unfiltered (summaries / paged views past line 1 don't count).
+Graph ingests untracked handoff history notes into graph.json (pre-existing, not fixed).
+
+## E1 (started 2026-10-18 after user "proceed")
+- A7 equity delivery fees: config/settings.py tail (`equity_delivery_fees`, dated STT/txn/stamp/service-tax/GST
+  schedules + sources) + tests/test_costs.py::test_equity_delivery_fees_dated (15 pass).
+- research/e1_inclusion.py (DEV only; OOS rows never loaded) + tests/test_e1_inclusion.py (3 pass).
+  Interpretation: one event per (review half, symbol) at highest-priority index; N50->Next50 demotion = N50 removal.
+  Per-event notional = Rs2L / kept adds in review. Tax only in portfolio report. Removals futures short not run (no FUTSTK).
+- DEV run1 -> scratchpad/e1_run1.txt; outputs data/e1/dev_report.txt, dev_events.parquet.
+- Nothing committed yet. Next: read run1, sanity-check, evaluator round 1 (diff settings.py, test_costs.py, new files),
+  commit + graphify + push, report DEV PASS/FAIL to user. OOS only on user's go.
+
 ## Next step
-1. Check run9, diff vs run8 (only voided rows gone + 2013 redate).
-2. Evaluator round 5 → PASS → reset history, commit, graphify update + commit, push. Then E1. FINDINGS → stop, report.
+1. E1 (plan order: E1→E2→A6→E4→A5→E3). Use changes.parquet; one event per add filed under the highest index
+   (N50>Next50>Midcap>N500), Next50→N50 = one N50 add, ad hoc reported separately; drop windows with ca_flag rise.

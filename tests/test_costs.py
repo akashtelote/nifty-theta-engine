@@ -140,3 +140,15 @@ class TestCostsReducePnl:
         costed = run_pcs_backtest(df, PCSParams(slippage_points=1.5, **common))
         assert frictionless.total_trades > 0
         assert costed.total_pnl < frictionless.total_pnl
+
+
+def test_equity_delivery_fees_dated():
+    from config.settings import equity_delivery_fees
+    # 2015-01: STT 0.1% x2, txn 0.00345% x2, SEBI, stamp 0.01%, Rs40 brokerage + Rs20 DP, service tax 12.36%
+    taxable = 40 + 20 + 2 * 100_000 * (0.0000345 + 0.000001)
+    expect = 200 + 10 + taxable * 1.1236
+    assert equity_delivery_fees(100_000, 100_000, date(2015, 1, 1), date(2015, 2, 1)) == pytest.approx(expect)
+    # STT 0.125% before 2012-07-01, 0.1% from it; GST 18% from 2017-07-01
+    assert (equity_delivery_fees(1e6, 0, date(2012, 6, 29), date(2012, 6, 29))
+            - equity_delivery_fees(1e6, 0, date(2012, 7, 2), date(2012, 7, 2))) == pytest.approx(250)
+    assert equity_delivery_fees(0, 0, date(2020, 1, 1), date(2020, 1, 1)) == 0

@@ -312,3 +312,54 @@ def round_trip_fees(
     sebi = SEBI_PCT * turnover
     gst = GST_PCT * (brokerage + txn_charges + sebi)
     return brokerage + stt + txn_charges + STAMP_BUY_PCT * buy_prem + sebi + IPFT_PCT * turnover + gst
+
+
+# --- Equity delivery friction (A7, plan 20261017-equity-futures-hypotheses): NSE cash market, delivery ---
+# One round trip = one buy order + one sell order of one scrip. (effective_from, rate), as the schedules above.
+# Sources (searched 2026-10-18):
+#   STT on delivery, charged on BOTH buy and sell: 0.075% from 2004-10-01 (Finance (No.2) Act 2004 s.98);
+#     0.1% from 2005-06-01 (Finance Act 2005; CSE notice); 0.125% from 2006-06-01 (Finance Act 2006);
+#     0.1% from 2012-07-01 (Finance Act 2012, Act 23 of 2012, assent 2012-05-28; CSE notice 2012-06-20,
+#     https://www.cse-india.com/upload/CSE%20Notices%20&%20Circulars/2012/Notice200612.htm).
+#   NSE cash txn charge: 0.00325% from 2023-04-01 (zerodha.com/marketintel/bulletin/347967), 0.00322% from
+#     2024-04-01 (bulletin 373933), 0.00297% flat from 2024-10-01 (SEBI true-to-label; bulletin 391488).
+#     Before 2023 the 0.00345% row is an approximation (history not verified; < 0.001 pt per side).
+#   Stamp duty, buy side: uniform 0.015% from 2020-07-01 (Indian Stamp Act amendment; bulletin 259741).
+#     Before that it was state-wise; ~Rs1000/crore (0.01%) on delivery in most states is used (approximation).
+#   Indirect tax on brokerage + txn + SEBI + DP: service tax 10.2% (2004-09-10, Finance (No.2) Act 2004: 10% + 2%
+#     education cess), 12.24% (2006-04-18, Finance Act 2006), 12.36%
+#     (2007-05-11, Finance Act 2007 SHE cess), 10.3% (2009-02-24, notification 8/2009-ST), 12.36% (2012-04-01,
+#     Finance Act 2012), 14% (2015-06-01, Finance Act 2015), 14.5% (2015-11-15, Swachh Bharat cess), 15%
+#     (2016-06-01, Krishi Kalyan cess); GST 18% from 2017-07-01.
+#   SEBI Rs10/crore; brokerage Rs20/order and DP charge Rs20/scrip per sell day: https://upstox.com/brokerage-charges/
+# ponytail: today's discount-broker brokerage and DP charge are applied to all dates. They are flat rupees
+# (~Rs71 per round trip with GST): ~0.35 pt at Rs20k per position, but several points on Rs2-6k tickets.
+_EQ_STT_DELIVERY = [
+    (date(2004, 10, 1), 0.00075), (date(2005, 6, 1), 0.001), (date(2006, 6, 1), 0.00125), (date(2012, 7, 1), 0.001),
+]
+_EQ_TXN = [
+    (date(2000, 1, 1), 0.0000345), (date(2023, 4, 1), 0.0000325),
+    (date(2024, 4, 1), 0.0000322), (date(2024, 10, 1), 0.0000297),
+]
+_EQ_STAMP_BUY = [(date(2000, 1, 1), 0.0001), (date(2020, 7, 1), 0.00015)]
+_INDIRECT_TAX = [
+    (date(2004, 9, 10), 0.102), (date(2006, 4, 18), 0.1224), (date(2007, 5, 11), 0.1236), (date(2009, 2, 24), 0.103), (date(2012, 4, 1), 0.1236),
+    (date(2015, 6, 1), 0.14), (date(2015, 11, 15), 0.145), (date(2016, 6, 1), 0.15), (date(2017, 7, 1), 0.18),
+]
+EQ_DP_PER_SELL = 20.0
+EQ_FEES_FROM = date(2004, 10, 1)  # first STT row; A7 covers 2005 on
+
+
+def equity_delivery_fees(buy_value: float, sell_value: float, buy_on: date, sell_on: date) -> float:
+    """Rupee cost of one delivery round trip of one scrip: brokerage, STT (both sides), NSE txn, SEBI, stamp (buy),
+    DP charge (sell) and service tax / GST on brokerage + txn + SEBI + DP, each at its leg's dated rate.
+    Excludes slippage. A zero-value leg (no shares bought) costs nothing."""
+    def leg(value: float, on: date, buy: bool) -> float:
+        if value <= 0:
+            return 0.0
+        if on < EQ_FEES_FROM:
+            raise ValueError(f"no equity delivery fee schedule before {EQ_FEES_FROM}: {on}")
+        taxable = BROKERAGE_PER_ORDER + (_rate(_EQ_TXN, on) + SEBI_PCT) * value + (0.0 if buy else EQ_DP_PER_SELL)
+        stamp = _rate(_EQ_STAMP_BUY, on) * value if buy else 0.0
+        return taxable * (1 + _rate(_INDIRECT_TAX, on)) + _rate(_EQ_STT_DELIVERY, on) * value + stamp
+    return leg(buy_value, buy_on, True) + leg(sell_value, sell_on, False)
