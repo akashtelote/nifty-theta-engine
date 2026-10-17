@@ -108,7 +108,28 @@ Graph ingests untracked handoff history notes into graph.json (pre-existing, not
   Neutralised sessions 0 (ca_flag = 693 anomaly rows in DEV, splits already in adj) — checked, plausible.
   Refill candidates restricted to rank <= keep (else a name sold for rank > keep was rebought same session).
 
+- **E2 DONE: DEV FAIL**, pushed 7b9d1ef + graphify 23df2f0, reported.
+
+## A6 (user "proceed" 2026-10-18) — plan line 83; E4 at plan lines 239-282
+Probes (scratchpad a6_pw.py, a6_trunc.py): jugaad_data/playwright NOT in venv → `uv run --with playwright`, launch
+with executable_path=~/AppData/Local/ms-playwright/chromium-1234/chrome-win64/chrome.exe (latest pw wants newer build).
+Land on https://www.nseindia.com/report-detail/display-bulk-and-block-deals, then page.evaluate(fetch(...)).
+- /api/historical/bulk-deals = 503. WORKS: /api/historicalOR/bulk-block-short-deals?optionType=bulk_deals|block_deals
+  &from=DD-MM-YYYY&to=DD-MM-YYYY. JSON capped at 70 rows/response (even per day) → use **&csv=true** (full: 2016 bulk
+  6261 rows, block 183 = monthly JSON sum). Range ≤1y (2y → 500). Bulk from 2004-01, block from ~2005-11 (empty before).
+  CSV header: "Date ","Symbol ","Security Name ","Client Name ","Buy / Sell ","Quantity Traded ","Trade Price / Wght.
+  Avg. Price ","Remarks " ; qty "2,50,000"; date "01-MAR-2024". Some early dates are weekends (04-JAN-2004 Sun).
+- Shares outstanding: /api/corporate-share-holdings-master?index=equities&symbol=X → only 21 quarters (2021-09+),
+  percentages only (counts in XBRL) → no PIT source for DEV → E4 uses the plan's FALLBACK rule.
+Plan: research/deals.py — monthly CSV windows 2004-01..2026-09 per kind, raw cache data/deals/raw/{kind}/YYYY-MM.csv,
+parse → data/deals/deals.parquet + coverage report (rows/yr/kind, empty months, non-session dates, unmatched symbols).
+RESULT (data/deals/report.txt): 254,607 rows (bulk 241,405 / block 13,202), 23 yrs, 0 failures, 0 missing months,
+28 empty months (block pre-2005-11 + 6 sporadic), 25 exact dups kept. Off-session from 2005-01-03: 0 (1,153 2004 rows
+unchecked — no bhavcopy calendar). Unmatched (date,symbol) vs EQ/BE: 25,828 rows (10.2%), 19,920 of those rows have a symbol never EQ/BE (SME).
+Side normalised (B/S/SOLD → BUY/SELL; 3 early rows).
+E4 can only trade EQ/BE-matched rows. playwright added to `research` extra.
+
 ## Next step
-0. Evaluator on E2 diff, commit+graphify+push, report DEV FAIL to user. Stop; A6 next only on user's go. No OOS.
+0. Evaluator on deals.py/test/pyproject/uv.lock/HANDOFF → commit A6 + graphify + push → report A6; then E4 (fallback, DEV only).
 1. (done) E1 (plan order: E1→E2→A6→E4→A5→E3). Use changes.parquet; one event per add filed under the highest index
    (N50>Next50>Midcap>N500), Next50→N50 = one N50 add, ad hoc reported separately; drop windows with ca_flag rise.
