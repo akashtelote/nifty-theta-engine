@@ -1,24 +1,26 @@
-# HANDOFF — Phase A infra for docs/plans/20261017-next-hypotheses-plan.md
-_Updated: 2026-10-17 · context ~15% (post-compaction)_
+# HANDOFF — Phase B measurement study (docs/plans/20261017-next-hypotheses-plan.md)
+_Updated: 2026-10-17 · context ~60%_
 
 ## Goal
-Finish Phase A (A6 only if Phase B passes), commit and push, report to the user, then run the Phase B measurement
-study on DEV 2019-2023 only. PCS is dead (OOS FAIL, eb3c5ce). The paper bot is untouched; no deploy.
+Phase B on DEV 2019-2023 decides H1/H2/H3. Done when the result doc is committed and pushed and the user has the verdict
+(user decision point). No deploy; the paper bot is untouched.
 
 ## Status
-- Done, all tested (245+ pass): STT history, lot history, iv.py, rv.py (+NSE patch), events.py/csv, bhavcopy
-  3x-404 holiday rule, plan amendments.
-- A1 download complete through 2018; manifest has no `error` rows. Do NOT re-fetch holidays: 2013-10-09 and
-  2021-03-30 are real archive gaps (fo/mkt bundle only, no settle), documented in the plan; Phase B skips them.
-- rv cache rebuilt: 15 sessions without index close (2011-05..2013-01), 5 VIX nulls (2013-14). OOS-A only.
-- events.csv: budgets/elections now carry `announced` (ECI dates for elections, 2024-07-06 for the Jul-2024
-  budget, date-14d conservative proxy for other budgets). Rewriting events.csv: use a Python csv script, keep LF.
-- Evaluator round 3 (ad0727a9128d17ece) findings all addressed; re-review then commit.
+- Phase A committed and pushed (2f6e619).
+- Phase B run: research/phase_b.py, tests/test_phase_b.py, docs/plans/20261017-phase-b-measurement-result.md.
+  **All three FAIL** (H1: no top-quintile CI > 0; H2: pooled n=74, CI [-9.7, 21.8]; H3: no bucket cheap).
+- Evaluator round 1 findings fixed (held=False voided dates, iv30 on unfiltered surface, B1 gap CIs, dropped-pair count); re-run, verdicts unchanged.
+- Next: evaluator round 2, then commit, push, and report to the user.
+
+## Decisions
+- Proxy payoff uses |S_T - K| (ATM strike), not |S_T - F|; S_T = index close on the expiry session (matches the
+  bhavcopy settle exactly on 204 expiries).
+- Cluster bootstrap by expiry; alpha 0.05/3; event 1-day CI clusters by session.
+- Stop branch per the plan: no new signals or gates after seeing the results.
 
 ## Commands
-- `uv run pytest -q` (~52s). Commit command separate from edits; untracked files need `git add -N` first.
-- Evaluator: `git diff HEAD -- <explicit paths incl. .claude/handoff/>`.
+- `PYTHONIOENCODING=utf-8 uv run python -m research.phase_b` (~1-2 min; reads the cached surface parquet).
 
 ## Next step
-1. Evaluator PASS -> commit explicit paths -> push origin main. No deploy.
-2. Report Phase A to the user, then start Phase B on DEV only (decision point after B results).
+1. Evaluator -> commit explicit paths -> push.
+2. Report to the user: null result, project stops options-premium research unless they want a new pre-registered idea.
