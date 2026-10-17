@@ -37,6 +37,16 @@ Run Phase A of the plan: A1→A2→A3→A4, then E1→E2→A6→E4→A5→E3. Pa
 - Evaluator round 1 FINDINGS fixed: SYM gap was too strict, special sessions, docstring overpromised the report. **Round 2 next**, then commit and push.
 - Coverage report (still to build after the download) must list every link with `missing`, SYM nodes with long internal gaps, and the ISIN→ISIN near misses (DRCSYSTEMS, INTEGRA, 3 ETFs).
 
+## Update — stock ID committed dee1aa6 (pushed). Download complete; A1 coverage report built
+- data/equity: 2005-01-03..2026-09-30, manifest 5396 ok / 2547 holiday / 0 errors. 5394 sessions (2 specials dropped).
+- `research/equity_coverage.py` (+ `tests/test_equity_coverage.py`, 12 tests pass across 3 files) writes
+  `data/equity/coverage_report.txt`. `stock_id.sessions()` extracted (shared calendar).
+- Results: A1 gap days 0; every benchmark series has 0 gaps vs sessions → **plan amendment 1 marked as passing**.
+  Stock ID: 6273 nodes → 4026 perm IDs, 2247 links (549 ISIN→ISIN, 1495 SYM→ISIN, 203 SYM→SYM), 0 ambiguous,
+  0 null perm_id, 0 duplicate (date, perm_id).
+- Hand-check lists: 50 gapped links (max 22); 101 ISIN near misses (many are INF ETF noise; real ones include
+  OCLINDIA→DALBHARAT with 11 missing and EONELECT→EON with 22); 5 SYM nodes unlinked at the switch; 10 SYM long internal gaps.
+
 ## Next step
-1. Evaluator round 2 on stock_id.py, test_stock_id.py and HANDOFF.md; commit and push.
-2. After the download: the 2005–2010 benchmark gap check, the coverage report, then A2.
+1. Evaluator on equity_coverage.py, its test, stock_id.py, the plan and HANDOFF.md; commit and push.
+2. A2 (corporate actions, plan line 79).

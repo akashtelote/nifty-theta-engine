@@ -296,6 +296,10 @@ Both were made on 2026-10-17, during Phase A and before any E1–E4 result had b
    niftyindices.com instead, for 2005 to now (`research/benchmarks.py`). It has no gaps on 2011–2026 F&O trading days.
    2005–2010 (which includes the 2010 start of E1/E4 DEV) is **not yet checked**. It is checked against equity
    bhavcopy trading days once A1 completes, and no E1/E4 run happens before that check passes.
+   *Checked 2026-10-17 (`research/equity_coverage.py`):* this **passes**. Over the 5,394 equity sessions from
+   2005-01-03 to 2026-09-30, Nifty 50/500 price and Nifty 50/500/Momentum 30 TRI each have 0 missing days
+   (Momentum 30 from 2005-04-01). The two near-empty Sunday specials (2010-05-16 with 7 rows, 2012-11-11 with 14
+   rows) carry no index value, so they are not counted as sessions.
 2. **Risk-free rate (A3, E3).** The DBIE export of RBI's 91-day auction table rounds the price and yield to whole
    numbers, so it is unusable. The Handbook spreadsheet holds only the last year. The Nifty 91-day T-bill index
    (launched 2018) is not served by the niftyindices data endpoint.

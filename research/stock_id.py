@@ -13,8 +13,8 @@ The permanent ID is the newest node of the chain. Renames that keep their ISIN n
 
 Symbol-change list: nsearchives.nseindia.com/content/equities/symbolchange.csv -> data/equity_ref/.
 ponytail: a pre-2011 symbol reused by a different company merges into one SYM node; SYM_GAP keeps a reuse years
-later from linking across, and the A1 coverage report (not built yet) must list SYM nodes with long internal gaps
-and every link (with its `missing` sessions) for a hand check.
+later from linking across. research/equity_coverage.py lists SYM nodes with long internal gaps and every link
+(with its `missing` sessions) for a hand check.
 """
 from __future__ import annotations
 
@@ -58,6 +58,13 @@ def symbol_changes() -> pl.DataFrame:
     return parse_symbol_changes(SYMBOL_CHANGES.read_bytes()) if SYMBOL_CHANGES.exists() else fetch_symbol_changes()
 
 
+def sessions(rows: pl.DataFrame) -> list:
+    """Trading days: dates with >= MIN_SESSION_SHARE of the median row count."""
+    counts = rows.group_by("date").len()
+    floor = MIN_SESSION_SHARE * (counts["len"].median() or 0)
+    return counts.filter(pl.col("len") >= floor)["date"].sort().to_list()
+
+
 def _ok(a: dict, b: dict, a_sym: bool, b_sym: bool, pairs: set) -> bool:
     renamed = (a["sym1"], b["sym0"]) in pairs
     if not a_sym and not b_sym:
@@ -74,9 +81,7 @@ def _node() -> pl.Expr:
 def build(rows: pl.DataFrame, changes: pl.DataFrame) -> tuple[pl.DataFrame, pl.DataFrame, pl.DataFrame]:
     """rows: date, symbol, isin. Returns (ids: node -> perm_id, links: a -> b with `missing` sessions between,
     ambiguous: candidate pairs dropped)."""
-    counts = rows.group_by("date").len()
-    floor = MIN_SESSION_SHARE * (counts["len"].median() or 0)
-    days = counts.filter(pl.col("len") >= floor)["date"].sort().to_list()
+    days = sessions(rows)
     nodes = (rows.select("date", "symbol", _node()).sort("date").group_by("node", maintain_order=True)
              .agg(first=pl.col("date").first(), last=pl.col("date").last(),
                   sym0=pl.col("symbol").first(), sym1=pl.col("symbol").last()))
