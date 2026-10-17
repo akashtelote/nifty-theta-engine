@@ -1,36 +1,36 @@
 # Graph Report - nifty-theta-engine  (2026-10-17)
 
 ## Corpus Check
-- 94 files · ~78,377 words
+- 102 files · ~83,990 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1283 nodes · 2269 edges · 79 communities (71 shown, 8 thin omitted)
+- 1383 nodes · 2459 edges · 87 communities (82 shown, 5 thin omitted)
 - Extraction: 97% EXTRACTED · 3% INFERRED · 0% AMBIGUOUS · INFERRED: 78 edges (avg confidence: 0.5)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `dee1aa63`
+- Built from commit: `a23c6ccc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
-- backtest.py
+- engine.py
 - UpstoxClient
 - TestWebSocketMonitor
 - WheelStateMachine
 - test_stress.py
-- patch
+- test_exit_sequencing.py
 - SmartMoneyFilter
 - datetime
 - ._get_instrument_token
 - TestStartWsMonitor
-- test_engine.py
+- equity.py
 - ivr.py
 - conftest.py
 - WebSocketMonitor
 - Nifty Theta Engine
-- round_trip_fees
+- settings.py
 - Assert-LastExit
 - main
 - indian-trading-bot
@@ -53,28 +53,28 @@
 - 6. Config Module (`config/`)
 - AGENTS.md
 - phase_b.py
-- Settings
-- bhavcopy.py
-- TestActiveInstrumentKeys
+- lot_size_from_master
+- quality.py
+- test_ws_monitor.py
 - test_sizing.py
-- stress.py
-- PCSParams
+- _frame
+- run_pcs_backtest
 - HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)
 - test_stage6.py
 - HANDOFF — TP retune 0.50 -> 0.25 + deploy
-- worst_case_per_lot
-- rv.py
+- backtest.py
+- test_bhavcopy.py
 - Task: Take nifty-theta-engine from "paper experiment" to "evidence-backed or killed"
-- benchmarks.py
+- HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)
 - HANDOFF — 20261016_plan.md (PCS engine: evidence-backed or killed)
-- build
+- report
 - ._make_authenticated_request
-- equity.py
+- corp_actions.py
 - Pre-registration v2: Bull Put Credit Spread on real Nifty chains
-- test_wheel_strategy.py
+- iv.py
 - Equity and futures hypotheses (E1–E4): research plan and pre-registration
 - Next hypotheses after the PCS FAIL — research plan
-- patch
+- metrics.py
 - Pre-registration: Bull Put Credit Spread on real Nifty option chains
 - Phase B measurement result — DEV 2019–2023 — all three hypotheses FAIL
 - HANDOFF — Phase B measurement study (docs/plans/20261017-next-hypotheses-plan.md)
@@ -88,7 +88,15 @@
 - HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)
 - HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)
 - Real-chain PCS v2 — OOS result: **FAIL**
-- TestExitThresholdCache
+- bhavcopy.py
+- PCSParams
+- benchmarks.py
+- test_engine.py
+- Settings
+- HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)
+- TestExitParameterization
+- HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)
+- HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)
 
 ## God Nodes (most connected - your core abstractions)
 1. `UpstoxClient` - 53 edges
@@ -103,29 +111,29 @@
 10. `make_chain()` - 17 edges
 
 ## Surprising Connections (you probably didn't know these)
-- `Scenario` --uses--> `PCSParams`  [INFERRED]
-  stress.py → backtest.py
+- `TestCostsReducePnl` --uses--> `PCSParams`  [INFERRED]
+  tests/test_costs.py → backtest.py
 - `TestRoundTripFees` --uses--> `PCSParams`  [INFERRED]
   tests/test_costs.py → backtest.py
 - `TestStrikeBandParity` --uses--> `PCSParams`  [INFERRED]
   tests/test_costs.py → backtest.py
 - `TestExitParameterization` --uses--> `PCSParams`  [INFERRED]
   tests/test_profitability.py → backtest.py
-- `TestSettingsProfitDefaults` --uses--> `PCSParams`  [INFERRED]
+- `TestMidweekEntry` --uses--> `PCSParams`  [INFERRED]
   tests/test_profitability.py → backtest.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (79 total, 8 thin omitted)
+## Communities (87 total, 5 thin omitted)
 
-### Community 0 - "backtest.py"
-Cohesion: 0.15
-Nodes (17): bs_put_delta(), bs_put_price(), _cost_to_close(), _norm_cdf(), Put Credit Spread (PCS) backtest harness (Stage 6 / PROF-015). Pricing: VIX-…, _round_strike(), _select_strikes(), TradeRecord (+9 more)
+### Community 0 - "engine.py"
+Cohesion: 0.17
+Nodes (22): entry_days(), _expiry_value(), _fees(), forward(), _px(), DataFrame, date, Real-chain Bull Put Credit Spread backtest engine (Phase 3). Built and tested… (+14 more)
 
 ### Community 1 - "UpstoxClient"
-Cohesion: 0.15
-Nodes (11): Initialize with Redis-first token resolution (see authenticate_and_save_token).…, UpstoxClient, TestClientInitPrefersAuthResolver, TestOrderStatusWithDynamicIds, TestOrderType, TestPaperOrderIds, Tests for sequenced exit legs (cover-first) and real-fill P&L accuracy. Exit…, Tests for UpstoxClient.get_order_fill_price(). (+3 more)
+Cohesion: 0.18
+Nodes (8): Initialize with Redis-first token resolution (see authenticate_and_save_token).…, UpstoxClient, TestClientInitPrefersAuthResolver, TestOrderStatusWithDynamicIds, TestOrderType, TestPaperOrderIds, Tests for UpstoxClient.get_order_fill_price()., TestGetOrderFillPrice
 
 ### Community 2 - "TestWebSocketMonitor"
 Cohesion: 0.20
@@ -136,20 +144,20 @@ Cohesion: 0.05
 Nodes (46): Notifier, _check_missed_entry(), _live_access_token(), _notify_ws_fallback(), _on_ws_connected(), _on_ws_runtime_error(), Tear down and reconnect with a fresh token. Scheduled Mon–Fri 08:55 IST…, Refresh the WS monitor's thresholds and subscriptions after position changes. (+38 more)
 
 ### Community 4 - "test_stress.py"
-Cohesion: 0.08
-Nodes (39): analyse(), capital_ceiling(), funding_cliff(), main(), Equity below which `floor(budget / width×lot)` hits 0 and the bot stops. Not…, Derive tail metrics from the trade list — no engine change needed., Temporarily raise the ceiling `run_pcs_backtest` sizes against. `backtest`…, _row() (+31 more)
+Cohesion: 0.11
+Nodes (30): capital_ceiling(), Temporarily raise the ceiling `run_pcs_backtest` sizes against. `backtest`…, run_scenario(), _params(), parametrize, Invariants for the adversarial scenario harness (`stress.py`). Most of these…, Counterpart to the bound above: confirm the scenario is adversarial at all. A…, The SMA50 trend gate should refuse to sell puts into a sustained bleed. (+22 more)
 
-### Community 5 - "patch"
-Cohesion: 0.05
-Nodes (32): Points per leg given up on entry versus the mid we quoted against. Positive =…, _make_active_state(), _make_tp_chain(), patch, _quoted_chain(), If BTC order times out (stays pending), cancel it and keep the spread., If BTC order is rejected by exchange, keep the spread intact., When BTC fills but STC fails, short is covered — only a benign long put remains. (+24 more)
+### Community 5 - "test_exit_sequencing.py"
+Cohesion: 0.06
+Nodes (35): Points per leg given up on entry versus the mid we quoted against. Positive =…, _make_active_state(), _make_tp_chain(), patch, _quoted_chain(), Tests for sequenced exit legs (cover-first) and real-fill P&L accuracy. Exit…, If BTC order times out (stays pending), cancel it and keep the spread., If BTC order is rejected by exchange, keep the spread intact. (+27 more)
 
 ### Community 6 - "SmartMoneyFilter"
 Cohesion: 0.10
 Nodes (16): get_nifty500_tickers(), Fetches the latest Nifty 500 tickers from NSE indices CSV., DataFrame, date, Fetches Nifty 500 metadata from yfinance and caches it., Attempt to fetch deals using jugaad-data., Attempt to fetch deals using direct HTTP requests to NSE archives., Attempt to fetch deals using Playwright. (+8 more)
 
 ### Community 7 - "datetime"
-Cohesion: 0.14
-Nodes (24): get_redis_client(), _acquire_refresh_lock(), authenticate_and_save_token(), _delete_centralized_token(), get_centralized_token(), get_current_timestamp(), _mirror_token_locally(), Poll the bus for the token the lock holder is about to publish. (+16 more)
+Cohesion: 0.16
+Nodes (23): get_redis_client(), _acquire_refresh_lock(), authenticate_and_save_token(), _delete_centralized_token(), get_centralized_token(), get_current_timestamp(), _mirror_token_locally(), Poll the bus for the token the lock holder is about to publish. (+15 more)
 
 ### Community 8 - "._get_instrument_token"
 Cohesion: 0.13
@@ -159,9 +167,9 @@ Nodes (8): DataFrame, Download/refresh the Upstox NSE instruments master (24h TT
 Cohesion: 0.10
 Nodes (8): Tests for scheduler WebSocket start gating and Discord fallback alerts., Only a real socket open clears the flag — and tells Discord we're back., Hourly re-arm retries must not fire a Discord alert per attempt., Overnight-expired token must be refreshed before the WS handshake., _reset_ws_state(), TestLiveAccessToken, TestRestartWsMonitor, TestStartWsMonitor
 
-### Community 10 - "test_engine.py"
-Cohesion: 0.06
-Nodes (77): exercise_stt(), STT paid by the BUYER of an option that expires ITM (cash-settled), on…, Chain, Config, entry_days(), _expiry_value(), _fees(), forward() (+69 more)
+### Community 10 - "equity.py"
+Cohesion: 0.25
+Nodes (13): _f(), load(), parse(), DataFrame, date, Expr, NSE equity (CM) bhavcopy -> partitioned Parquet of EQ and BE series (plan…, Normalise one day's csv (either format, auto-detected from header) to SCHEMA,… (+5 more)
 
 ### Community 11 - "ivr.py"
 Cohesion: 0.16
@@ -179,9 +187,9 @@ Nodes (5): Real-time LTP monitor using the Upstox SDK's MarketDataStreamerV3. Th
 Cohesion: 0.05
 Nodes (36): Architectural Audit, Data Persistence & Schema (PostgreSQL), Infrastructure Topology (docker-compose.yml), Orchestration (core/scheduler.py), The Execution Engine (strategies/wheel_strategy.py), The ML Pipeline (ml_service/) — historical / not wired to live entry, Architecture, Commands (+28 more)
 
-### Community 15 - "round_trip_fees"
-Cohesion: 0.14
-Nodes (11): date, _rate(), Rate in force on `on`; None means today (live / paper)., Total rupee cost of one spread round trip: brokerage + STT + txn + stamp + SEBI…, round_trip_fees(), stt_sell_rate(), parametrize, Independent hand calculation, 2026 regime, 1 lot of 65, exact per-leg bases. (+3 more)
+### Community 15 - "settings.py"
+Cohesion: 0.06
+Nodes (22): exercise_stt(), date, _rate(), Rate in force on `on`; None means today (live / paper)., STT paid by the BUYER of an option that expires ITM (cash-settled), on…, Total rupee cost of one spread round trip: brokerage + STT + txn + stamp + SEBI…, round_trip_fees(), stt_sell_rate() (+14 more)
 
 ### Community 23 - "Enhancements"
 Cohesion: 0.05
@@ -249,31 +257,35 @@ Nodes (3): 6.1 `settings.py`, 6.2 `token.json`, 6. Config Module (`config/`)
 
 ### Community 41 - "phase_b.py"
 Cohesion: 0.06
-Nodes (55): load(), DataFrame, date, Point-in-time macro event calendar (Phase A5 of docs/plans/20261017-next-…, Add `session`: the first NSE trading day whose close reflects the event (null…, with_session(), black76(), constant_maturity() (+47 more)
+Nodes (60): load(), DataFrame, date, Point-in-time macro event calendar (Phase A5 of docs/plans/20261017-next-…, Add `session`: the first NSE trading day whose close reflects the event (null…, with_session(), constant_maturity(), ATM IV at a fixed horizon by linear interpolation in total variance (v^2 t)… (+52 more)
 
-### Community 42 - "Settings"
-Cohesion: 0.07
-Nodes (22): nifty_lot_size(), Lot size the live bot would actually trade, from the same instruments master.…, BaseSettings, lot_size_from_master(), Read the current F&O lot size for `symbol` from the Upstox instruments master.…, Map VIX → (action, otm_pct). action: 'enter' | 'skip' - None VIX → enter at…, Settings, vix_regime_otm() (+14 more)
+### Community 42 - "lot_size_from_master"
+Cohesion: 0.16
+Nodes (9): nifty_lot_size(), Lot size the live bot would actually trade, from the same instruments master.…, lot_size_from_master(), Read the current F&O lot size for `symbol` from the Upstox instruments master.…, PROF-022: lot size must come from the instruments master, never a constant., Mid-revision the master carries both sizes; oversizing is the safe error., A constant is what let the bot trade 25 while NSE listed 65., TestLotSizeFromMaster (+1 more)
 
-### Community 43 - "bhavcopy.py"
-Cohesion: 0.07
-Nodes (47): fetch_day(), load(), _load_manifest(), parse(), DataFrame, date, Path, Session (+39 more)
+### Community 43 - "quality.py"
+Cohesion: 0.12
+Nodes (23): front_chain(), grid_gaps(), missing_days(), parity_report(), DataFrame, Data-quality checks + coverage report for the bhavcopy Parquet store (Phase 2).…, Weekdays absent from both the stored data and the manifest's holiday list (i.e.…, Rows with dte in [min_dte, max_dte], plus implied forward from put-call parity… (+15 more)
+
+### Community 44 - "test_ws_monitor.py"
+Cohesion: 0.18
+Nodes (5): Tests for the real-time WebSocket exit monitor and debounced tick handler., Tests for WheelStateMachine.active_instrument_keys()., Tests for the in-memory exit threshold cache., TestActiveInstrumentKeys, TestExitThresholdCache
 
 ### Community 45 - "test_sizing.py"
 Cohesion: 0.17
 Nodes (18): Risk-based position sizing shared by the live/paper bot and the backtest., Lots such that max loss (width - credit) x lot x lots obeys both caps. Returns…, risk_lots(), _chain(), _enter(), lots(), Risk-based sizing (core/sizing.py) and its wiring into the paper path., test_boundary_exact_fit() (+10 more)
 
-### Community 46 - "stress.py"
-Cohesion: 0.13
-Nodes (33): _black_swan(), _calm_bull(), _covid_crash(), _dead_vol(), _drift(), _frame(), _gap_between_strikes(), _gap_cycles() (+25 more)
+### Community 46 - "_frame"
+Cohesion: 0.11
+Nodes (34): _black_swan(), _calm_bull(), _covid_crash(), _dead_vol(), _drift(), _frame(), _gap_between_strikes(), _gap_cycles() (+26 more)
 
-### Community 47 - "PCSParams"
-Cohesion: 0.13
-Nodes (23): Any, BacktestResult, fetch_historical_data(), fetch_nifty_vix_path(), main(), PCSParams, DataFrame, date (+15 more)
+### Community 47 - "run_pcs_backtest"
+Cohesion: 0.14
+Nodes (20): Any, BacktestResult, fetch_historical_data(), fetch_nifty_vix_path(), main(), DataFrame, date, Generate trading-day spot + VIX path (no weekends). Offline CI fixture. (+12 more)
 
 ### Community 48 - "HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)"
 Cohesion: 0.29
-Nodes (6): Decisions, Goal, HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md), Next step, Status, Update 13:5x — T-bill committed 879452a (pushed, user told). Now: permanent stock ID
+Nodes (6): Decisions (and why), Goal, HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md), Next step, Status, Tried and failed
 
 ### Community 49 - "test_stage6.py"
 Cohesion: 0.13
@@ -283,53 +295,57 @@ Nodes (15): in_event_blackout(), date, Macro / NSE event blackout calendar for P
 Cohesion: 0.20
 Nodes (9): Commands, Decisions (and why), Goal, HANDOFF — TP retune 0.50 -> 0.25 + deploy, Key files, Next step, Open questions / risks, Status (+1 more)
 
-### Community 52 - "rv.py"
+### Community 51 - "backtest.py"
+Cohesion: 0.15
+Nodes (17): bs_put_delta(), bs_put_price(), _cost_to_close(), _norm_cdf(), Put Credit Spread (PCS) backtest harness (Stage 6 / PROF-015). Pricing: VIX-…, _round_strike(), _select_strikes(), chain_files_available() (+9 more)
+
+### Community 52 - "test_bhavcopy.py"
 Cohesion: 0.13
-Nodes (25): add_rv(), fetch(), har_fit(), har_forecast(), _har_frame(), load(), _nse_day(), patch_from_nse() (+17 more)
+Nodes (22): fetch_day(), load(), _load_manifest(), parse(), DataFrame, date, Path, Session (+14 more)
 
 ### Community 53 - "Task: Take nifty-theta-engine from "paper experiment" to "evidence-backed or killed""
 Cohesion: 0.18
 Nodes (10): Context, Hard rules, How to report, Phase 0: Inventory (no code changes), Phase 1: Correctness and safety fixes, Phase 2: Real historical option data, Phase 3: Pre-registered backtest on real prices, Phase 4: Only if Phase 3 passes (+2 more)
 
-### Community 54 - "benchmarks.py"
-Cohesion: 0.18
-Nodes (21): check_gaps(), fetch(), fetch_tbill(), load(), _num(), parse(), parse_tbill(), path() (+13 more)
+### Community 54 - "HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)"
+Cohesion: 0.29
+Nodes (6): Decisions, Goal, HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md), Next step, Plan for A2 (next), Status
 
 ### Community 55 - "HANDOFF — 20261016_plan.md (PCS engine: evidence-backed or killed)"
 Cohesion: 0.33
 Nodes (5): Goal, Gotchas, HANDOFF — 20261016_plan.md (PCS engine: evidence-backed or killed), Next, Status
 
-### Community 56 - "build"
-Cohesion: 0.19
-Nodes (20): assign(), build(), fetch_symbol_changes(), _node(), _ok(), parse_symbol_changes(), DataFrame, Expr (+12 more)
+### Community 56 - "report"
+Cohesion: 0.11
+Nodes (36): gap_days(), isin_near_misses(), manifest_counts(), DataFrame, date, A1 coverage report for the equity store + permanent stock ID + A3 benchmark gap…, Days the Nifty 50 index traded but the equity archive has no session (archive…, Same ISIN chars 3-9, b starts 2..LONG_GAP sessions after a ends, not linked… (+28 more)
 
 ### Community 57 - "._make_authenticated_request"
 Cohesion: 0.12
 Nodes (9): fetch_data_safe(), Fetches available cash/equity margin for position sizing. Mock market returns a…, Wraps API calls in try-except blocks to catch timeouts and return None instead…, Fetches current open positions from Upstox., Fetches the status of a specific order., Fetches the current India VIX to serve as a market panic circuit breaker., Centrally handles authenticated requests, adding headers, managing timeouts,…, Returns the average fill price for a completed order, or None. (+1 more)
 
-### Community 58 - "equity.py"
-Cohesion: 0.25
-Nodes (13): _f(), load(), parse(), DataFrame, date, Expr, NSE equity (CM) bhavcopy -> partitioned Parquet of EQ and BE series (plan…, Normalise one day's csv (either format, auto-detected from header) to SCHEMA,… (+5 more)
+### Community 58 - "corp_actions.py"
+Cohesion: 0.08
+Nodes (52): range, adjust(), annotate(), build(), day_factors(), ex_check(), fetch(), flag() (+44 more)
 
 ### Community 59 - "Pre-registration v2: Bull Put Credit Spread on real Nifty chains"
 Cohesion: 0.15
 Nodes (12): 0. Honest status of the evidence, 10. Amendment A3 (2026-10-17, engine data-semantics defect; found while sanity-checking the first v2 DEV output, before OOS), 1. Hypothesis, 2. Grid (32 configs), 3. DEV winner rule (as v1 §4, same thresholds), 4. OOS, 5. Metrics, 6. Frozen PASS criteria (OOS, winner; ALL must hold) (+4 more)
 
-### Community 60 - "test_wheel_strategy.py"
-Cohesion: 0.15
-Nodes (3): TestEnsureSymbolState, TestReconciliation, TestVixCircuitBreaker
+### Community 60 - "iv.py"
+Cohesion: 0.16
+Nodes (20): black76(), delta(), expiry_row(), implied_vol(), DataFrame, date, EOD implied-vol surface from bhavcopy `close` (Phase A2 of…, Bisection on [1%, 300%]. None outside no-arbitrage bounds (price <= intrinsic… (+12 more)
 
 ### Community 61 - "Equity and futures hypotheses (E1–E4): research plan and pre-registration"
 Cohesion: 0.17
-Nodes (11): 0. Ground rules, A0. Feasibility probe (done 2026-10-17), A-tasks, Amendments (data sources only; no rule, window or gate changes), Decision points for the user, E1 — index-inclusion drift (₹2L), E2 — cross-sectional momentum with our own filters (₹2L), E3 — trend-following on futures (₹20L) (+3 more)
+Nodes (11): 0. Ground rules, A0. Feasibility probe (done 2026-10-17), A-tasks, Amendments, Decision points for the user, E1 — index-inclusion drift (₹2L), E2 — cross-sectional momentum with our own filters (₹2L), E3 — trend-following on futures (₹20L) (+3 more)
 
 ### Community 62 - "Next hypotheses after the PCS FAIL — research plan"
 Cohesion: 0.17
 Nodes (11): 0. Ground rules (lessons from PCS v1/v2), Common steps for each surviving hypothesis, H1 — Volatility-timed short premium, H2 — Event-driven structures, H3 — Buying volatility, Next hypotheses after the PCS FAIL — research plan, Order and stop points, Phase A — shared infrastructure (all three hypotheses need it) (+3 more)
 
-### Community 63 - "patch"
-Cohesion: 0.21
-Nodes (6): patch, When Leg 2 placement fails, Leg 1 should be unwound., Verify budget is derived from margin, not hardcoded., TestExitVerification, TestHedgeUnwinding, TestPositionSizing
+### Community 63 - "metrics.py"
+Cohesion: 0.19
+Nodes (18): after_tax_pnl(), benchmark_cagr(), bootstrap_ci(), _cagr(), _fy(), max_drawdown(), profit_factor(), date (+10 more)
 
 ### Community 64 - "Pre-registration: Bull Put Credit Spread on real Nifty option chains"
 Cohesion: 0.18
@@ -383,20 +399,56 @@ Nodes (5): Decisions, Goal, HANDOFF — Phase A of E1–E4 plan (docs/plans/2026
 Cohesion: 0.50
 Nodes (3): Known defect in the runner (does not change the verdict), Reading, Real-chain PCS v2 — OOS result: **FAIL**
 
+### Community 77 - "bhavcopy.py"
+Cohesion: 0.23
+Nodes (11): NSE F&O bhavcopy -> partitioned Parquet of Nifty index options (Phase 2). Two…, Config, grid(), Pre-registered v2 DEV grid (docs/plans/20261017-real-chain-pcs-…, eligible(), evaluate(), grid(), Pre-registered DEV grid (docs/plans/20261016-real-chain-pcs-preregistration.md… (+3 more)
+
+### Community 79 - "PCSParams"
+Cohesion: 0.30
+Nodes (11): PCSParams, analyse(), funding_cliff(), main(), Adversarial scenario harness for the Nifty put credit spread engine.…, Equity below which `floor(budget / width×lot)` hits 0 and the bot stops. Not…, Structural floor on a single trade: (width - credit) × lot × lots., Derive tail metrics from the trade list — no engine change needed. (+3 more)
+
+### Community 80 - "benchmarks.py"
+Cohesion: 0.18
+Nodes (21): check_gaps(), fetch(), fetch_tbill(), load(), _num(), parse(), parse_tbill(), path() (+13 more)
+
+### Community 81 - "test_engine.py"
+Cohesion: 0.19
+Nodes (26): Chain, _ncdf(), _put(), put_delta(), Per-day frames of liquid-enough Nifty options with point-in-time lot sizes; dte…, Parity-forward of the nearest expiry with dte >= 2 (proxy for spot; only used…, |delta| of a put from its price (Black-76, r=0). None if the price cannot be…, run() (+18 more)
+
+### Community 82 - "Settings"
+Cohesion: 0.11
+Nodes (12): BaseSettings, Map VIX → (action, otm_pct). action: 'enter' | 'skip' - None VIX → enter at…, Settings, vix_regime_otm(), _liquid_chain(), Tests for PROF-005..014 profitability stages., Synthetic PE chain around ~1% OTM with tight spreads and meaningful credit., TestMidweekEntry (+4 more)
+
+### Community 83 - "HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)"
+Cohesion: 0.29
+Nodes (6): Decisions (and why), Goal, HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md), Next step, Status, Tried and failed
+
+### Community 84 - "TestExitParameterization"
+Cohesion: 0.51
+Nodes (3): patch, STOP_ON_STRIKE_TOUCH=False must not exit on a touch, but the credit multiple…, TestExitParameterization
+
+### Community 86 - "HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)"
+Cohesion: 0.29
+Nodes (6): Decisions, Goal, HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md), Next step, Status, Update 13:5x — T-bill committed 879452a (pushed, user told). Now: permanent stock ID
+
+### Community 90 - "HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)"
+Cohesion: 0.29
+Nodes (6): Decisions (and why), Goal, HANDOFF — Phase A of E1–E4 plan (docs/plans/20261017-equity-futures-hypotheses-plan.md), Next step, Status, Tried and failed
+
 ## Knowledge Gaps
-- **250 isolated node(s):** `indian-trading-bot`, `Goal`, `Status`, `Decisions`, `Update 13:5x — T-bill committed 879452a (pushed, user told). Now: permanent stock ID` (+245 more)
+- **270 isolated node(s):** `indian-trading-bot`, `Goal`, `Status`, `Decisions (and why)`, `Tried and failed` (+265 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **8 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **5 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `UpstoxClient` connect `UpstoxClient` to `TestAvailableMargin`, `WheelStateMachine`, `patch`, `datetime`, `._get_instrument_token`, `._make_authenticated_request`, `test_auth.py`, `dashboard.py`?**
-  _High betweenness centrality (0.087) - this node is a cross-community bridge._
-- **Why does `WheelStateMachine` connect `WheelStateMachine` to `backtest.py`, `UpstoxClient`, `patch`, `datetime`, `conftest.py`, `PCSParams`, `round_trip_fees`?**
-  _High betweenness centrality (0.081) - this node is a cross-community bridge._
-- **Why does `WebSocketMonitor` connect `WebSocketMonitor` to `TestWebSocketMonitor`, `WheelStateMachine`, `datetime`, `TestActiveInstrumentKeys`, `TestExitThresholdCache`, `TestDebouncedRealtimeTick`?**
-  _High betweenness centrality (0.040) - this node is a cross-community bridge._
+- **Why does `UpstoxClient` connect `UpstoxClient` to `TestAvailableMargin`, `WheelStateMachine`, `test_exit_sequencing.py`, `datetime`, `._get_instrument_token`, `._make_authenticated_request`, `test_auth.py`, `dashboard.py`?**
+  _High betweenness centrality (0.061) - this node is a cross-community bridge._
+- **Why does `WheelStateMachine` connect `WheelStateMachine` to `UpstoxClient`, `test_exit_sequencing.py`, `conftest.py`, `settings.py`, `backtest.py`?**
+  _High betweenness centrality (0.056) - this node is a cross-community bridge._
+- **Why does `round_trip_fees()` connect `settings.py` to `engine.py`, `WheelStateMachine`, `test_stress.py`, `test_exit_sequencing.py`, `phase_b.py`, `run_pcs_backtest`, `test_engine.py`, `backtest.py`?**
+  _High betweenness centrality (0.039) - this node is a cross-community bridge._
 - **Are the 17 inferred relationships involving `UpstoxClient` (e.g. with `WheelStateMachine` and `TestAuthenticatePrefersRedis`) actually correct?**
   _`UpstoxClient` has 17 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 13 inferred relationships involving `WheelStateMachine` (e.g. with `UpstoxClient` and `Notifier`) actually correct?**
@@ -404,4 +456,4 @@ _Questions this graph is uniquely positioned to answer:_
 - **Are the 15 inferred relationships involving `PCSParams` (e.g. with `Scenario` and `TestCostsReducePnl`) actually correct?**
   _`PCSParams` has 15 INFERRED edges - model-reasoned connections that need verification._
 - **What connects `indian-trading-bot`, `Goal`, `Status` to the rest of the system?**
-  _250 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _270 weakly-connected nodes found - possible documentation gaps or missing edges._

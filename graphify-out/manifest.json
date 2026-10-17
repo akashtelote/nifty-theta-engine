@@ -240,8 +240,8 @@
     "semantic_hash": ""
   },
   ".claude/handoff/HANDOFF.md": {
-    "mtime": 1792227114.5978417,
-    "ast_hash": "685734dd231a2a4c64861a8c64808f1b",
+    "mtime": 1792234753.8937857,
+    "ast_hash": "e86350bb92e46efe496025bafe49cc16",
     "semantic_hash": ""
   },
   ".claude/handoff/history/HANDOFF-20261012-211035.md": {
@@ -455,8 +455,8 @@
     "semantic_hash": ""
   },
   "docs/plans/20261017-equity-futures-hypotheses-plan.md": {
-    "mtime": 1792227090.206439,
-    "ast_hash": "de93d1649be23a8b2a16f53a8363aafb",
+    "mtime": 1792234753.8510334,
+    "ast_hash": "6ed327233b4e67e54d1e0d9b392e030d",
     "semantic_hash": ""
   },
   "docs/plans/20261017-next-hypotheses-plan.md": {
@@ -492,6 +492,31 @@
   ".claude/handoff/history/HANDOFF-20261017-142004.md": {
     "mtime": 1792227004.049705,
     "ast_hash": "4be129788e182f87715f2a2cd94c7d3b",
+    "semantic_hash": ""
+  },
+  "research/corp_actions.py": {
+    "mtime": 1792234566.4776757,
+    "ast_hash": "adc417f2b6591896c37fed1166906e1c",
+    "semantic_hash": ""
+  },
+  "tests/test_corp_actions.py": {
+    "mtime": 1792234578.8148384,
+    "ast_hash": "62471bb44c64b7d7e68119ea52db0579",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-143220.md": {
+    "mtime": 1792227740.3622782,
+    "ast_hash": "d66e7e7ed4c7ff94e5ec04635d58e22f",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-144506.md": {
+    "mtime": 1792228506.2171843,
+    "ast_hash": "71e4d1a85ced3f60e1b2ab2e66790786",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-160453.md": {
+    "mtime": 1792233293.3114579,
+    "ast_hash": "528394a0e74fd882c325a2039f11fffa",
     "semantic_hash": ""
   }
 }

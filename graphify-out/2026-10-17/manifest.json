@@ -240,8 +240,8 @@
     "semantic_hash": ""
   },
   ".claude/handoff/HANDOFF.md": {
-    "mtime": 1792226118.3300226,
-    "ast_hash": "a7131d5c353e64df2e542c7e1a606453",
+    "mtime": 1792233730.070535,
+    "ast_hash": "092d50fbb770a8ceaaf9935309288903",
     "semantic_hash": ""
   },
   ".claude/handoff/history/HANDOFF-20261012-211035.md": {
@@ -350,8 +350,8 @@
     "semantic_hash": ""
   },
   "research/stock_id.py": {
-    "mtime": 1792226085.5788367,
-    "ast_hash": "3abaea589664f9ad567af0ad8680e71c",
+    "mtime": 1792227091.3309534,
+    "ast_hash": "09956979e58e8661290088a16dac33ed",
     "semantic_hash": ""
   },
   "tests/test_benchmarks.py": {
@@ -455,8 +455,8 @@
     "semantic_hash": ""
   },
   "docs/plans/20261017-equity-futures-hypotheses-plan.md": {
-    "mtime": 1792224439.6439378,
-    "ast_hash": "130bc946b56d175670e601525c50eabf",
+    "mtime": 1792233728.801358,
+    "ast_hash": "0531906a5e54c8fe08ad476cf0b0e5f3",
     "semantic_hash": ""
   },
   "docs/plans/20261017-next-hypotheses-plan.md": {
@@ -477,6 +477,51 @@
   "docs/plans/20261017-real-chain-pcs-preregistration-v2.md": {
     "mtime": 1792181565.6560655,
     "ast_hash": "ba59c46abe7f1f52adccd99b10312ba2",
+    "semantic_hash": ""
+  },
+  "research/equity_coverage.py": {
+    "mtime": 1792227063.213437,
+    "ast_hash": "c8b709e0848b07cdf2fa6c258588b93d",
+    "semantic_hash": ""
+  },
+  "tests/test_equity_coverage.py": {
+    "mtime": 1792227100.8318653,
+    "ast_hash": "56d9a63a09c6c7003a0f639836b3ac53",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-142004.md": {
+    "mtime": 1792227004.049705,
+    "ast_hash": "4be129788e182f87715f2a2cd94c7d3b",
+    "semantic_hash": ""
+  },
+  "research/corp_actions.py": {
+    "mtime": 1792233692.299058,
+    "ast_hash": "b78c348e6d16ebcb1652c41e6246c456",
+    "semantic_hash": ""
+  },
+  "tests/test_corp_actions.py": {
+    "mtime": 1792233392.4161122,
+    "ast_hash": "643618ae883b10aceccd44916a1e6b80",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-143220.md": {
+    "mtime": 1792227740.3622782,
+    "ast_hash": "d66e7e7ed4c7ff94e5ec04635d58e22f",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-144506.md": {
+    "mtime": 1792228506.2171843,
+    "ast_hash": "71e4d1a85ced3f60e1b2ab2e66790786",
+    "semantic_hash": ""
+  },
+  ".playwright-mcp/page-2026-10-17T09-23-38-678Z.yml": {
+    "mtime": 1792229018.6845624,
+    "ast_hash": "c2f587927fae6e5be2a57f2c20ab546b",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-160453.md": {
+    "mtime": 1792233293.3114579,
+    "ast_hash": "528394a0e74fd882c325a2039f11fffa",
     "semantic_hash": ""
   }
 }
