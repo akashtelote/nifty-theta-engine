@@ -232,7 +232,8 @@ def _fees(tr: Trade, d_entry: date, se: float, le: float, sx: float, lx: float, 
     f = round_trip_fees(tr.credit, 0.0, tr.lot, tr.lots, on=on, legs=(se, le, 0.0, 0.0))
     f -= 2 * BROKERAGE_PER_ORDER * (1 + GST_PCT)  # no exit orders: cash-settled
     if s_exp is not None and tr.long_k > s_exp:
-        f += exercise_stt((tr.long_k - s_exp) * tr.lot * tr.lots, on=tr.expiry)
+        q = tr.lot * tr.lots
+        f += exercise_stt((tr.long_k - s_exp) * q, on=tr.expiry, settlement_value=s_exp * q)
     return f
 
 

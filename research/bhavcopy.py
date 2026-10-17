@@ -89,6 +89,7 @@ def parse(raw_csv: bytes, d: date) -> pl.DataFrame:
 
 def fetch_day(d: date, session: requests.Session) -> str:
     """Download+store one day. Returns 'ok' | 'holiday' | 'error'."""
+    n404 = 0
     for attempt in range(3):
         try:
             r = session.get(url_for(d), headers=_HEADERS, timeout=30)
@@ -96,8 +97,12 @@ def fetch_day(d: date, session: requests.Session) -> str:
             time.sleep(2 * (attempt + 1))
             continue
         if r.status_code == 404:
-            # ponytail: a 404 in the last 2 days may just be an unpublished file, so don't cache it as a holiday
-            return "error" if d >= date.today() - timedelta(days=2) else "holiday"
+            # a single 404 is not proof of a holiday (transient errors), so a day is a holiday only if every attempt
+            # 404s. Some real sessions are simply absent from the archive (2013-10-09, 2021-03-30): see the plan.
+            n404 += 1
+            if attempt < 2:
+                time.sleep(1)  # ponytail: short; most 404s are real weekends/holidays
+            continue
         if r.status_code != 200 or not r.content.startswith(b"PK"):
             time.sleep(2 * (attempt + 1))
             continue
@@ -113,7 +118,8 @@ def fetch_day(d: date, session: requests.Session) -> str:
         path.parent.mkdir(parents=True, exist_ok=True)
         df.write_parquet(path)
         return "ok"
-    return "error"
+    # ponytail: a 404 in the last 2 days may just be an unpublished file, so don't cache it as a holiday
+    return "holiday" if n404 == 3 and d < date.today() - timedelta(days=2) else "error"
 
 
 def _load_manifest() -> dict[str, str]:

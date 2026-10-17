@@ -13,7 +13,13 @@ Sources / verification:
     date from 2021-06-14 on, expiries <= 2021-07-22 imply 75 and expiries >= 2021-07-29 imply 50; from
     2021-07-23 everything implies 50. Far-dated series (>45 dte) read 75 up to at least 2021-04-29 and are
     ambiguous 2021-05-01..07-22 (lot_size returns None). Not tied to an NSE circular number here.
-  * Before that: archive starts 2019-01-01 and all 2019 contracts imply 75, including far-dated series.
+  * 2015-10-30 .. 2021: 75 for every series (all 2019 contracts imply 75, including far-dated series).
+  * 2011..2015-10-29 (backward holdout, implied lot = VAL_INLAKH*1e5 / (contracts*(strike+settle)), modal per
+    expiry, checked on 2011-06-01, 2014-10-29/31, 2015-08-27/28, 2015-10-01/30, 2018-06-01): 50 until 2014-10-30;
+    near series 25 from 2014-10-31 (far series stayed 50 until revised; the Mar/Jun-2015 ones were 25 by dte<=45,
+    checked 2015-02-16, 05-20, 06-01); from 2015-08-28 new series (Nov-2015 on) 75 while the
+    Sep/Oct-2015 series kept 25 to expiry. Far series (>45 dte) in 2014-10-31..2015-10-29 are mixed -> None.
+    Matches NSE/F&O/069/2014 and NSE/F&O/071/2015 as cited secondhand (tradingqna); circulars not read directly.
 Weekly expiry weekday: Thursday through the 2025-08-28 expiry; Tuesday for contracts expiring on or after
 2025-09-02 (NSE circular of 25-Jun-2025, effective 1-Sep-2025; circular number not independently confirmed
 -- the weekday change is confirmed from the expiry dates in the data, see expiry_weekday_by_year()).
@@ -38,6 +44,12 @@ def lot_size(trade_date: date, expiry: date) -> int | None:
     """
     if trade_date >= UDIFF_START:
         raise ValueError("use the lot_size column from UDiFF rows")
+    if trade_date < date(2015, 10, 30):
+        if trade_date < date(2014, 10, 31):
+            return 50
+        if (expiry - trade_date).days > 45:
+            return None
+        return 25 if trade_date < date(2015, 8, 28) or expiry <= date(2015, 10, 29) else 75
     if trade_date >= date(2024, 4, 26):
         return 25
     if expiry <= date(2021, 7, 22):

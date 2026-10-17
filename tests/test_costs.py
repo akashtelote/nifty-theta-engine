@@ -46,6 +46,15 @@ class TestRoundTripFees:
     def test_exercise_stt(self):
         assert exercise_stt(10_000, on=date(2026, 3, 31)) == pytest.approx(12.5)
         assert exercise_stt(10_000, on=date(2026, 4, 1)) == pytest.approx(15.0)
+        # before 2019-09-01 the base is the whole settlement value, not intrinsic
+        assert exercise_stt(10_000, on=date(2019, 8, 29), settlement_value=800_000) == pytest.approx(1000.0)
+        assert exercise_stt(10_000, on=date(2019, 9, 5), settlement_value=800_000) == pytest.approx(12.5)
+        with pytest.raises(ValueError):
+            exercise_stt(10_000, on=date(2019, 8, 29))
+
+    def test_option_sale_stt_2016_change(self):
+        assert stt_sell_rate(date(2016, 5, 31)) == pytest.approx(0.00017)
+        assert stt_sell_rate(date(2016, 6, 1)) == pytest.approx(0.0005)
 
     def test_brokerage_is_flat_not_per_lot(self):
         """Brokerage is a flat 4-order fee, so per-lot cost must collapse as size grows.

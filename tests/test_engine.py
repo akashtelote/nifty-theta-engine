@@ -90,7 +90,7 @@ def test_hold_to_expiry_pays_exercise_stt_on_itm_long_put():
     s = engine._px(ch.days[tr.entry], tr.expiry, tr.short_k)
     l = engine._px(ch.days[tr.entry], tr.expiry, tr.long_k)
     base = round_trip_fees(tr.credit, 0, LOT, tr.lots, on=tr.entry, legs=(s - 0.5, l + 0.5, 0, 0)) - 2 * 20 * 1.18
-    assert tr.fees == pytest.approx(base + exercise_stt((tr.long_k - 21000) * LOT * tr.lots, on=tr.expiry))
+    assert tr.fees == pytest.approx(base + exercise_stt((tr.long_k - 21000) * LOT * tr.lots, on=tr.expiry, settlement_value=21000 * LOT * tr.lots))
     assert tr.pnl == pytest.approx((tr.credit - 100.0) * LOT * tr.lots - tr.fees)
 
 

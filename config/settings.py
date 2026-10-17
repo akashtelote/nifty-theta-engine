@@ -222,6 +222,12 @@ def vix_regime_otm(vix: float | None) -> tuple[str, float]:
 #     (0.0625% -> 0.1% from 2024-10-01), Finance Act 2026, assent 2026-03-30
 #     (option sale 0.1% -> 0.15%, exercise 0.125% -> 0.15%, from 2026-04-01):
 #     NSE circular FATAX73524, https://nsearchives.nseindia.com/content/circulars/FATAX73524.pdf
+#   Pre-2019 (for the 2011-18 backtest holdout): option sale STT 0.017% -> 0.05% from 2016-06-01
+#     (Finance Act 2016; NSE notice, business-standard.com PTI 2016-05-17). Exercise STT 0.125% was
+#     charged on the whole settlement value (settle x qty) until 2019-08-31, on intrinsic value from
+#     2019-09-01 (Finance (No.2) Act 2019; zerodha.com/marketintel/bulletin/230019).
+#     Pre-2023 txn charge (0.05-0.053%) and pre-2020 state stamp duty are approximated by the
+#     earliest rows below; both are < 0.01 pt per leg at Nifty premiums.
 #   NSE options txn charge: 0.053% -> 0.05% (2023-04-01) -> 0.0495% (2024-04-01) ->
 #     0.03503% (2024-10-01); NSE circulars via Zerodha bulletins (zerodha.com/marketintel/bulletin/
 #     347967, 373933, 391488).
@@ -237,7 +243,7 @@ GST_PCT = 0.18                   # on brokerage + transaction charges + SEBI fee
 
 # (effective_from, rate) ascending; the last entry with effective_from <= date applies.
 _STT_SELL_SCHEDULE = [
-    (date(2000, 1, 1), 0.0005), (date(2023, 4, 1), 0.000625),
+    (date(2000, 1, 1), 0.00017), (date(2016, 6, 1), 0.0005), (date(2023, 4, 1), 0.000625),
     (date(2024, 10, 1), 0.001), (date(2026, 4, 1), 0.0015),
 ]
 _STT_EXERCISE_SCHEDULE = [(date(2000, 1, 1), 0.00125), (date(2026, 4, 1), 0.0015)]
@@ -257,10 +263,19 @@ def stt_sell_rate(on: date | None = None) -> float:
     return _rate(_STT_SELL_SCHEDULE, on)
 
 
-def exercise_stt(intrinsic_value: float, on: date | None = None) -> float:
+STT_EXERCISE_INTRINSIC_FROM = date(2019, 9, 1)
+
+
+def exercise_stt(intrinsic_value: float, on: date | None = None, settlement_value: float | None = None) -> float:
     """STT paid by the BUYER of an option that expires ITM (cash-settled), on intrinsic value.
-    A spread's long put pays this when Nifty settles below its strike."""
-    return _rate(_STT_EXERCISE_SCHEDULE, on) * abs(intrinsic_value)
+    A spread's long put pays this when Nifty settles below its strike. Before 2019-09-01 the base was the
+    whole settlement value (index settle x qty), so `settlement_value` is required for those dates."""
+    base = intrinsic_value
+    if (on or date.today()) < STT_EXERCISE_INTRINSIC_FROM:
+        if settlement_value is None:
+            raise ValueError("exercise before 2019-09-01 is taxed on settlement value; pass settlement_value")
+        base = settlement_value
+    return _rate(_STT_EXERCISE_SCHEDULE, on) * abs(base)
 
 
 def round_trip_fees(

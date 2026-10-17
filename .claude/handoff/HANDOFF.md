@@ -1,19 +1,24 @@
-# HANDOFF — 20261016_plan.md (PCS engine: evidence-backed or killed)
-_Updated: 2026-10-16_
+# HANDOFF — Phase A infra for docs/plans/20261017-next-hypotheses-plan.md
+_Updated: 2026-10-17 · context ~15% (post-compaction)_
 
 ## Goal
-Phases 0-4 of 20261016_plan.md. Paper only; no deploy/.env change without asking.
+Finish Phase A (A6 only if Phase B passes), commit and push, report to the user, then run the Phase B measurement
+study on DEV 2019-2023 only. PCS is dead (OOS FAIL, eb3c5ce). The paper bot is untouched; no deploy.
 
 ## Status
-- Phases 1 (5318f1f, deployed), 2 (0713cc9, NOT pushed), 3 engine+prereg (d4dfd86) done.
-- Prereg APPROVED by user, amendment A1 (mechanical fixes) before any run.
-- DEV grid RUN (research/run_dev.py): NO eligible candidate -> FAIL per registered rule; OOS NOT run, never to be run under this registration.
-- Cause: min credit/width 0.15 gate leaves 0 trades at delta<=0.20; delta 0.25 hold best (n<=98, CAGR 3-4%). Details docs/plans/20261016-real-chain-pcs-dev-result.md (uncommitted until evaluator PASS).
-- User chose B and approved v2 pre-reg (docs/plans/20261017-...-v2.md, frozen). v2 runner: research/run_dev2.py (32 configs). NEXT: commit, run `python -m research.run_dev2` (DEV only), report. OOS only if a winner exists, once, with lock file OOS_RUN.lock (needs a small script; not written). If no winner: FAIL, no v3.
+- Done, all tested (245+ pass): STT history, lot history, iv.py, rv.py (+NSE patch), events.py/csv, bhavcopy
+  3x-404 holiday rule, plan amendments.
+- A1 download complete through 2018; manifest has no `error` rows. Do NOT re-fetch holidays: 2013-10-09 and
+  2021-03-30 are real archive gaps (fo/mkt bundle only, no settle), documented in the plan; Phase B skips them.
+- rv cache rebuilt: 15 sessions without index close (2011-05..2013-01), 5 VIX nulls (2013-14). OOS-A only.
+- events.csv: budgets/elections now carry `announced` (ECI dates for elections, 2024-07-06 for the Jul-2024
+  budget, date-14d conservative proxy for other budgets). Rewriting events.csv: use a Python csv script, keep LF.
+- Evaluator round 3 (ad0727a9128d17ece) findings all addressed; re-review then commit.
 
-## Decisions
-- No rescue tuning; OOS untouched.
+## Commands
+- `uv run pytest -q` (~52s). Commit command separate from edits; untracked files need `git add -N` first.
+- Evaluator: `git diff HEAD -- <explicit paths incl. .claude/handoff/>`.
 
-## Next
-1. Commit v1/v2 docs + run_dev/run_dev2 (keep 20261016_plan.md, HANDOFF.auto, history/, graphify-out out).
-2. Act on user's A/B decision. Phase 4 only on PASS.
+## Next step
+1. Evaluator PASS -> commit explicit paths -> push origin main. No deploy.
+2. Report Phase A to the user, then start Phase B on DEV only (decision point after B results).

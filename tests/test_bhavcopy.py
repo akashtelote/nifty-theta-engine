@@ -41,6 +41,18 @@ def test_url_switch_at_legacy_end():
 
 
 @pytest.mark.parametrize("trade,expiry,lot", [
+    (date(2011, 6, 1), date(2011, 6, 30), 50),
+    (date(2014, 10, 29), date(2015, 3, 26), 50),  # far series 50 before the cut
+    (date(2014, 10, 30), date(2014, 11, 27), 50),
+    (date(2014, 10, 31), date(2014, 11, 27), 25),   # data-derived: near series 25 from 31-Oct-2014
+    (date(2014, 10, 31), date(2015, 3, 26), None),  # far series stayed 50: mixed, filtered by dte<=45
+    (date(2015, 2, 16), date(2015, 3, 26), 25),     # pre-cut far series were 25 by the time dte<=45 (raw VAL_INLAKH)
+    (date(2015, 5, 20), date(2015, 6, 25), 25),
+    (date(2015, 8, 28), date(2015, 9, 24), 25),     # Sep/Oct-2015 series kept 25 to expiry
+    (date(2015, 10, 1), date(2015, 10, 29), 25),
+    (date(2015, 10, 15), date(2015, 11, 26), 75),   # new series 75 from 28-Aug-2015
+    (date(2015, 10, 30), date(2015, 12, 31), 75),
+    (date(2018, 6, 1), date(2018, 6, 28), 75),
     (date(2019, 6, 28), date(2019, 7, 4), 75),
     (date(2021, 7, 15), date(2021, 7, 22), 75),   # last 75 expiry (data-derived)
     (date(2021, 7, 23), date(2021, 7, 29), 50),   # first 50 expiry
@@ -78,3 +90,16 @@ def test_fill_moves_against_us_and_floors_at_tick():
     assert execution.fill(0.2, "sell", 1.0) == execution.TICK
     with pytest.raises(ValueError):
         execution.fill(1.0, "hold", 0.5)
+
+
+def test_fetch_day_needs_three_404s_for_holiday(monkeypatch):
+    from types import SimpleNamespace
+
+    monkeypatch.setattr(bhavcopy.time, "sleep", lambda s: None)
+
+    def sess(*codes):
+        it = iter(codes)
+        return SimpleNamespace(get=lambda *a, **k: SimpleNamespace(status_code=next(it), content=b""))
+
+    assert bhavcopy.fetch_day(date(2021, 3, 28), sess(404, 404, 404)) == "holiday"
+    assert bhavcopy.fetch_day(date(2021, 3, 30), sess(404, 500, 404)) == "error"  # retried next run, not cached

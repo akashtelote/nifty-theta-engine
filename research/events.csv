@@ -1,0 +1,260 @@
+date,type,scheduled,held,announced,timing,source
+2011-01-25,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2011-01-26,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2011-02-28,budget,True,True,2011-02-14,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2011-03-15,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2011-03-17,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2011-04-27,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2011-05-03,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2011-06-16,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2011-06-22,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2011-07-26,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2011-08-09,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2011-09-16,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2011-09-21,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2011-10-25,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2011-11-02,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2011-12-13,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2011-12-16,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2012-01-24,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2012-01-25,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2012-03-13,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2012-03-15,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2012-03-16,budget,True,True,2012-03-02,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2012-04-17,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2012-04-25,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2012-06-18,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2012-06-20,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2012-07-31,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2012-08-01,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2012-09-13,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2012-09-17,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2012-10-24,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2012-10-30,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2012-12-12,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2012-12-18,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2013-01-29,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2013-01-30,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2013-02-28,budget,True,True,2013-02-14,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2013-03-19,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2013-03-20,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2013-05-01,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2013-05-03,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2013-06-17,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2013-06-19,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2013-07-30,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2013-07-31,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2013-09-18,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2013-09-20,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2013-10-29,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2013-10-30,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2013-12-18,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2013-12-18,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2014-01-28,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2014-01-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2014-02-17,budget,True,True,2014-02-03,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2014-03-19,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2014-04-01,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2014-04-30,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2014-05-16,election,True,True,2014-03-05,intraday,en.wikipedia.org/wiki/2014_Indian_general_election; ECI schedule 2014-03-05
+2014-06-03,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2014-06-18,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2014-07-10,budget,True,True,2014-06-26,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2014-07-30,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2014-08-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2014-09-17,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2014-09-30,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2014-10-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2014-12-02,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2014-12-17,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2015-01-15,rbi,False,True,2015-01-15,intraday,rbi.org.in Annualpolicy.aspx
+2015-01-28,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2015-02-03,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2015-02-28,budget,True,True,2015-02-14,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2015-03-04,rbi,False,True,2015-03-04,intraday,rbi.org.in Annualpolicy.aspx
+2015-03-18,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2015-04-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2015-04-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2015-06-02,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2015-06-17,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2015-07-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2015-08-04,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2015-09-17,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2015-09-29,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2015-10-28,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2015-12-01,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2015-12-16,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2016-01-27,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2016-02-02,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2016-02-29,budget,True,True,2016-02-15,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2016-03-16,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2016-04-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2016-04-27,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2016-06-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2016-06-15,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2016-07-27,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2016-08-09,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2016-09-21,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2016-10-04,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2016-11-02,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2016-12-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2016-12-14,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2017-02-01,budget,True,True,2017-01-18,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2017-02-01,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2017-02-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2017-03-15,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2017-04-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2017-05-03,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2017-06-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2017-06-14,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2017-07-26,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2017-08-02,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2017-09-20,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2017-10-04,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2017-11-01,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2017-12-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2017-12-13,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2018-01-31,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2018-02-01,budget,True,True,2018-01-18,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2018-02-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2018-03-21,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2018-04-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2018-05-02,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2018-06-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2018-06-13,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2018-08-01,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2018-08-01,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2018-09-26,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2018-10-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2018-11-08,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2018-12-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2018-12-19,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2019-01-30,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2019-02-01,budget,True,True,2019-01-18,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2019-02-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2019-03-20,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2019-04-04,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2019-05-01,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2019-05-23,election,True,True,2019-03-10,intraday,wionews.com counting 23 May 2019; ECI schedule 2019-03-10
+2019-06-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2019-06-19,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2019-07-05,budget,True,True,2019-06-21,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2019-07-31,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2019-08-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2019-09-18,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2019-10-04,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2019-10-30,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2019-12-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2019-12-11,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2020-01-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2020-02-01,budget,True,True,2020-01-18,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2020-02-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2020-03-03,fomc,False,True,2020-03-03,after_close,federalreserve.gov fomchistorical2020.htm (unscheduled 3 Mar 10:00 ET)
+2020-03-15,fomc,False,True,2020-03-15,after_close,federalreserve.gov fomchistorical2020.htm (unscheduled Sun 15 Mar)
+2020-03-18,fomc,True,False,,after_close,federalreserve.gov fomchistorical2020.htm (cancelled)
+2020-03-27,rbi,False,True,2020-03-27,intraday,rbi.org.in Annualpolicy.aspx
+2020-04-03,rbi,True,False,,intraday,MPC scheduled Mar 31-Apr 3; advanced unannounced to Mar 24-27 (business-standard.com / telegraphindia)
+2020-04-17,rbi,False,True,2020-04-17,intraday,rbi.org.in Annualpolicy.aspx
+2020-04-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2020-05-22,rbi,False,True,2020-05-22,intraday,rbi.org.in Annualpolicy.aspx
+2020-06-05,rbi,True,False,,intraday,MPC scheduled Jun 3-5; advanced unannounced to May 20-22 (RBI MPC minutes; rbi.org.in PR 3220)
+2020-06-10,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2020-07-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2020-08-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2020-09-16,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2020-10-01,rbi,True,False,,intraday,rbi.org.in prid=50426 schedule; postponed 2020-09-28 (businesstoday.in)
+2020-10-09,rbi,True,True,2020-10-06,intraday,rbi.org.in Annualpolicy.aspx; new dates in RBI PR 2020-2021/437 (2020-10-06)
+2020-11-05,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2020-12-04,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2020-12-16,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2021-01-27,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2021-02-01,budget,True,True,2021-01-18,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2021-02-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2021-03-17,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2021-04-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2021-04-28,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2021-05-05,rbi,False,True,2021-05-05,intraday,rbi.org.in Annualpolicy.aspx
+2021-06-04,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2021-06-16,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2021-07-28,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2021-08-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2021-09-22,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2021-10-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2021-11-03,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2021-12-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2021-12-15,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2022-01-26,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2022-02-01,budget,True,True,2022-01-18,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2022-02-10,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2022-03-16,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2022-04-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2022-05-04,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2022-05-04,rbi,False,True,2022-05-04,intraday,rbi.org.in Annualpolicy.aspx
+2022-06-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2022-06-15,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2022-07-27,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2022-08-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2022-09-21,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2022-09-30,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2022-11-02,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2022-12-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2022-12-14,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2023-02-01,budget,True,True,2023-01-18,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2023-02-01,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2023-02-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2023-03-22,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2023-04-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2023-05-03,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2023-06-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2023-06-14,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2023-07-26,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2023-08-10,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2023-09-20,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2023-10-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2023-11-01,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2023-12-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2023-12-13,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2024-01-31,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2024-02-01,budget,True,True,2024-01-18,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2024-02-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2024-03-20,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2024-04-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2024-05-01,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2024-06-04,election,True,True,2024-03-16,intraday,aljazeera.com 2024-06-04 results; ECI schedule 2024-03-16
+2024-06-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2024-06-12,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2024-07-23,budget,True,True,2024-07-06,intraday,newsonair.gov.in (wiki lists 22 Jul = Economic Survey); session dates announced 2024-07-06
+2024-07-31,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2024-08-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2024-09-18,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2024-10-09,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2024-11-07,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2024-12-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2024-12-18,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2025-01-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2025-02-01,budget,True,True,2025-01-18,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2025-02-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2025-03-19,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2025-04-09,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2025-05-07,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2025-06-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2025-06-18,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2025-07-30,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2025-08-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2025-09-17,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2025-10-01,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2025-10-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2025-12-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2025-12-10,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2026-01-28,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2026-02-01,budget,True,True,2026-01-18,intraday,https://en.wikipedia.org/wiki/Union_budget_of_India; announced = date-14d conservative proxy
+2026-02-06,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2026-03-18,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2026-04-08,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2026-04-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2026-06-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2026-06-17,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2026-07-29,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2026-08-05,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
+2026-09-16,fomc,True,True,,after_close,federalreserve.gov FOMC calendars
+2026-10-07,rbi,True,True,,intraday,rbi.org.in Annualpolicy.aspx
