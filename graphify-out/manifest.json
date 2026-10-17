@@ -100,9 +100,9 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1781882661.6782258,
-    "ast_hash": "5af606c63435468604bbca7ebc3cc9e7",
-    "semantic_hash": "5af606c63435468604bbca7ebc3cc9e7"
+    "mtime": 1792235799.126477,
+    "ast_hash": "2825dec4239c4a5cf195e00c0362b2d4",
+    "semantic_hash": ""
   },
   "strategies/__init__.py": {
     "mtime": 1780547314.5253677,
@@ -240,8 +240,8 @@
     "semantic_hash": ""
   },
   ".claude/handoff/HANDOFF.md": {
-    "mtime": 1792234753.8937857,
-    "ast_hash": "e86350bb92e46efe496025bafe49cc16",
+    "mtime": 1792262653.6016772,
+    "ast_hash": "479a6deee77ccc98eb7b4e2374f15adf",
     "semantic_hash": ""
   },
   ".claude/handoff/history/HANDOFF-20261012-211035.md": {
@@ -517,6 +517,51 @@
   ".claude/handoff/history/HANDOFF-20261017-160453.md": {
     "mtime": 1792233293.3114579,
     "ast_hash": "528394a0e74fd882c325a2039f11fffa",
+    "semantic_hash": ""
+  },
+  "research/index_changes.py": {
+    "mtime": 1792261673.2287743,
+    "ast_hash": "288cb147f67cf941781553c1cf315f35",
+    "semantic_hash": ""
+  },
+  "tests/test_index_changes.py": {
+    "mtime": 1792261680.9189484,
+    "ast_hash": "96186a149466335daae3b599a3eedc6f",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-163059.md": {
+    "mtime": 1792234859.4342897,
+    "ast_hash": "a2d64585974b8374969af80dc7a55876",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-164932.md": {
+    "mtime": 1792235972.6530728,
+    "ast_hash": "f352845f65f6667e5db0be0e02c35a40",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-172227.md": {
+    "mtime": 1792237947.114113,
+    "ast_hash": "5c3ad5d4cb324ece599674cc359d2ddf",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-183251.md": {
+    "mtime": 1792242171.0844975,
+    "ast_hash": "94222768296dfb28b41a7a9314fbb061",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-192109.md": {
+    "mtime": 1792245069.2921643,
+    "ast_hash": "fbb30038782351bd7d407bdd4fc64b49",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-203438.md": {
+    "mtime": 1792249478.591535,
+    "ast_hash": "d234ddd03a79a4ef13e739516d44f324",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261017-235556.md": {
+    "mtime": 1792261556.8609686,
+    "ast_hash": "77c18bf780de69944c75018ab99b494f",
     "semantic_hash": ""
   }
 }
