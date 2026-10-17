@@ -240,8 +240,8 @@
     "semantic_hash": ""
   },
   ".claude/handoff/HANDOFF.md": {
-    "mtime": 1792266579.8029988,
-    "ast_hash": "a396aa182ca2a1d0ebbbd10462119959",
+    "mtime": 1792268201.1070755,
+    "ast_hash": "1dd38e2f4df361388398c53d9dd2ca2f",
     "semantic_hash": ""
   },
   ".claude/handoff/history/HANDOFF-20261012-211035.md": {
@@ -574,11 +574,6 @@
     "ast_hash": "efd6234ec3b79bc70c42c416838a4d06",
     "semantic_hash": ""
   },
-  ".claude/handoff/HANDOFF.auto.md": {
-    "mtime": 1792267106.3860981,
-    "ast_hash": "a55f69860b5fb634d5df2be7092662ae",
-    "semantic_hash": ""
-  },
   ".claude/handoff/history/HANDOFF-20261018-011334.md": {
     "mtime": 1792266214.9932678,
     "ast_hash": "f9345ea1be610d6fc25b330e0a89f978",
@@ -587,6 +582,21 @@
   ".claude/handoff/history/HANDOFF-20261018-012826.md": {
     "mtime": 1792267106.369554,
     "ast_hash": "073bc8b91b98475ae20f7f9e257872d6",
+    "semantic_hash": ""
+  },
+  "research/e2_momentum.py": {
+    "mtime": 1792268113.5699277,
+    "ast_hash": "3553c46e183717cb9da21c9e174090f6",
+    "semantic_hash": ""
+  },
+  "tests/test_e2_momentum.py": {
+    "mtime": 1792268050.3136766,
+    "ast_hash": "81cf742089ebc96be7d22f448b69649e",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261018-014149.md": {
+    "mtime": 1792267909.435615,
+    "ast_hash": "d4dfd6c12ec12b158487289bbddfae0d",
     "semantic_hash": ""
   }
 }

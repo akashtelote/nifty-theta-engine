@@ -100,8 +100,8 @@
     "semantic_hash": ""
   },
   "pyproject.toml": {
-    "mtime": 1792235799.126477,
-    "ast_hash": "2825dec4239c4a5cf195e00c0362b2d4",
+    "mtime": 1792269077.144848,
+    "ast_hash": "f86226a071cabf6129129a1b05bfadf3",
     "semantic_hash": ""
   },
   "strategies/__init__.py": {
@@ -240,8 +240,8 @@
     "semantic_hash": ""
   },
   ".claude/handoff/HANDOFF.md": {
-    "mtime": 1792268201.1070755,
-    "ast_hash": "1dd38e2f4df361388398c53d9dd2ca2f",
+    "mtime": 1792269876.0705333,
+    "ast_hash": "60638cfee5164827e6318bc9fbc682d8",
     "semantic_hash": ""
   },
   ".claude/handoff/history/HANDOFF-20261012-211035.md": {
@@ -597,6 +597,21 @@
   ".claude/handoff/history/HANDOFF-20261018-014149.md": {
     "mtime": 1792267909.435615,
     "ast_hash": "d4dfd6c12ec12b158487289bbddfae0d",
+    "semantic_hash": ""
+  },
+  "research/deals.py": {
+    "mtime": 1792269872.8081467,
+    "ast_hash": "487a9cba49ec45bb41ab339cafe6381b",
+    "semantic_hash": ""
+  },
+  "tests/test_deals.py": {
+    "mtime": 1792269875.0019977,
+    "ast_hash": "b08cc2bbb5453fafbea5ca6141684404",
+    "semantic_hash": ""
+  },
+  ".claude/handoff/history/HANDOFF-20261018-021123.md": {
+    "mtime": 1792269683.8062756,
+    "ast_hash": "a7892e89de261e113f3e0a18a1b4a4b4",
     "semantic_hash": ""
   }
 }
