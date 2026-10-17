@@ -23,7 +23,20 @@ Run Phase A of the plan: A1→A2→A3→A4, then E1→E2→A6→E4→A5→E3. Pa
 - E3 sizing straddling a product switch: size on the contract held at the fill.
 - `research.*` imports: use `uv run python -c` without `-I`.
 
+## Update 13:5x — T-bill committed 879452a (pushed, user told). Now: permanent stock ID
+- New `research/stock_id.py` + `tests/test_stock_id.py` (5 pass), add -N'd, uncommitted.
+  - Node = ISIN or SYM:<symbol> (pre 2011-06-22).
+  - ISIN→ISIN: strict next session.
+  - SYM→ISIN and SYM→SYM: nearest match within SYM_GAP=60 sessions.
+  - Sessions are days with ≥10% of the median row count; this drops the 2010-05-16 and 2012-11-11 specials.
+  - Requires b.first > a.last, so there are no cycles; an earlier version without it hung the tests.
+  - Ambiguous links are dropped.
+  - perm_id is the chain's tail node.
+  - Symbol-change list cached at data/equity_ref/symbolchange.csv (gitignored).
+- Real data to 2022: 2124 links, 0 ambiguous, 0 duplicate (date, perm_id) rows. Unlinked at the switch: BINANICEM, ESSARSHIP, TV-18, WINDSOR, FTCPOF5YDV.
+- Evaluator round 1 FINDINGS fixed: SYM gap was too strict, special sessions, docstring overpromised the report. **Round 2 next**, then commit and push.
+- Coverage report (still to build after the download) must list every link with `missing`, SYM nodes with long internal gaps, and the ISIN→ISIN near misses (DRCSYSTEMS, INTEGRA, 3 ETFs).
+
 ## Next step
-1. Run evaluator round 2 on benchmarks.py, test_benchmarks.py, the plan doc, HANDOFF.md and the history snapshots. Then commit only the explicit paths, `git reset .claude/handoff/history/`, and push.
-2. Tell the user about the T-bill fallback (option 2 is not available).
-3. After the download: the 2005–2010 benchmark gap check against equity days, the coverage report, the permanent stock ID (ISIN chain plus symbolchange.csv), then A2.
+1. Evaluator round 2 on stock_id.py, test_stock_id.py and HANDOFF.md; commit and push.
+2. After the download: the 2005–2010 benchmark gap check, the coverage report, then A2.
