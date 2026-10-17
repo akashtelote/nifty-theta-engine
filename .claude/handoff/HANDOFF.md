@@ -129,7 +129,14 @@ unchecked — no bhavcopy calendar). Unmatched (date,symbol) vs EQ/BE: 25,828 ro
 Side normalised (B/S/SOLD → BUY/SELL; 3 early rows).
 E4 can only trade EQ/BE-matched rows. playwright added to `research` extra.
 
+A6 committed 0c9a222 + graphify 60558fe, pushed, reported.
+
+## E4 (user "proceed" 2026-10-18) — DEV FAIL
+research/e4_whale.py + tests/test_e4_whale.py (3 pass); reuses E1 trades/costed/drops; 8-week moving-block bootstrap.
+FALLBACK rule. Buy events n=1711, mean net abn -2.40%, CI [-3.78%, -0.97%] → FAIL (CI wholly < 0). Hold 5/60 also
+negative; net-sell events -1.96%; block-only n=97 +1.27% CI [-1.62%, +4.61%]. Report data/e4/dev_report.txt.
+
 ## Next step
-0. Evaluator on deals.py/test/pyproject/uv.lock/HANDOFF → commit A6 + graphify + push → report A6; then E4 (fallback, DEV only).
+0. Evaluator on e4_whale.py/test/HANDOFF → commit E4 + graphify + push → report E4 FAIL; next in order A5 then E3.
 1. (done) E1 (plan order: E1→E2→A6→E4→A5→E3). Use changes.parquet; one event per add filed under the highest index
    (N50>Next50>Midcap>N500), Next50→N50 = one N50 add, ad hoc reported separately; drop windows with ca_flag rise.
