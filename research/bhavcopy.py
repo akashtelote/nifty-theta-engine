@@ -87,7 +87,8 @@ def parse(raw_csv: bytes, d: date) -> pl.DataFrame:
     ).cast(SCHEMA)
 
 
-def fetch_day(d: date, session: requests.Session, *, url=url_for, parser=parse, out: Path = OUT) -> str:
+def fetch_day(d: date, session: requests.Session, *, url=url_for, parser=parse, out: Path = OUT,
+              member=lambda names: names[0]) -> str:
     """Download+store one day. Returns 'ok' | 'holiday' | 'error'. Keyword args let other archives reuse it."""
     n404 = 0
     for attempt in range(3):
@@ -108,7 +109,7 @@ def fetch_day(d: date, session: requests.Session, *, url=url_for, parser=parse, 
             continue
         try:
             with zipfile.ZipFile(io.BytesIO(r.content)) as z:
-                df = parser(z.read(z.namelist()[0]), d)
+                df = parser(z.read(member(z.namelist())), d)
         except zipfile.BadZipFile:
             time.sleep(2 * (attempt + 1))
             continue
