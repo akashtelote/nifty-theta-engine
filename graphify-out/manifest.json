@@ -240,8 +240,8 @@
     "semantic_hash": ""
   },
   ".claude/handoff/HANDOFF.md": {
-    "mtime": 1792309858.906595,
-    "ast_hash": "b7ef16798dba87773a200e43b3abbcfb",
+    "mtime": 1792314478.1807873,
+    "ast_hash": "504a204c2afc2670c7815212cb3e16be",
     "semantic_hash": ""
   },
   ".claude/handoff/history/HANDOFF-20261012-211035.md": {
@@ -672,6 +672,11 @@
   ".claude/handoff/history/HANDOFF-20261018-130452.md": {
     "mtime": 1792308892.761786,
     "ast_hash": "c046ca7c5a1d1513b56220585010f8d4",
+    "semantic_hash": ""
+  },
+  "docs/plans/20261018-equity-futures-result.md": {
+    "mtime": 1792314643.5792506,
+    "ast_hash": "41504f1a49979282bc367882c3509c2a",
     "semantic_hash": ""
   }
 }
