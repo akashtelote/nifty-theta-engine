@@ -65,9 +65,9 @@
     "semantic_hash": ""
   },
   "core/trend_filter.py": {
-    "mtime": 1785657758.9487877,
-    "ast_hash": "5b0369d3e2eff584e29f848582cd5f11",
-    "semantic_hash": "5b0369d3e2eff584e29f848582cd5f11"
+    "mtime": 1792355840.3374407,
+    "ast_hash": "5ce658f138d7c1e372822ec563e1967f",
+    "semantic_hash": ""
   },
   "core/ws_monitor.py": {
     "mtime": 1785931302.4025965,
@@ -110,8 +110,8 @@
     "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
   },
   "strategies/wheel_strategy.py": {
-    "mtime": 1792152840.5678058,
-    "ast_hash": "0e5fd0934ff1d0706555b229ca2c878a",
+    "mtime": 1792356032.3308868,
+    "ast_hash": "b4bc8a88ccfd7dd303dc0661c0d9ccc5",
     "semantic_hash": ""
   },
   "tests/__init__.py": {
@@ -160,8 +160,8 @@
     "semantic_hash": ""
   },
   "tests/test_wheel_strategy.py": {
-    "mtime": 1786551561.9907765,
-    "ast_hash": "3b47e57ae695ba044b72fd17399d2d6a",
+    "mtime": 1792355854.6182775,
+    "ast_hash": "df6a1ac42648824eeee32f8004c2d6f7",
     "semantic_hash": ""
   },
   "tests/test_ws_monitor.py": {
@@ -185,8 +185,8 @@
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1792163635.550993,
-    "ast_hash": "0904b2e6c7a2690245309e15f8913e09",
+    "mtime": 1792355943.0106692,
+    "ast_hash": "fe9c42f84bb294c9ea48199a510b3912",
     "semantic_hash": ""
   },
   "README.md": {
@@ -195,8 +195,8 @@
     "semantic_hash": ""
   },
   "WHEEL_STRATEGY_MANUAL.md": {
-    "mtime": 1792153072.0440378,
-    "ast_hash": "a53140578da3af212bc9dceb5cc902e6",
+    "mtime": 1792356032.3288977,
+    "ast_hash": "4ac405ad6e8f0a07be145d339375ac4c",
     "semantic_hash": ""
   },
   "docker-compose.yml": {
@@ -677,6 +677,11 @@
   "docs/plans/20261018-equity-futures-result.md": {
     "mtime": 1792314643.5792506,
     "ast_hash": "41504f1a49979282bc367882c3509c2a",
+    "semantic_hash": ""
+  },
+  "external_review.md": {
+    "mtime": 1792355443.930021,
+    "ast_hash": "28f5b44d7efd7e1af8ef4156c85a4a3d",
     "semantic_hash": ""
   }
 }
