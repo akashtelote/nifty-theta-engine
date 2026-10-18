@@ -271,9 +271,9 @@ def simulate(cal: list[date], book: dict, px: dict, start: date, end: date, rank
     return pl.DataFrame(nav), t
 
 
-def stationary_ci(x: list[float]) -> tuple[float, float]:
+def stationary_ci(x: list[float], block: int = BLOCK) -> tuple[float, float]:
     """Two-sided CONF CI of the mean, stationary bootstrap (Politis-Romano) with mean block BLOCK, circular, seeded."""
-    rng, n, p = random.Random(SEED), len(x), 1 / BLOCK
+    rng, n, p = random.Random(SEED), len(x), 1 / block
     means = []
     for _ in range(BOOT):
         i, s = rng.randrange(n), 0.0

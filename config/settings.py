@@ -363,3 +363,44 @@ def equity_delivery_fees(buy_value: float, sell_value: float, buy_on: date, sell
         stamp = _rate(_EQ_STAMP_BUY, on) * value if buy else 0.0
         return taxable * (1 + _rate(_INDIRECT_TAX, on)) + _rate(_EQ_STT_DELIVERY, on) * value + stamp
     return leg(buy_value, buy_on, True) + leg(sell_value, sell_on, False)
+
+
+# --- Futures friction (A7 futures part, plan 20261017-equity-futures-hypotheses): NSE index futures, MCX non-agri ---
+# One leg = one order. Sources (searched 2026-10-18):
+#   NSE futures STT, sell side: 0.01% from 2004-10-01, 0.0133% from 2005-06-01, 0.017% from 2006-06-01
+#     (tradingqna.com/t/sebi-and-stt-what-is-the-history-around-stt/185139); 0.01% from 2013-06-01 (Finance Act
+#     2013; NSE circular, business-standard.com 2013-05-24); 0.0125% from 2023-04-01 (Finance Act 2023); 0.02%
+#     from 2024-10-01 (Finance (No.2) Act 2024; zerodha.com/marketintel/bulletin/391488); 0.05% from 2026-04-01
+#     (Budget 2026-27; icicidirect.com ilearn "STT changes in budget 2026").
+#   MCX CTT, sell side, non-agri futures: 0.01% from 2013-07-01 (Finance Act 2013; CBDT notification 46/2013);
+#     none before.
+#   Exchange txn: NSE futures 0.00188% -> 0.00173% and MCX futures 0.0026% -> 0.0021% from 2024-10-01 (bulletin
+#     391488; hdfcsec.com "Revised Exchange Transaction Charges w.e.f. 1st October 2024"). Earlier rows are the
+#     pre-2024-10 rates applied to all earlier dates (approximation; < 0.002% per side either way).
+#   Stamp, buy side: 0.002% from 2020-07-01 (Indian Stamp Act amendment); the same rate is used before (state-wise
+#     then; approximation). SEBI Rs10/crore; brokerage Rs20/order; service tax / GST as _INDIRECT_TAX.
+_FUT_STT_SELL = {
+    "NSE": [(date(2004, 10, 1), 0.0001), (date(2005, 6, 1), 0.000133), (date(2006, 6, 1), 0.00017),
+            (date(2013, 6, 1), 0.0001), (date(2023, 4, 1), 0.000125), (date(2024, 10, 1), 0.0002),
+            (date(2026, 4, 1), 0.0005)],
+    "MCX": [(date(2004, 10, 1), 0.0), (date(2013, 7, 1), 0.0001)],
+}
+_FUT_TXN = {
+    "NSE": [(date(2000, 1, 1), 0.0000188), (date(2024, 10, 1), 0.0000173)],
+    "MCX": [(date(2000, 1, 1), 0.000026), (date(2024, 10, 1), 0.000021)],
+}
+FUT_STAMP_BUY_PCT = 0.00002
+
+
+def futures_fees(value: float, on: date, buy: bool, exch: str) -> float:
+    """Rupee cost of one futures order of notional `value` (price x mult x lots) on `exch` ("NSE" or "MCX"):
+    brokerage, STT/CTT (sell), exchange txn, SEBI, stamp (buy), service tax / GST on brokerage + txn + SEBI.
+    Excludes slippage. A zero-value order costs nothing."""
+    value = abs(value)
+    if value <= 0:
+        return 0.0
+    if on < EQ_FEES_FROM:
+        raise ValueError(f"no futures fee schedule before {EQ_FEES_FROM}: {on}")
+    taxable = BROKERAGE_PER_ORDER + (_rate(_FUT_TXN[exch], on) + SEBI_PCT) * value
+    stat = FUT_STAMP_BUY_PCT * value if buy else _rate(_FUT_STT_SELL[exch], on) * value
+    return taxable * (1 + _rate(_INDIRECT_TAX, on)) + stat

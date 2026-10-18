@@ -1,24 +1,35 @@
 # HANDOFF — Phase A / E-plan (docs/plans/20261017-equity-futures-hypotheses-plan.md)
-_Updated: 2026-10-18 12:55 · context at 62%_
+_Updated: 2026-10-18 · post-compact_
 
 ## Goal
 Order A1→A2→A3→A4→E1→E2→A6→E4→A5→E3. Paper only. No deploy/.env changes, no OOS runs (OOS only on user's go).
-Now: **A5 (plan line 82), then E3 (plan lines 170-237)**. User said "proceed" after E4 report.
+Now: **E3 (plan lines 170-237)**: pre-gate done (PASS), next DEV P&L + gates, report PASS/FAIL, no OOS.
 
 ## Status
-- Done + pushed: A1-A4, E1 (DEV FAIL), E2 (DEV FAIL, 7b9d1ef), A6 (0c9a222), E4 (DEV FAIL, 471442c), graphify 1e48414.
-- E4: fallback rule; 1,711 buy events, net abn -2.40%, CI [-3.78%, -0.97%]. Whale score only used by `main.py screen`.
-- A5 in progress (context 57%): research/futures.py + tests/test_futures.py written (5 pass); bhavcopy.fetch_day got
-  `member=` kwarg (CDS zips hold FO+OP members, DBF before ~2019). Full fetch running in background (task b8ezbv8wv):
-  NSE 2005-01..2026-09 then CDS (archive starts 2010-11/12; 2008-08..2010-10 404 = unavailable), MCX 2004-09..2026-09,
-  logs data/futures/*_log.txt, manifests data/futures/<src>_manifest.csv (resumable: rerun same command).
-  Verified: value/(lots*close*mult) ~1.00 for NSE, CDS, MCX (MCX Value is Rs lakhs; GOLD/GOLDM PRICE_UNIT 0.1).
-  MCX 403 IP-block at 4 workers after 2004-09..2010-10-13 (16 error days); MCX proc killed, throttled to
-  WORKERS=2/PAUSE=1.0/300s backoff. curl stays 403 (UA-blocked) but playwright works: relaunched 06:15 (task bo6tm8d3b):
-  `... python -m research.futures fetch mcx > data/futures/mcx_log.txt 2>&1` (resumes, retries error days).
-  NSE+CDS still in task by97bo95l.
-  Next: when fetch done -> `python -m research.futures build` -> read data/futures/report.txt (gaps, errors) ->
-  evaluator on research/futures.py, research/bhavcopy.py, tests/test_futures.py, HANDOFF -> commit/graphify/push/report.
+- Done + pushed: A5 (5164d97, graphify 22553a7). A1-A4, E1/E2/E4 DEV FAIL, A6. A5 reported to user.
+- E3 pre-gate: research/e3_trend.py (`... -m research.e3_trend pregate`, writes data/futures/e3_pregate.txt).
+  DEV 9/9 holdable PASS; LAST12 6/9 PASS (NIFTY 32.8%, BANKNIFTY 16.2%, COPPER 0% fail cap). Told user.
+  Pregate evaluator PASS. DEV R1 (a498ae88) fixed: roll-day vol ret from own contract, FY loss carry-forward,
+  margin over all held markets, px close<=0 dropped. R2 (a4755636) fixed: vol annualised by own sessions/yr (MCX
+  Saturdays), LAST12 pregate at current lot sizes (NIFTY 53%, BANKNIFTY 36.8%, still 6/9 PASS), fill guard for
+  new-product orders, gates() no-position raise + null TRI month. **E3 DEV FAIL** gate 2 CI [-1.07%, 19.67%]
+  (R0 -1.69%, R1 -1.26%); Sharpe 0.69, corr 0.06, worst-10% +0.48%, MDD 19.7%, margin 0%; CAGR 8.09%, orders 1674,
+  rolls 711, costs Rs5.25L, tax Rs11.25L. R3 = final evaluator round (cap 3) -> if findings, stop and report. Outputs data/futures/e3_dev.txt + e3_dev_nav.parquet. tests/test_e3.py 3 pass.
+  NEXT: evaluator on all dirty files -> commit -> graphify -> push -> report DEV FAIL to user. No OOS.
+- A7 futures fees were missing: added config/settings.py futures_fees(value, on, buy, exch) dated STT/CTT/txn/stamp
+  table + tests/test_costs.py::test_futures_fees_dated (16 pass). Needs evaluator too.
+- UNCOMMITTED: research/e3_trend.py, config/settings.py, tests/test_costs.py, HANDOFF.md.
+
+## E3 design notes
+- products(): per product held contract (continuous.parquet) close, mult (null -> implied value/(lots*close) per
+  contract), ret = adj diff/(close - adj diff), EWMA vol hl 60 x sqrt252, turnover median prior 60 sessions.
+- choose(): per market re-pick smallest-notional product clearing Rs5cr & >=60 listed at ref-product rolls/join or if
+  held product missing; join after 252 ref sessions.
+- Next: DEV sim weekly (last session of week signal from ref adj_close sign k=63/126/252; fill next open of
+  held contract - needs open from load(); trade if |diff|>=1 lot & >=25%), costs futures_fees + slippage 1 tick +
+  0.02%/side + roll cost (close old/open new at roll), margin 12% NSE / 10% MCX > 60% cap days, tax 30% + cess FY
+  (research/metrics.py TAX_RATE / e2 fy_tax), gates vs T-bill (benchmarks.load tbill), Nifty 50 TRI corr, worst 10%
+  Nifty months, MDD 30%, stationary bootstrap 98.75% (e2_momentum.stationary_ci uses its CONF/BLOCK consts).
 
 ## A5 state (2026-10-18 ~07:30)
 - All fetched, 0 error days: NSE 5392 sessions, CDS 3859 (2010-11..; earlier 404 = unavailable, in report), MCX 6152.
@@ -48,7 +59,10 @@ Now: **A5 (plan line 82), then E3 (plan lines 170-237)**. User said "proceed" af
   R8 a90ef4f7f3fc247be = PASS (minor: 4 far-month BANKNIFTY 2007 legacy mult days wrong, never held; CRUDEOIL
   adj_close negative 2020 -> downstream use adj diff / real close). Gate recorded PASS but not for futures.py etc:
   diff output truncated -> headers missing; hook also wants untracked HANDOFF.auto.md (add -N it, reset before commit).
-  NEXT: re-dispatch evaluator with per-file `git diff HEAD -- <file> | head -60` -> commit -> graphify/push -> E3.
+  DONE. Gate lesson: evaluator must print each `diff --git` header unprefixed (no grep -n, no truncated output);
+  untracked HANDOFF.auto.md + history need add -N for review then reset before commit.
+  NOW: E3 (plan lines 170-237): feasibility pre-gate first, DEV only; data = data/futures/{continuous,contracts}.parquet
+  (use adj_close diff / real close for returns; CRUDEOIL adj negative 2020).
 
 ## A5 probe findings (2026-10-18)
 - **MCX loadable.** Land https://www.mcxindia.com/market-data/bhavcopy (playwright, chromium-1234 executable_path

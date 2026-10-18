@@ -152,3 +152,17 @@ def test_equity_delivery_fees_dated():
     assert (equity_delivery_fees(1e6, 0, date(2012, 6, 29), date(2012, 6, 29))
             - equity_delivery_fees(1e6, 0, date(2012, 7, 2), date(2012, 7, 2))) == pytest.approx(250)
     assert equity_delivery_fees(0, 0, date(2020, 1, 1), date(2020, 1, 1)) == 0
+
+
+def test_futures_fees_dated():
+    from config.settings import futures_fees
+    # 2015-01-01 NSE order of Rs10L: Rs20 + txn + SEBI at 12.36% service tax; STT 0.01% sell, stamp 0.002% buy
+    taxable = 20 + (0.0000188 + 0.000001) * 1e6
+    assert futures_fees(1e6, date(2015, 1, 1), False, "NSE") == pytest.approx(taxable * 1.1236 + 100)
+    assert futures_fees(-1e6, date(2015, 1, 1), True, "NSE") == pytest.approx(taxable * 1.1236 + 20)
+    assert futures_fees(0, date(2015, 1, 1), True, "MCX") == 0.0
+    # MCX CTT starts 2013-07-01; NSE futures STT 0.05% from 2026-04-01
+    assert (futures_fees(1e6, date(2013, 7, 1), False, "MCX") - futures_fees(1e6, date(2013, 6, 28), False, "MCX")
+            == pytest.approx(100))
+    assert futures_fees(1e6, date(2026, 4, 1), False, "NSE") - futures_fees(1e6, date(2026, 3, 31), False, "NSE") \
+        == pytest.approx(300)
