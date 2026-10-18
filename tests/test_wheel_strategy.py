@@ -173,7 +173,37 @@ class TestHedgeUnwinding:
 
 
 class TestExpiryAutoClose:
-    def test_closes_expired_position(self, wheel, mock_client, mock_notifier):
+    @staticmethod
+    def _expired_state(wheel):
+        yesterday = (date.today() - timedelta(days=1)).isoformat()
+        wheel.state["Nifty 50"] = {
+            "current_stage": "STAGE_1_CSP",
+            "active_position": {"instrument_key": "NSE_FO|NIFTY22000PE", "strike": 22000.0,
+                                "expiry": yesterday, "entry_price": 50.0, "quantity": 25},
+            "hedge_position": {"instrument_key": "NSE_FO|NIFTY21900PE", "strike": 21900.0,
+                               "expiry": yesterday, "entry_price": 30.0, "quantity": 25},
+            "lifetime_realized_pnl": 0.0,
+        }
+
+    def test_itm_expiry_books_settlement_loss(self, wheel):
+        self._expired_state(wheel)
+        with patch("strategies.wheel_strategy.nifty_close_on", return_value=21950.0):
+            wheel.check_exits()
+        # Spread settles at 22000-21950 = 50; credit 20 -> gross loss 30 * 25
+        expected = (20.0 - 50.0) * 25 - round_trip_fees(20.0, 50.0, 25, 1)
+        assert wheel.state["Nifty 50"]["current_stage"] == "CLOSED"
+        assert abs(wheel.state["Nifty 50"]["lifetime_realized_pnl"] - expected) < 0.01
+
+    def test_missing_settlement_leaves_position_open(self, wheel, mock_notifier):
+        self._expired_state(wheel)
+        with patch("strategies.wheel_strategy.nifty_close_on", return_value=None):
+            wheel.check_exits()
+        assert wheel.state["Nifty 50"]["current_stage"] == "STAGE_1_CSP"
+        assert wheel.state["Nifty 50"]["lifetime_realized_pnl"] == 0.0
+        mock_notifier.send_notification.assert_called()
+
+    @patch("strategies.wheel_strategy.nifty_close_on", return_value=23000.0)
+    def test_closes_expired_position(self, _close, wheel, mock_client, mock_notifier):
         yesterday = (date.today() - timedelta(days=1)).isoformat()
         wheel.state["Nifty 50"] = {
             "current_stage": "STAGE_1_CSP",

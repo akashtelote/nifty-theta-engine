@@ -25,7 +25,7 @@ stateDiagram-v2
 
     IDLE --> STAGE_1_CSP : Fri 15:15 IST\nVIX ≤ VIX_MAX_THRESHOLD\nFunds Available
 
-    STAGE_1_CSP --> CLOSED : Take Profit (≤20% residual credit)\nOR Stop Loss (≥2× credit or spot ≤ short)\nOR Time Stop (Thu ≥ 15:00 IST)\nOR Expiry / defensive close
+    STAGE_1_CSP --> CLOSED : Take Profit (≤25% residual credit)\nOR Stop Loss (≥2× credit or spot ≤ short)\nOR DTE/Delta manage\nOR Expiry / defensive close
 
     STAGE_1_CSP --> STAGE_2_CC : Assignment (ITM)\nShort Put Breached
 
@@ -49,8 +49,8 @@ stateDiagram-v2
     *   *Exit rules* (implemented in `check_exits`, settings-driven):
         *   **Take Profit:** `cost_to_close ≤ TP_RESIDUAL_CREDIT_FRACTION × initial_credit` (default **0.25**).
         *   **Stop Loss:** `cost_to_close ≥ SL_CREDIT_MULTIPLE × initial_credit` (default **2.0**) **or** spot ≤ short strike.
-        *   **Time Stop:** `TIME_STOP_WEEKDAY`/`TIME_STOP_HOUR` (default Thursday ≥ 15:00 IST).
-        *   **Expiry (offline):** If expiry date has passed while the bot was down, position is closed as expired worthless (max profit assumption) → `CLOSED`.
+        *   **Time Stop:** `TIME_STOP_WEEKDAY`/`TIME_STOP_HOUR` (default disabled: `TIME_STOP_WEEKDAY=-1`).
+        *   **Expiry (offline):** If expiry date has passed while the bot was down, the spread is settled at the Nifty 50 close on the expiry date (intrinsic value, net of fees) → `CLOSED`. If that close is unavailable, the position is left open and an ERROR alert asks for manual review.
     *   *Assignment path:* If ITM at expiry / short put breached into assignment handling, state may transition to `STAGE_2_CC` with inventory logged.
 
 *   **`STAGE_2_CC` (Covered Call)**: The bot holds assigned equity inventory and sells calls against it.
@@ -109,10 +109,10 @@ Entry uses `vix_regime_otm` in [`config/settings.py`](config/settings.py):
 |--------|-----------|--------|-----|
 | Low | VIX < 13 | enter | 1.2% |
 | Normal | 13 ≤ VIX < 18 | enter | 1.0% |
-| Elevated | 18 ≤ VIX ≤ `VIX_MAX_THRESHOLD` (25) | enter | 1.5% |
-| Crisis | VIX > 25 | **skip** | — |
+| Elevated | 18 ≤ VIX ≤ `VIX_MAX_THRESHOLD` (22) | enter | 1.5% |
+| Crisis | VIX > 22 | **skip** | — |
 
-Optional mid-week entries (`ALLOW_MIDWEEK_ENTRY`, default **False**) also require VIX in `[MIDWEEK_VIX_MIN, MIDWEEK_VIX_MAX]` (default 16–22). Friday remains the default schedule.
+Optional mid-week entries (`ALLOW_MIDWEEK_ENTRY`, default **True**) also require VIX in `[MIDWEEK_VIX_MIN, MIDWEEK_VIX_MAX]` (default 16–22). Friday remains the default schedule.
 
 > **Historical note:** Earlier docs described an XGBoost `VixRegimePredictor`. That ML path is **not** used; the table above is the live mapping (PROF-010).
 
@@ -134,7 +134,7 @@ Implemented in `check_exits` (thresholds from settings):
 2. `current_cost_to_close` = short live ask − long live bid.
 3. **Take profit** if `current_cost_to_close ≤ TP_RESIDUAL_CREDIT_FRACTION × initial_credit` (default **0.25**).
 4. **Stop loss** if `current_cost_to_close ≥ SL_CREDIT_MULTIPLE × initial_credit` (default **2.0**) or spot ≤ short strike.
-5. **Time stop** if weekday == `TIME_STOP_WEEKDAY` and hour ≥ `TIME_STOP_HOUR` (default Thursday ≥ 15 IST).
+5. **Time stop** if weekday == `TIME_STOP_WEEKDAY` and hour ≥ `TIME_STOP_HOUR` (default disabled: `TIME_STOP_WEEKDAY=-1`).
 6. Optional **DTE manage** when `DTE_MANAGE_THRESHOLD ≥ 0`.
 
 **Entry pricing (PROF-012):** mid-price limits by default (`ENTRY_USE_MID_PRICE`) with limited requotes toward bid/ask; hedge-first preserved. Paper logs theoretical vs achieved credit.

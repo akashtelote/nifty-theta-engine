@@ -21,7 +21,7 @@ from config.settings import (
 )
 from config.event_calendar import in_event_blackout
 from core.ivr import ivr_allows_entry
-from core.trend_filter import trend_allows_entry
+from core.trend_filter import nifty_close_on, trend_allows_entry
 
 logger = logging.getLogger(__name__)
 
@@ -1464,15 +1464,28 @@ class WheelStateMachine:
                     short_entry_price = active_position.get("entry_price", 0.0)
                     long_entry_price = hedge_position.get("entry_price", 0.0)
                     initial_credit = short_entry_price - long_entry_price
-                    gross_pnl = initial_credit * quantity_shares
+                    short_strike = active_position.get("strike")
+                    long_strike = hedge_position.get("strike")
+                    settle = nifty_close_on(expiry_date) if short_strike and long_strike else None
+                    if settle is None:
+                        # Never guess max profit: an ITM expiry would book a phantom win.
+                        msg = (
+                            f"Position for {symbol} expired on {expiry_date} while bot was offline, "
+                            f"but the Nifty settlement close or a leg strike is unavailable. Left open — manual review."
+                        )
+                        logger.error(msg)
+                        self.notifier.send_notification(title="Expired Position Unsettled", message=msg, level="ERROR")
+                        continue
+                    settle_value = max(0.0, float(short_strike) - settle) - max(0.0, float(long_strike) - settle)
+                    gross_pnl = (initial_credit - settle_value) * quantity_shares
                     # Slightly conservative: only the 2 entry orders were actually placed
                     # (nothing traded to close), so the 4-order round trip over-charges by
                     # roughly ₹40 flat. Conservative is the right direction here.
-                    fees = round_trip_fees(initial_credit, 0.0, quantity_shares, 1)
+                    fees = round_trip_fees(initial_credit, settle_value, quantity_shares, 1)
                     pnl = gross_pnl - fees
                     msg = (
                         f"Position for {symbol} expired on {expiry_date} while bot was offline. "
-                        f"Assuming options expired worthless (max profit). "
+                        f"Settled at Nifty close {settle:.2f} (spread value {settle_value:.2f}). "
                         f"Gross P&L: {gross_pnl:.2f}, Fees: {fees:.2f}, Net P&L: {pnl:.2f}"
                     )
                     logger.warning(msg)

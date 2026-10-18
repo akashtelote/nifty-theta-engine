@@ -58,6 +58,24 @@ def fetch_nifty_closes(lookback: int = 120) -> list[float]:
         return cached[-lookback:] if cached else []
 
 
+def nifty_close_on(day) -> float | None:
+    """Nifty 50 close on `day` — the final settlement price of Nifty index options. None if unavailable."""
+    try:
+        import yfinance as yf
+        from datetime import timedelta
+
+        df = yf.download("^NSEI", start=day.isoformat(), end=(day + timedelta(days=1)).isoformat(), progress=False)
+        if df is None or df.empty or df.index[-1].date() != day:
+            return None
+        close = df["Close"]
+        if hasattr(close, "columns"):
+            close = close.iloc[:, 0]
+        return float(close.iloc[-1])
+    except Exception as e:
+        logger.warning(f"Failed to fetch Nifty close for {day}: {e}")
+        return None
+
+
 def sma(values: list[float], window: int) -> float | None:
     if window <= 0 or len(values) < window:
         return None
